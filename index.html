@@ -46,67 +46,11 @@ body{
   padding:60px 40px;
   border-right:1px solid var(--line);
 }
-.badge{
-  width:min(340px,88%);
-  aspect-ratio:1;
-  border:9px solid var(--navy);
-  border-radius:50%;
-  padding:24px;
-  position:relative;
-  color:var(--navy);
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  text-align:center;
-  overflow:hidden;
-}
-.badge:before{
-  content:"";
-  position:absolute;
-  inset:7px;
-  border:2px solid var(--navy);
-  border-radius:50%;
-}
-.mark{
-  width:108px;
-  height:108px;
-  margin-bottom:8px;
-  position:relative;
-  z-index:1;
-  flex:0 0 auto;
-}
-.company{
-  width:78%;
-  font-family:Georgia,"Times New Roman",serif;
-  font-size:clamp(27px,3.2vw,40px);
-  line-height:.94;
-  font-weight:800;
-  letter-spacing:-.03em;
-  position:relative;
-  z-index:1;
-  white-space:nowrap;
-}
-.company small{
+.logo-svg{
+  width:min(420px,96%);
+  height:auto;
   display:block;
-  margin-top:12px;
-  font-family:Inter,system-ui,sans-serif;
-  font-size:9px;
-  line-height:1.25;
-  letter-spacing:.11em;
-  font-weight:900;
-  white-space:normal;
-}
-.values{
-  width:80%;
-  margin-top:14px;
-  font-size:8px;
-  line-height:1.35;
-  font-weight:900;
-  letter-spacing:.10em;
-  text-transform:uppercase;
-  position:relative;
-  z-index:1;
+  color:#111;
 }
 .hero-copy{
   padding:clamp(58px,7vw,94px) clamp(38px,7vw,88px);
@@ -238,11 +182,7 @@ footer{padding:30px 0 34px;color:#7a838a;font-size:11px;letter-spacing:.11em;tex
   .hero{padding:0}
   .hero-card{grid-template-columns:1fr;border-left:0;border-right:0}
   .brand{padding:34px 22px 30px;border-right:0;border-bottom:1px solid var(--line)}
-  .badge{width:min(248px,72vw);border-width:7px;padding:19px}
-  .mark{width:76px;height:76px;margin-bottom:6px}
-  .company{width:78%;font-size:27px}
-  .company small{font-size:7px;margin-top:9px}
-  .values{width:82%;font-size:6.6px;margin-top:10px}
+  .logo-svg{width:min(300px,82vw)}
   .hero-copy{padding:48px 28px 58px}
   h1{font-size:clamp(42px,12vw,64px)}
   .intro{font-size:16px}
@@ -260,21 +200,65 @@ footer{padding:30px 0 34px;color:#7a838a;font-size:11px;letter-spacing:.11em;tex
   <div class="wrap">
     <main class="hero-card">
       <section class="brand" aria-label="North Star BAS Marketplace Ltd.">
-        <div class="badge">
-          <svg class="mark" viewBox="0 0 180 180" aria-hidden="true">
-            <g fill="none" stroke="#10263b" stroke-width="5" stroke-linejoin="round">
-              <path fill="#10263b" d="M90 8 101 68 90 89 79 68Z"/>
-              <path fill="#10263b" d="M90 172 79 112 90 91 101 112Z"/>
-              <path fill="#10263b" d="M8 90 68 79 89 90 68 101Z"/>
-              <path fill="#10263b" d="M172 90 112 101 91 90 112 79Z"/>
-              <path d="M38 139 69 104 86 122 105 91 142 139Z"/>
-              <path d="M27 139h126"/>
-              <path d="M55 145c20-16 47-16 70 0"/>
-            </g>
-          </svg>
-          <div class="company">NORTH STAR<small>BAS MARKETPLACE LTD.</small></div>
-          <div class="values">Integrity · Stewardship · Excellence</div>
-        </div>
+        <svg class="logo-svg" viewBox="0 0 600 600" role="img" aria-labelledby="logoTitle logoDesc">
+          <title id="logoTitle">North Star BAS Marketplace Ltd.</title>
+          <desc id="logoDesc">Circular North Star logo with compass star, mountains, road, company name, and the words Integrity, Stewardship, Excellence.</desc>
+
+          <circle cx="300" cy="300" r="276" fill="none" stroke="currentColor" stroke-width="8"/>
+          <circle cx="300" cy="300" r="264" fill="none" stroke="currentColor" stroke-width="3"/>
+
+          <path d="M160 250 A178 178 0 0 1 440 250" fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="square"/>
+
+          <g transform="translate(300 135)" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="miter">
+            <path d="M0 -72 L13 -15 L0 0 L-13 -15 Z" fill="currentColor"/>
+            <path d="M0 72 L-12 17 L0 2 L12 17 Z" fill="currentColor"/>
+            <path d="M-72 0 L-15 -12 L0 0 L-15 12 Z" fill="currentColor"/>
+            <path d="M72 0 L15 12 L0 0 L15 -12 Z" fill="currentColor"/>
+            <path d="M-48 -48 L-12 -14 L-6 0 L-20 -7 Z"/>
+            <path d="M48 -48 L12 -14 L6 0 L20 -7 Z"/>
+            <path d="M-48 48 L-12 14 L-6 0 L-20 7 Z"/>
+            <path d="M48 48 L12 14 L6 0 L20 7 Z"/>
+          </g>
+
+          <g fill="currentColor" stroke="currentColor" stroke-width="4" stroke-linejoin="miter">
+            <path d="M102 326 L181 241 L220 279 L298 190 L368 264 L409 230 L500 326
+                     L414 292 L382 316 L350 274 L324 300 L286 255 L254 302 L224 270 L185 313 Z"/>
+          </g>
+          <g fill="#fff" stroke="none">
+            <path d="M132 310 L181 257 L205 280 L183 279 L197 295 L172 288 Z"/>
+            <path d="M246 294 L298 210 L344 260 L322 248 L329 281 L302 258 L280 286 L274 258 Z"/>
+            <path d="M376 280 L408 245 L468 310 L423 287 L437 310 L397 286 Z"/>
+          </g>
+
+          <path d="M206 350 C250 330 320 330 388 349
+                   C334 350 293 357 271 370
+                   C316 377 347 393 352 412
+                   C325 391 286 383 226 384
+                   C249 373 258 363 206 350 Z"
+                fill="currentColor"/>
+          <path d="M273 365 C313 349 351 350 391 359
+                   C357 360 329 365 309 376
+                   C338 382 361 394 369 407
+                   C350 393 326 387 291 385
+                   C303 377 305 371 273 365 Z"
+                fill="#fff"/>
+
+          <text x="300" y="444" text-anchor="middle"
+                font-family="Georgia, 'Times New Roman', serif"
+                font-size="62" letter-spacing="7" fill="currentColor">NORTH STAR</text>
+
+          <line x1="118" y1="477" x2="170" y2="477" stroke="currentColor" stroke-width="4"/>
+          <line x1="430" y1="477" x2="482" y2="477" stroke="currentColor" stroke-width="4"/>
+          <text x="300" y="489" text-anchor="middle"
+                font-family="Arial, Helvetica, sans-serif"
+                font-size="24" font-weight="700" letter-spacing="3" fill="currentColor">BAS MARKETPLACE LTD.</text>
+          <line x1="175" y1="510" x2="425" y2="510" stroke="currentColor" stroke-width="4"/>
+
+          <path id="taglineArc" d="M151 485 A180 180 0 0 0 449 485" fill="none"/>
+          <text font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="700" letter-spacing="3" fill="currentColor">
+            <textPath href="#taglineArc" startOffset="50%" text-anchor="middle">INTEGRITY • STEWARDSHIP • EXCELLENCE</textPath>
+          </text>
+        </svg>
       </section>
 
       <section class="hero-copy">
