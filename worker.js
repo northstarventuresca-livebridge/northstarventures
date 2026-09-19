@@ -1,9 +1,9 @@
 const enc=new TextEncoder();
-const SALT="CRHAI79+oGQqJLN6/z/Ftg==",HASH="ixjfzJqCp37oH+jNHZocniVofeVQIxLu4/MaQlfTo4Q=",ITER=850000,TTL=86400;
+const SALT="CRHAI79+oGQqJLN6/z/Ftg==",HASH="GgCQMo2gKOTQUzaMpWb7KE9bO0uGmRR57GgYhN7M57A=",TTL=86400;
 function j(d,s=200,h={}){return new Response(JSON.stringify(d),{status:s,headers:{"content-type":"application/json; charset=utf-8",...h}})}
 function b64(v){const r=atob(v);return Uint8Array.from(r,c=>c.charCodeAt(0))}
 function eq(a,b){if(a.length!==b.length)return false;let d=0;for(let i=0;i<a.length;i++)d|=a[i]^b[i];return d===0}
-async function okpass(p){const k=await crypto.subtle.importKey("raw",enc.encode(p),"PBKDF2",false,["deriveBits"]);const x=await crypto.subtle.deriveBits({name:"PBKDF2",hash:"SHA-256",salt:b64(SALT),iterations:ITER},k,256);return eq(new Uint8Array(x),b64(HASH))}
+async function okpass(p){const x=await crypto.subtle.digest("SHA-256",enc.encode(SALT+":"+p));return eq(new Uint8Array(x),b64(HASH))}
 function tok(){const a=new Uint8Array(32);crypto.getRandomValues(a);let s="";for(const b of a)s+=String.fromCharCode(b);return btoa(s).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"")}
 function cookie(r,n){for(const p of (r.headers.get("cookie")||"").split(";")){const a=p.trim().split("=");if(a.shift()===n)return a.join("=")}return null}
 async function auth(r,e){const t=cookie(r,"ns_admin_session");return t&&await e.INBOX.get("session:"+t)?t:null}
