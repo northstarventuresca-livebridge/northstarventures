@@ -11,7 +11,118 @@ async function auth(r,e){const h=r.headers.get("authorization")||"";const bt=h.s
 function c(v,m=5000){return String(v??"").trim().slice(0,m)}
 function email(v){return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)}
 function page(){return new Response(new TextDecoder().decode(b64("PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KPG1ldGEgbmFtZT0idmlld3BvcnQiIGNvbnRlbnQ9IndpZHRoPWRldmljZS13aWR0aCxpbml0aWFsLXNjYWxlPTEiPgo8dGl0bGU+Tm9ydGggU3RhciBWZW50dXJlcyBBZG1pbjwvdGl0bGU+CjxzdHlsZT4KOnJvb3R7LS1uOiMxMDI2M2I7LS1nOiNiNzlhNjA7LS1wOiNmNWYyZTk7LS1tOiM2NDcxN2M7LS1sOnJnYmEoMTYsMzgsNTksLjE0KTstLXI6IzllM2QzZH0KKntib3gtc2l6aW5nOmJvcmRlci1ib3h9Ym9keXttYXJnaW46MDtiYWNrZ3JvdW5kOnZhcigtLXApO2NvbG9yOiMxNDIwMmE7Zm9udC1mYW1pbHk6SW50ZXIsc3lzdGVtLXVpLHNhbnMtc2VyaWZ9Ci53e3dpZHRoOm1pbigxMDAwcHgsY2FsYygxMDAlIC0gMjhweCkpO21hcmdpbjphdXRvO3BhZGRpbmc6MzZweCAwfS5ib3gsLm1zZywuc3RhdHtiYWNrZ3JvdW5kOiNmZmY7Ym9yZGVyOjFweCBzb2xpZCB2YXIoLS1sKTtib3JkZXItcmFkaXVzOjEycHh9Ci5ib3h7cGFkZGluZzoyNHB4fS5sb2dpbnttYXgtd2lkdGg6NDIwcHg7bWFyZ2luOjEydmggYXV0b30uYnJhbmR7Zm9udDoyOHB4IEdlb3JnaWEsc2VyaWY7Y29sb3I6dmFyKC0tbil9Lm11dGVke2NvbG9yOnZhcigtLW0pO2ZvbnQtc2l6ZToxM3B4fQppbnB1dHt3aWR0aDoxMDAlO2JveC1zaXppbmc6Ym9yZGVyLWJveDtwYWRkaW5nOjEycHg7Ym9yZGVyOjFweCBzb2xpZCAjY2NjO2JvcmRlci1yYWRpdXM6OHB4O21hcmdpbjoxMnB4IDA7Zm9udDppbmhlcml0fQpidXR0b257Ym9yZGVyOjA7Ym9yZGVyLXJhZGl1czo4cHg7cGFkZGluZzoxMHB4IDE0cHg7Zm9udC13ZWlnaHQ6ODAwO2N1cnNvcjpwb2ludGVyfS5wcml7YmFja2dyb3VuZDp2YXIoLS1uKTtjb2xvcjp3aGl0ZX0uc2Vje2JhY2tncm91bmQ6I2VkZjBmMjtjb2xvcjp2YXIoLS1uKX0uZGVse2JhY2tncm91bmQ6I2Y3ZWFlYTtjb2xvcjp2YXIoLS1yKX0KLnRvcCwucm93e2Rpc3BsYXk6ZmxleDtqdXN0aWZ5LWNvbnRlbnQ6c3BhY2UtYmV0d2VlbjthbGlnbi1pdGVtczpjZW50ZXI7Z2FwOjEwcHg7ZmxleC13cmFwOndyYXB9LnN0YXRze2Rpc3BsYXk6Z3JpZDtncmlkLXRlbXBsYXRlLWNvbHVtbnM6cmVwZWF0KDMsMWZyKTtnYXA6MTJweDttYXJnaW46MjBweCAwfQouc3RhdHtwYWRkaW5nOjE2cHh9LnN0YXQgYntkaXNwbGF5OmJsb2NrO2ZvbnQtc2l6ZToyNnB4O2NvbG9yOnZhcigtLW4pfS5tc2d7bWFyZ2luOjEycHggMDtib3JkZXItbGVmdDo0cHggc29saWQgdHJhbnNwYXJlbnQ7b3ZlcmZsb3c6aGlkZGVufS5tc2cudW5yZWFke2JvcmRlci1sZWZ0LWNvbG9yOnZhcigtLWcpfQouaGVhZHtwYWRkaW5nOjE2cHg7Y3Vyc29yOnBvaW50ZXJ9Lm5hbWV7Zm9udC13ZWlnaHQ6OTAwO2NvbG9yOnZhcigtLW4pfS5tZXRhe2ZvbnQtc2l6ZToxMnB4O2NvbG9yOnZhcigtLW0pO21hcmdpbi10b3A6NHB4fS5wcmV2aWV3e21hcmdpbi10b3A6OHB4fQouYm9keXtkaXNwbGF5Om5vbmU7cGFkZGluZzowIDE2cHggMTZweDtib3JkZXItdG9wOjFweCBzb2xpZCB2YXIoLS1sKX0ubXNnLm9wZW4gLmJvZHl7ZGlzcGxheTpibG9ja30uYm9keSBwe3doaXRlLXNwYWNlOnByZS13cmFwO2xpbmUtaGVpZ2h0OjEuNn0KLmdyaWR7ZGlzcGxheTpncmlkO2dyaWQtdGVtcGxhdGUtY29sdW1uczoxZnIgMWZyO2dhcDo4cHg7bWFyZ2luOjE0cHggMH0uZHtiYWNrZ3JvdW5kOiNmN2Y4Zjg7cGFkZGluZzo5cHg7Ym9yZGVyLXJhZGl1czo3cHg7Zm9udC1zaXplOjEzcHh9LmQgYntkaXNwbGF5OmJsb2NrO2NvbG9yOnZhcigtLW4pfQojZXJyb3J7Y29sb3I6dmFyKC0tcik7Zm9udC1zaXplOjEzcHg7bWFyZ2luLXRvcDoxMHB4fS5lbXB0eXtwYWRkaW5nOjM1cHg7dGV4dC1hbGlnbjpjZW50ZXI7Y29sb3I6dmFyKC0tbSl9CkBtZWRpYShtYXgtd2lkdGg6NjUwcHgpey5zdGF0cywuZ3JpZHtncmlkLXRlbXBsYXRlLWNvbHVtbnM6MWZyfS50b3B7YWxpZ24taXRlbXM6c3RyZXRjaDtmbGV4LWRpcmVjdGlvbjpjb2x1bW59fQo8L3N0eWxlPgo8L2hlYWQ+Cjxib2R5Pgo8ZGl2IGNsYXNzPSJ3Ij4KPHNlY3Rpb24gaWQ9ImxvZ2luIiBjbGFzcz0ibG9naW4gYm94Ij4KICA8ZGl2IGNsYXNzPSJicmFuZCI+Tm9ydGggU3RhciBWZW50dXJlczwvZGl2PgogIDxwIGNsYXNzPSJtdXRlZCI+QWRtaW4gaW5ib3g8L3A+CiAgPGZvcm0gaWQ9ImxvZ2luRm9ybSI+CiAgICA8aW5wdXQgaWQ9InBhc3N3b3JkIiB0eXBlPSJwYXNzd29yZCIgcGxhY2Vob2xkZXI9IlBhc3N3b3JkIiByZXF1aXJlZCBhdXRvY29tcGxldGU9ImN1cnJlbnQtcGFzc3dvcmQiPgogICAgPGJ1dHRvbiBjbGFzcz0icHJpIiB0eXBlPSJzdWJtaXQiPlNpZ24gaW48L2J1dHRvbj4KICAgIDxkaXYgaWQ9ImVycm9yIj48L2Rpdj4KICA8L2Zvcm0+Cjwvc2VjdGlvbj4KCjxzZWN0aW9uIGlkPSJkYXNoIiBoaWRkZW4+CiAgPGRpdiBjbGFzcz0idG9wIj4KICAgIDxkaXY+PGRpdiBjbGFzcz0iYnJhbmQiPk5vcnRoIFN0YXIgVmVudHVyZXMgQWRtaW48L2Rpdj48ZGl2IGNsYXNzPSJtdXRlZCI+V2Vic2l0ZSBpbnF1aXJpZXM8L2Rpdj48L2Rpdj4KICAgIDxkaXYgY2xhc3M9InJvdyI+PGEgaHJlZj0iLyI+PGJ1dHRvbiBjbGFzcz0ic2VjIiB0eXBlPSJidXR0b24iPlZpZXcgc2l0ZTwvYnV0dG9uPjwvYT48YnV0dG9uIGlkPSJsb2dvdXQiIGNsYXNzPSJzZWMiIHR5cGU9ImJ1dHRvbiI+TG9nIG91dDwvYnV0dG9uPjwvZGl2PgogIDwvZGl2PgogIDxkaXYgY2xhc3M9InN0YXRzIj4KICAgIDxkaXYgY2xhc3M9InN0YXQiPjxiIGlkPSJ1bnJlYWQiPjA8L2I+VW5yZWFkPC9kaXY+CiAgICA8ZGl2IGNsYXNzPSJzdGF0Ij48YiBpZD0idG90YWwiPjA8L2I+VG90YWw8L2Rpdj4KICAgIDxkaXYgY2xhc3M9InN0YXQiPjxiIGlkPSJ3ZWVrIj4wPC9iPkxhc3QgNyBkYXlzPC9kaXY+CiAgPC9kaXY+CiAgPGRpdiBjbGFzcz0icm93Ij48aW5wdXQgaWQ9InNlYXJjaCIgc3R5bGU9Im1heC13aWR0aDozNjBweCIgcGxhY2Vob2xkZXI9IlNlYXJjaCBtZXNzYWdlcy4uLiI+PGJ1dHRvbiBpZD0icmVmcmVzaCIgY2xhc3M9InNlYyIgdHlwZT0iYnV0dG9uIj5SZWZyZXNoPC9idXR0b24+PC9kaXY+CiAgPGRpdiBpZD0ibGlzdCI+PC9kaXY+Cjwvc2VjdGlvbj4KPC9kaXY+Cgo8c2NyaXB0PgpsZXQgbWVzc2FnZXM9W107CmNvbnN0ICQ9aWQ9PmRvY3VtZW50LmdldEVsZW1lbnRCeUlkKGlkKTsKY29uc3QgZXNjPXY9PlN0cmluZyh2Pz8nJykucmVwbGFjZSgvWyY8PiInXS9nLGNoPT4oeycmJzonJmFtcDsnLCc8JzonJmx0OycsJz4nOicmZ3Q7JywnIic6JyZxdW90OycsIiciOicmIzAzOTsnfVtjaF0pKTsKCmFzeW5jIGZ1bmN0aW9uIGFwaShwYXRoLCBvcHRpb25zPXt9KXsKICBjb25zdCB0b2tlbj1sb2NhbFN0b3JhZ2UuZ2V0SXRlbSgnbnNfYWRtaW5fdG9rZW4nKTsKICBvcHRpb25zLmhlYWRlcnM9ey4uLihvcHRpb25zLmhlYWRlcnN8fHt9KSwuLi4odG9rZW4/e0F1dGhvcml6YXRpb246J0JlYXJlciAnK3Rva2VufTp7fSl9OwogIGNvbnN0IHJlcz1hd2FpdCBmZXRjaChwYXRoLG9wdGlvbnMpOwogIGNvbnN0IGRhdGE9YXdhaXQgcmVzLmpzb24oKS5jYXRjaCgoKT0+KHt9KSk7CiAgaWYocmVzLnN0YXR1cz09PTQwMSkgdGhyb3cgbmV3IEVycm9yKCdBVVRIJyk7CiAgaWYoIXJlcy5vaykgdGhyb3cgbmV3IEVycm9yKGRhdGEuZXJyb3J8fCdSZXF1ZXN0IGZhaWxlZCcpOwogIHJldHVybiBkYXRhOwp9CgpmdW5jdGlvbiByZW5kZXIoKXsKICBjb25zdCBub3c9RGF0ZS5ub3coKTsKICAkKCd0b3RhbCcpLnRleHRDb250ZW50PW1lc3NhZ2VzLmxlbmd0aDsKICAkKCd1bnJlYWQnKS50ZXh0Q29udGVudD1tZXNzYWdlcy5maWx0ZXIobT0+IW0ucmVhZCkubGVuZ3RoOwogICQoJ3dlZWsnKS50ZXh0Q29udGVudD1tZXNzYWdlcy5maWx0ZXIobT0+bm93LW5ldyBEYXRlKG0uY3JlYXRlZEF0KS5nZXRUaW1lKCk8NjA0ODAwMDAwKS5sZW5ndGg7CiAgY29uc3QgcT0kKCdzZWFyY2gnKS52YWx1ZS50b0xvd2VyQ2FzZSgpLnRyaW0oKTsKICBjb25zdCBzaG93bj1tZXNzYWdlcy5maWx0ZXIobT0+IXF8fFttLm5hbWUsbS5lbWFpbCxtLnBob25lLG0uY29tcGFueSxtLnR5cGUsbS5tZXNzYWdlXS5qb2luKCcgJykudG9Mb3dlckNhc2UoKS5pbmNsdWRlcyhxKSk7CiAgJCgnbGlzdCcpLmlubmVySFRNTD1zaG93bi5sZW5ndGg/c2hvd24ubWFwKG09PmAKICAgIDxhcnRpY2xlIGNsYXNzPSJtc2cgJHttLnJlYWQ/Jyc6J3VucmVhZCd9Ij4KICAgICAgPGRpdiBjbGFzcz0iaGVhZCIgb25jbGljaz0idGhpcy5wYXJlbnRFbGVtZW50LmNsYXNzTGlzdC50b2dnbGUoJ29wZW4nKSI+CiAgICAgICAgPGRpdiBjbGFzcz0ibmFtZSI+JHtlc2MobS5uYW1lKX08L2Rpdj4KICAgICAgICA8ZGl2IGNsYXNzPSJtZXRhIj4ke2VzYyhtLmVtYWlsKX0gwrcgJHtuZXcgRGF0ZShtLmNyZWF0ZWRBdCkudG9Mb2NhbGVTdHJpbmcoKX0gwrcgJHtlc2MobS50eXBlfHwnR2VuZXJhbCcpfTwvZGl2PgogICAgICAgIDxkaXYgY2xhc3M9InByZXZpZXciPiR7ZXNjKChtLm1lc3NhZ2V8fCcnKS5zbGljZSgwLDE2MCkpfTwvZGl2PgogICAgICA8L2Rpdj4KICAgICAgPGRpdiBjbGFzcz0iYm9keSI+CiAgICAgICAgPGRpdiBjbGFzcz0iZ3JpZCI+CiAgICAgICAgICA8ZGl2IGNsYXNzPSJkIj48Yj5FbWFpbDwvYj4ke2VzYyhtLmVtYWlsKX08L2Rpdj4KICAgICAgICAgIDxkaXYgY2xhc3M9ImQiPjxiPlBob25lPC9iPiR7ZXNjKG0ucGhvbmV8fCfigJQnKX08L2Rpdj4KICAgICAgICAgIDxkaXYgY2xhc3M9ImQiPjxiPkNvbXBhbnk8L2I+JHtlc2MobS5jb21wYW55fHwn4oCUJyl9PC9kaXY+CiAgICAgICAgICA8ZGl2IGNsYXNzPSJkIj48Yj5UeXBlPC9iPiR7ZXNjKG0udHlwZXx8J0dlbmVyYWwnKX08L2Rpdj4KICAgICAgICA8L2Rpdj4KICAgICAgICA8cD4ke2VzYyhtLm1lc3NhZ2UpfTwvcD4KICAgICAgICA8ZGl2IGNsYXNzPSJyb3ciPgogICAgICAgICAgPGJ1dHRvbiBjbGFzcz0ic2VjIiBvbmNsaWNrPSJtYXJrTXNnKGV2ZW50LCcke2VzYyhtLmlkKX0nLCR7IW0ucmVhZH0pIj4ke20ucmVhZD8nTWFyayB1bnJlYWQnOidNYXJrIHJlYWQnfTwvYnV0dG9uPgogICAgICAgICAgPGJ1dHRvbiBjbGFzcz0iZGVsIiBvbmNsaWNrPSJkZWxldGVNc2coZXZlbnQsJyR7ZXNjKG0uaWQpfScpIj5EZWxldGU8L2J1dHRvbj4KICAgICAgICA8L2Rpdj4KICAgICAgPC9kaXY+CiAgICA8L2FydGljbGU+YCkuam9pbignJyk6JzxkaXYgY2xhc3M9ImJveCBlbXB0eSI+Tm8gbWVzc2FnZXMgZm91bmQuPC9kaXY+JzsKfQoKYXN5bmMgZnVuY3Rpb24gbG9hZCgpewogIGNvbnN0IHRva2VuPWxvY2FsU3RvcmFnZS5nZXRJdGVtKCduc19hZG1pbl90b2tlbicpOwogIGlmKCF0b2tlbil7JCgnbG9naW4nKS5oaWRkZW49ZmFsc2U7JCgnZGFzaCcpLmhpZGRlbj10cnVlO3JldHVybjt9CiAgdHJ5ewogICAgY29uc3QgZGF0YT1hd2FpdCBhcGkoJy9hcGkvYWRtaW4vbWVzc2FnZXMnKTsKICAgIG1lc3NhZ2VzPWRhdGEubWVzc2FnZXN8fFtdOwogICAgJCgnbG9naW4nKS5oaWRkZW49dHJ1ZTskKCdkYXNoJykuaGlkZGVuPWZhbHNlOwogICAgcmVuZGVyKCk7CiAgfWNhdGNoKGUpewogICAgaWYoZS5tZXNzYWdlPT09J0FVVEgnKXsKICAgICAgbG9jYWxTdG9yYWdlLnJlbW92ZUl0ZW0oJ25zX2FkbWluX3Rva2VuJyk7CiAgICAgICQoJ2xvZ2luJykuaGlkZGVuPWZhbHNlOyQoJ2Rhc2gnKS5oaWRkZW49dHJ1ZTsKICAgIH1lbHNlewogICAgICAkKCdlcnJvcicpLnRleHRDb250ZW50PWUubWVzc2FnZTsKICAgIH0KICB9Cn0KCiQoJ2xvZ2luRm9ybScpLmFkZEV2ZW50TGlzdGVuZXIoJ3N1Ym1pdCcsYXN5bmMgZT0+ewogIGUucHJldmVudERlZmF1bHQoKTsKICAkKCdlcnJvcicpLnRleHRDb250ZW50PSdTaWduaW5nIGluLi4uJzsKICB0cnl7CiAgICBjb25zdCByZXM9YXdhaXQgZmV0Y2goJy9hcGkvYWRtaW4vbG9naW4nLHttZXRob2Q6J1BPU1QnLGhlYWRlcnM6eydjb250ZW50LXR5cGUnOidhcHBsaWNhdGlvbi9qc29uJ30sYm9keTpKU09OLnN0cmluZ2lmeSh7cGFzc3dvcmQ6JCgncGFzc3dvcmQnKS52YWx1ZX0pfSk7CiAgICBjb25zdCBkYXRhPWF3YWl0IHJlcy5qc29uKCkuY2F0Y2goKCk9Pih7fSkpOwogICAgaWYoIXJlcy5vaykgdGhyb3cgbmV3IEVycm9yKGRhdGEuZXJyb3J8fCdMb2dpbiBmYWlsZWQnKTsKICAgIGlmKCFkYXRhLnRva2VuKSB0aHJvdyBuZXcgRXJyb3IoJ0xvZ2luIHRva2VuIHdhcyBub3QgcmV0dXJuZWQuJyk7CiAgICBsb2NhbFN0b3JhZ2Uuc2V0SXRlbSgnbnNfYWRtaW5fdG9rZW4nLGRhdGEudG9rZW4pOwogICAgJCgncGFzc3dvcmQnKS52YWx1ZT0nJzsKICAgICQoJ2Vycm9yJykudGV4dENvbnRlbnQ9Jyc7CiAgICBhd2FpdCBsb2FkKCk7CiAgfWNhdGNoKGVycil7CiAgICAkKCdlcnJvcicpLnRleHRDb250ZW50PWVyci5tZXNzYWdlOwogIH0KfSk7Cgp3aW5kb3cubWFya01zZz1hc3luYyhlLGlkLHJlYWQpPT57CiAgZS5zdG9wUHJvcGFnYXRpb24oKTsKICBhd2FpdCBhcGkoJy9hcGkvYWRtaW4vbWVzc2FnZXMvJytlbmNvZGVVUklDb21wb25lbnQoaWQpKycvcmVhZCcse21ldGhvZDonUE9TVCcsaGVhZGVyczp7J2NvbnRlbnQtdHlwZSc6J2FwcGxpY2F0aW9uL2pzb24nfSxib2R5OkpTT04uc3RyaW5naWZ5KHtyZWFkfSl9KTsKICBjb25zdCBtPW1lc3NhZ2VzLmZpbmQoeD0+eC5pZD09PWlkKTtpZihtKW0ucmVhZD1yZWFkO3JlbmRlcigpOwp9Owp3aW5kb3cuZGVsZXRlTXNnPWFzeW5jKGUsaWQpPT57CiAgZS5zdG9wUHJvcGFnYXRpb24oKTsKICBpZighY29uZmlybSgnRGVsZXRlIHRoaXMgbWVzc2FnZT8nKSlyZXR1cm47CiAgYXdhaXQgYXBpKCcvYXBpL2FkbWluL21lc3NhZ2VzLycrZW5jb2RlVVJJQ29tcG9uZW50KGlkKSx7bWV0aG9kOidERUxFVEUnfSk7CiAgbWVzc2FnZXM9bWVzc2FnZXMuZmlsdGVyKHg9PnguaWQhPT1pZCk7cmVuZGVyKCk7Cn07CiQoJ2xvZ291dCcpLm9uY2xpY2s9YXN5bmMoKT0+ewogIHRyeXthd2FpdCBhcGkoJy9hcGkvYWRtaW4vbG9nb3V0Jyx7bWV0aG9kOidQT1NUJ30pO31jYXRjaHt9CiAgbG9jYWxTdG9yYWdlLnJlbW92ZUl0ZW0oJ25zX2FkbWluX3Rva2VuJyk7bWVzc2FnZXM9W107JCgnZGFzaCcpLmhpZGRlbj10cnVlOyQoJ2xvZ2luJykuaGlkZGVuPWZhbHNlOwp9OwokKCdyZWZyZXNoJykub25jbGljaz1sb2FkOwokKCdzZWFyY2gnKS5vbmlucHV0PXJlbmRlcjsKbG9hZCgpOwo8L3NjcmlwdD4KPC9ib2R5PjwvaHRtbD4=")),{headers:{"content-type":"text/html; charset=utf-8","cache-control":"no-store"}})}
+
+/* Website registry is separate from the public site and the existing contact inbox.
+   Access requires the original admin login, plus an additional PIN.
+   Never store private client information in the public HTML or repository. */
+const REGISTRY_SALT="314b0b5d2153052486cb639f346a7b7e";
+const REGISTRY_HASH="fa819b43ee7f12e4956bb9bba63afa15aa4a2a5d088c9198cc70785fd7f7dcbe";
+const REGISTRY_TTL=21600;
+const regFields=["company","industry","status","created_at","website_url","preview_url","github_repo","cloudflare_project","github_account","cloudflare_account","contact_name","contact_email","contact_phone","last_contacted","next_followup","quoted_price","notes"];
+const fromHex=h=>Uint8Array.from(h.match(/../g),s=>parseInt(s,16));
+const regJson=(v,status=200,headers={})=>j(v,status,{"cache-control":"private,no-store","x-content-type-options":"nosniff",...headers});
+async function verifyRegPin(pin){
+ if(!/^\d{4}$/.test(pin))return false;
+ const key=await crypto.subtle.importKey("raw",enc.encode(pin),"PBKDF2",false,["deriveBits"]);
+ const computed=new Uint8Array(await crypto.subtle.deriveBits({name:"PBKDF2",salt:fromHex(REGISTRY_SALT),iterations:100000,hash:"SHA-256"},key,256));
+ return eq(computed,fromHex(REGISTRY_HASH));
+}
+async function sessionReg(r,e){
+ if(!e.REGISTRY||!await auth(r,e))return false;
+ const token=cookie(r,"ns_sites_session");
+ if(!token||!/^[a-zA-Z0-9_-]{30,100}$/.test(token))return false;
+ const digest=new Uint8Array(await crypto.subtle.digest("SHA-256",enc.encode(token)));
+ const key="session:"+Array.from(digest,x=>x.toString(16).padStart(2,"0")).join("");
+ return !!(await e.REGISTRY.get(key));
+}
+async function loginReg(r,e){
+ if(!e.REGISTRY)return regJson({error:"Registry storage is unavailable."},503);
+ if(!await auth(r,e))return regJson({error:"Sign in to North Star Admin first."},401);
+ const ip=r.headers.get("cf-connecting-ip")||"unknown";
+ const hour=Math.floor(Date.now()/3600000);
+ const digest=new Uint8Array(await crypto.subtle.digest("SHA-256",enc.encode(ip)));
+ const ipKey="fail:ip:"+Array.from(digest,x=>x.toString(16).padStart(2,"0")).join("")+":"+hour;
+ const allKey="fail:global:"+hour;
+ const [ipFailures,globalFailures]=await Promise.all([e.REGISTRY.get(ipKey),e.REGISTRY.get(allKey)]);
+ if(Number(ipFailures||0)>=5||Number(globalFailures||0)>=12)return regJson({error:"Too many attempts. Try again later."},429);
+ let data;try{data=await r.json()}catch{return regJson({error:"Invalid input."},400)}
+ if(!await verifyRegPin(String(data.pin||""))){
+   await Promise.all([e.REGISTRY.put(ipKey,String(Number(ipFailures||0)+1),{expirationTtl:3900}),e.REGISTRY.put(allKey,String(Number(globalFailures||0)+1),{expirationTtl:3900})]);
+   return regJson({error:"Incorrect PIN."},401);
+ }
+ const token=tok(),d=new Uint8Array(await crypto.subtle.digest("SHA-256",enc.encode(token)));
+ const key="session:"+Array.from(d,x=>x.toString(16).padStart(2,"0")).join("");
+ await e.REGISTRY.put(key,"1",{expirationTtl:REGISTRY_TTL});
+ return regJson({ok:true},200,{"set-cookie":"ns_sites_session="+token+"; Path=/api/registry; HttpOnly; Secure; SameSite=Strict; Max-Age="+REGISTRY_TTL});
+}
+async function regList(e){
+ let cursor=undefined,items=[],iterations=0;
+ do{
+   const x=await e.REGISTRY.list({prefix:"site:",limit:1000,...(cursor?{cursor}:{})});
+   const entries=await Promise.all(x.keys.map(async k=>{const v=await e.REGISTRY.get(k.name,"json");return v&&typeof v==="object"?v:null}));
+   items.push(...entries.filter(Boolean));cursor=x.list_complete?undefined:x.cursor;
+   if(++iterations>50)throw Error("Too many website records for this registry.");
+ }while(cursor);
+ return items;
+}
+function regClean(v,key){
+ const max=key==="notes"?8000:key==="company"?140:500;
+ const value=String(v??"").trim().slice(0,max).replace(/[<>]/g,"");
+ if(["website_url","preview_url"].includes(key)&&value){
+   try{const u=new URL(value);if(!["http:","https:"].includes(u.protocol))throw Error("url");return u.toString()}catch{throw Object.assign(Error("Please enter a valid website URL."),{status:400})}
+ }
+ if(["created_at","last_contacted","next_followup"].includes(key)&&value&&!/^\d{4}-\d{2}-\d{2}$/.test(value))throw Object.assign(Error("Invalid date."),{status:400});
+ if(key==="contact_email"&&value&&!email(value))throw Object.assign(Error("Invalid contact email."),{status:400});
+ return value;
+}
+async function regInput(r){
+ const raw=await r.text();if(raw.length>18000)throw Object.assign(Error("Record too large."),{status:413});
+ let b;try{b=JSON.parse(raw||"{}")}catch{throw Object.assign(Error("Invalid JSON."),{status:400})}
+ const out={};for(const key of regFields)out[key]=regClean(b[key],key);
+ if(!out.company)throw Object.assign(Error("Company name is required."),{status:400});
+ if(!["planning","preview","pitched","approved","live","declined"].includes(out.status))out.status="planning";
+ if(!out.created_at)out.created_at=new Date().toISOString().slice(0,10);
+ return out;
+}
+async function registryApi(r,e,u){
+ if(!e.REGISTRY)return regJson({error:"Registry storage unavailable."},503);
+ const p=u.pathname,m=r.method;
+ if(m!=="GET"&&r.headers.get("origin")&&r.headers.get("origin")!==u.origin)return regJson({error:"Invalid origin."},403);
+ if(p==="/api/registry/session"&&m==="GET"){const owner=!!await auth(r,e);return regJson({authorized:owner&&await sessionReg(r,e),requires_admin:!owner})}
+ if(p==="/api/registry/login"&&m==="POST")return loginReg(r,e);
+ if(p==="/api/registry/logout"&&m==="POST"){
+   const t=cookie(r,"ns_sites_session");
+   if(t){const d=new Uint8Array(await crypto.subtle.digest("SHA-256",enc.encode(t)));await e.REGISTRY.delete("session:"+Array.from(d,x=>x.toString(16).padStart(2,"0")).join(""))}
+   return regJson({ok:true},200,{"set-cookie":"ns_sites_session=; Path=/api/registry; HttpOnly; Secure; SameSite=Strict; Max-Age=0"});
+ }
+ if(!await sessionReg(r,e))return regJson({error:"Administrator authentication required."},401);
+ if(p==="/api/registry/sites"&&m==="GET")return regJson({sites:await regList(e)});
+ if(p==="/api/registry/sites"&&m==="POST"){
+   const value=await regInput(r),id=crypto.randomUUID(),record={...value,id,updated_at:new Date().toISOString()};
+   await e.REGISTRY.put("site:"+id,JSON.stringify(record));return regJson({ok:true,site:record},201);
+ }
+ const match=p.match(/^\/api\/registry\/sites\/([a-zA-Z0-9_-]{1,100})$/);
+ if(match){
+   const key="site:"+match[1],existing=await e.REGISTRY.get(key,"json");
+   if(!existing)return regJson({error:"Website not found."},404);
+   if(m==="PUT"){const update=await regInput(r),record={...existing,...update,id:existing.id,updated_at:new Date().toISOString()};await e.REGISTRY.put(key,JSON.stringify(record));return regJson({ok:true,site:record})}
+   if(m==="DELETE"){await e.REGISTRY.delete(key);return regJson({ok:true})}
+ }
+ return regJson({error:"Not found."},404);
+}
+
 export default{async fetch(r,e){const u=new URL(r.url);
+if(u.pathname==="/admin/websites"||u.pathname==="/admin/websites/"){
+ if(r.method!=="GET"&&r.method!=="HEAD")return new Response("Method not allowed",{status:405});
+ const assetUrl=new URL("/admin/websites.html",u);
+ const response=await e.ASSETS.fetch(new Request(assetUrl.toString(),{method:r.method,headers:r.headers}));
+ const headers=new Headers(response.headers);headers.set("cache-control","private,no-store");headers.set("x-robots-tag","noindex,nofollow");headers.set("x-frame-options","DENY");
+ return new Response(response.body,{status:response.status,headers});
+}
+if(u.pathname.startsWith("/api/registry/")){
+ try{return await registryApi(r,e,u)}catch(x){return regJson({error:x.message||"Request failed."},x.status||500)}
+}
+
 if((u.pathname==="/"||u.pathname==="/index.html")&&(r.method==="GET"||r.method==="HEAD"))return new Response(r.method==="HEAD"?null:NS_HOME_HTML,{headers:{"content-type":"text/html; charset=utf-8","cache-control":"public,max-age=180"}});
 if(u.pathname==="/admin"||u.pathname==="/admin/")return page();
 if(u.pathname==="/api/contact"&&r.method==="POST"){let b;try{b=await r.json()}catch{return j({error:"Invalid request."},400)}if(c(b.website,200))return j({ok:true});const name=c(b.name,120),em=c(b.email,180).toLowerCase(),phone=c(b.phone,80),company=c(b.company,160),type=c(b.type,120)||"General inquiry",message=c(b.message,6000);if(!name||!em||!message)return j({error:"Name, email, and message are required."},400);if(!email(em))return j({error:"Please enter a valid email address."},400);const ip=r.headers.get("cf-connecting-ip")||"unknown",h=Math.floor(Date.now()/3600000),rk="rate:"+ip+":"+h,n=Number(await e.INBOX.get(rk)||"0");if(n>=6)return j({error:"Too many submissions. Please try again later."},429);await e.INBOX.put(rk,String(n+1),{expirationTtl:3700});const id=String(Date.now()).padStart(13,"0")+"-"+crypto.randomUUID(),rec={id,createdAt:new Date().toISOString(),name,email:em,phone,company,type,message,read:false};await e.INBOX.put("msg:"+id,JSON.stringify(rec));return j({ok:true})}
