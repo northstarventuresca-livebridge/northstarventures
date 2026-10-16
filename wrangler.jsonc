@@ -11,6 +11,10 @@
   "kv_namespaces": [
     {
       "binding": "INBOX"
+    },
+    {
+      "binding": "REGISTRY",
+      "id": "fc06a487aa0547fd93f14e4ac30de556"
     }
   ]
 }
