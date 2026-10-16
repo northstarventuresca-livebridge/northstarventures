@@ -105,8 +105,8 @@ async function registryApi(r,e,u){
  if(match){
    const key="site:"+match[1],existing=await e.REGISTRY.get(key,"json");
    if(!existing)return regJson({error:"Website not found."},404);
-   if(m==="PUT"){const update=await regInput(r),record={...existing,...update,id:existing.id,updated_at:new Date().toISOString()};await e.REGISTRY.put(key,JSON.stringify(record));return regJson({ok:true,site:record})}
-   if(m==="DELETE"){await e.REGISTRY.delete(key);return regJson({ok:true})}
+   if(m==="PUT"){const update=await regInput(r),record={...existing,...update,id:existing.id,updated_at:new Date().toISOString()};await e.REGISTRY.put("history:"+match[1]+":"+Date.now()+":"+crypto.randomUUID(),JSON.stringify({operation:"updated",record:existing}));await e.REGISTRY.put(key,JSON.stringify(record));return regJson({ok:true,site:record})}
+   if(m==="DELETE"){await e.REGISTRY.put("history:"+match[1]+":"+Date.now()+":"+crypto.randomUUID(),JSON.stringify({operation:"deleted",record:existing}));await e.REGISTRY.delete(key);return regJson({ok:true})}
  }
  return regJson({error:"Not found."},404);
 }
