@@ -293,7 +293,7 @@ function bbContactGuard(html,facts){
   const preview=function(){
    const title=trim(facts.business_name,100).replace(/&/g,"&amp;").replace(/"/g,"&quot;");
    const call=validPhone?'<a href="tel:'+phone.replace(/[^\d+()\s-]/g,"")+'" style="display:inline-flex;align-items:center;gap:8px;padding:12px 18px;border:1px solid currentColor;border-radius:6px;text-decoration:underline">Call for an enquiry</a>':"";
-   return '<div id="preview-contact" class="preview-contact-panel" role="note" style="margin:1.3rem auto;padding:clamp(20px,4vw,40px);max-width:760px;border-radius:12px;background:rgba(128,128,128,.10);border:1px solid rgba(128,128,128,.28);box-shadow:0 14px 42px rgba(0,0,0,.06);color:inherit;text-align:left"><span style="font-size:.72em;letter-spacing:.14em;text-transform:uppercase;font-weight:750">Client website preview</span><h3 style="font-size:clamp(1.4rem,2.6vw,2rem);line-height:1.15;margin:.65rem 0">Contact '+title+'</h3><p style="font-size:1rem;line-height:1.6;max-width:56ch">This is a design preview. Enquiry and booking options will be connected only after the business confirms its preferred contact information.</p>'+call+'</div>';
+   return '<div id="preview-contact" class="preview-contact-panel" role="note" style="margin:1.3rem auto;padding:clamp(20px,4vw,40px);max-width:760px;border-radius:12px;background:rgba(128,128,128,.10);border:1px solid rgba(128,128,128,.28);box-shadow:0 14px 42px rgba(0,0,0,.06);color:inherit;text-align:left"><span style="font-size:.72em;letter-spacing:.14em;text-transform:uppercase;font-weight:750">Client website preview</span><h3 style="font-size:clamp(1.4rem,2.6vw,2rem);line-height:1.15;margin:.65rem 0">Contact '+title+'</h3><p style="font-size:1rem;line-height:1.6;max-width:56ch">Phone: [Add business phone] · Email: [Add business email]. This is a design preview; enquiry and booking links will be connected when the client provides details.</p>'+call+'</div>';
   };
   out=out.replace(/<form\b([^>]*)>[\s\S]*?<\/form\s*>/gi,(whole,attrs)=>{
    added=true;
@@ -328,7 +328,7 @@ function bbDesignAudit(html,facts,media){
 }
 async function bbCreativeReview(html,facts,direction,env){
  try{
-  const instructions="Independent elite design agency QA. Critically score the site HTML 0-100: unique art direction for this specific industry; well-composed bold hero; genuinely distinctive sophisticated typography, layout, depth, photography and restrained motion; strong authentic conversion copy; mobile responsive and accessible implementation. Penalize template grids, random empty space, tiny advert as main graphic, generic identical cards, primitive bullet-point FAQs, generic AI blobs, unsuitable stock, broken form/link flows, unsupported claims. Output only JSON {\"score\":85,\"problems\":[\"concrete improvement\"]}. Do NOT rubber-stamp.";
+  const instructions="Independent elite design agency QA. This is a speculative sales MOCKUP; the client may not have supplied their actual phone or email. Clearly labeled contact placeholders or inactive demo inquiry forms are expected and MUST NEVER be penalized. Judge contact section visual design, not completeness of missing business information. Critically score the site HTML 0-100: unique art direction for this specific industry; well-composed bold hero; genuinely distinctive sophisticated typography, layout, depth, photography and restrained motion; strong authentic conversion copy; mobile responsive and accessible implementation. Penalize template grids, random empty space, tiny advert as main graphic, generic identical cards, primitive bullet-point FAQs, generic AI blobs, unsuitable stock, broken form/link flows, unsupported claims. Output only JSON {\"score\":85,\"problems\":[\"concrete improvement\"]}. Do NOT rubber-stamp.";
   const x=await bbHttp("https://api.openai.com/v1/responses",{method:"POST",headers:{"authorization":"Bearer "+(env.find_web_clients||env.find_web_client),"content-type":"application/json"},body:JSON.stringify({model:"gpt-4.1-mini",instructions,input:JSON.stringify({business:facts,direction,html:html.slice(0,84000)}),max_output_tokens:500})});
   const s=bbOutput(x),v=JSON.parse(s.slice(s.indexOf("{"),s.lastIndexOf("}")+1));
   return {score:Number(v.score)||0,problems:(Array.isArray(v.problems)?v.problems:[]).map(x=>trim(x,180)).slice(0,5)};
@@ -369,7 +369,7 @@ async function bbVisualReview(html,facts,env){
    images.push({name:size.name,src:data});
   }
  }catch(e){return {score:0,problems:["Unable to complete actual desktop and mobile visual rendering: "+trim(e.message,125)]}}
- const prompt="You are the independent VISUAL quality director of a top-tier design agency. You are looking at ACTUAL full-page browser screenshots of a client-website draft on desktop (1440px) and mobile (390px), not just code. This is a serious pre-publication veto, not a compliment exercise. Grade visual quality 0-100 and reject generic AI-generated appearances, tiny ad images, awkward cropping, excessively empty giant hero, same-size basic cards, thin tiny typography, low contrast, unstyled FAQ, overlapping/cut-off content, broken mobile menu, horizontal overflow, inconsistent imagery, misaligned headers, overly repetitive sections, clutter, and poor professional finishing. Reward highly distinctive industry-relevant art direction, remarkable above-the-fold hero, well-composed photography, careful responsive details, compelling sections and thoughtful microinteraction presentation. Report only issues that you can observe in screenshots. Return JSON ONLY {\"score\":85,\"problems\":[\"specific visual fix with location\",\"another\"]}. Be skeptical; an 85+ should be truly client-ready.";
+ const prompt="You are the independent VISUAL quality director of a top-tier design agency. THIS IS A SALES PREVIEW: client contact details may be unavailable. Placeholder phone/email fields and inactive preview inquiry are completely acceptable and MUST NEVER lower the visual score. Score design, not whether the client has provided information. You are looking at ACTUAL full-page browser screenshots of a client-website draft on desktop (1440px) and mobile (390px), not just code. This is a serious pre-publication veto, not a compliment exercise. Grade visual quality 0-100 and reject generic AI-generated appearances, tiny ad images, awkward cropping, excessively empty giant hero, same-size basic cards, thin tiny typography, low contrast, unstyled FAQ, overlapping/cut-off content, broken mobile menu, horizontal overflow, inconsistent imagery, misaligned headers, overly repetitive sections, clutter, and poor professional finishing. Reward highly distinctive industry-relevant art direction, remarkable above-the-fold hero, well-composed photography, careful responsive details, compelling sections and thoughtful microinteraction presentation. Report only issues that you can observe in screenshots. Return JSON ONLY {\"score\":85,\"problems\":[\"specific visual fix with location\",\"another\"]}. Be skeptical; an 85+ should be truly client-ready.";
  try{
   const content=[{type:"input_text",text:prompt+"\nBusiness: "+facts.business_name+"; Industry: "+facts.industry}];
   for(const x of images){content.push({type:"input_text",text:"SCREENSHOT - "+x.name});content.push({type:"input_image",image_url:x.src,detail:"high"})}
@@ -430,10 +430,27 @@ async function bbRepairMissingStructure(html,facts,direction,key){
  }
  return page;
 }
+
+async function bbDiscoverPublicContact(p,env){
+ const phone=trim(p.phone,100),email=bbVerifiedEmail(p.email);
+ if(phone&&email)return {phone,email,source:"provided"};
+ if(!p.company||!(env.find_web_clients||env.find_web_client))return {phone,email,source:"not_verified"};
+ try{
+  const instructions="Search public Kijiji listing, Google, Facebook business pages for the EXACT named company and advertised area. Extract business contact details only when the source explicitly matches that business and city or the exact original ad ID. Do not infer identity from owner name alone or combine unrelated records. Output JSON only: {\"phone\":\"\",\"email\":\"\",\"source_url\":\"\",\"evidence\":\"\"}. Empty fields when unverified.";
+  const r=await bbHttp("https://api.openai.com/v1/responses",{method:"POST",headers:{"authorization":"Bearer "+(env.find_web_clients||env.find_web_client),"content-type":"application/json"},body:JSON.stringify({model:"gpt-4.1-mini",tools:[{type:"web_search",search_context_size:"low"}],tool_choice:"required",instructions,input:JSON.stringify({company:trim(p.company,140),area:trim(p.area,100),services:trim(p.services,180),ad_url:bbUrl(p.ad_url)}),max_output_tokens:460})});
+  const raw=bbOutput(r),v=JSON.parse(raw.slice(raw.indexOf("{"),raw.lastIndexOf("}")+1));
+  const source=bbUrl(v.source_url),evidence=String(v.evidence||"").toLowerCase();
+  const exactAd=source&&p.ad_url&&new URL(source).pathname===new URL(p.ad_url).pathname;
+  const matched=source&&(exactAd||(evidence.includes(String(p.company).toLowerCase())&&evidence.includes(String(p.area||"").toLowerCase())));
+  const number=matched?trim(v.phone,80):"";
+  return {phone:phone||(/^\+?[\d()\s.-]{10,25}$/.test(number)&&number.replace(/\D/g,"").length>=10?number:""),email:email||(matched?bbVerifiedEmail(v.email):""),source:matched?source:"unverified"};
+ }catch{return {phone,email,source:"unverified"}}
+}
 async function bbGenerate(job,p,env){
  const incoming=(Array.isArray(p.photo_urls)?p.photo_urls:[]).map(bbUrl).filter(Boolean).slice(0,12);
  const media=await bbInspectVisuals(env,bbUrl(p.logo_url),incoming);
- const facts={business_name:trim(p.company,140),industry:trim(p.category,90),services:trim(p.services,1700),area:trim(p.area,160),owner_name:trim(p.owner,110),public_phone:trim(p.phone,120),public_email:trim(p.email,160),advertisement_url:bbUrl(p.ad_url),brand_colours:trim(p.brand_colors,120),verified_logo_url:media.logo,verified_work_photos:media.realPhotos,stock_illustration_urls:await bbStockPhotos(p.category)};
+ const contact=await bbDiscoverPublicContact(p,env);
+ const facts={business_name:trim(p.company,140),industry:trim(p.category,90),services:trim(p.services,1700),area:trim(p.area,160),owner_name:trim(p.owner,110),public_phone:contact.phone,public_email:contact.email,contact_source:contact.source,preview_contact_placeholders_allowed:true,advertisement_url:bbUrl(p.ad_url),brand_colours:trim(p.brand_colors,120),verified_logo_url:media.logo,verified_work_photos:media.realPhotos,stock_illustration_urls:await bbStockPhotos(p.category)};
  const seed=BB_STYLES[bbDesignSeed(facts.business_name+"|"+facts.industry)];
  let direction=seed+" Grounded advertisement analysis: "+media.notes;
  try{
