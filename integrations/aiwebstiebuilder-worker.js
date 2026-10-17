@@ -306,7 +306,7 @@ async function bbVisualReview(html,facts,env){
    const r=await fetch("https://api.cloudflare.com/client/v4/accounts/"+BB_RY+"/browser-rendering/screenshot",{
     method:"POST",
     headers:{"content-type":"application/json","authorization":"Bearer "+env.NS_RY_CF_TOKEN},
-    body:JSON.stringify({html,viewport:{width:size.width,height:size.height,deviceScaleFactor:1,isMobile:size.name==="mobile"},screenshotOptions:{type:"jpeg",quality:65,encoding:"base64",fullPage:size.fullPage},waitForTimeout:950,actionTimeout:30000}),
+    body:JSON.stringify({html,viewport:{width:size.width,height:size.height,deviceScaleFactor:1,isMobile:size.name==="mobile"},scrollPage:true,screenshotOptions:{type:"jpeg",quality:65,encoding:"base64",fullPage:size.fullPage},waitForTimeout:950,actionTimeout:30000}),
     signal:AbortSignal.timeout(40000)
    });
    if(!r.ok)throw Error("Browser rendering "+size.name+" "+r.status);
