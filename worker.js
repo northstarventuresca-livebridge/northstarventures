@@ -547,13 +547,20 @@ async function nsAutoAdvanceOne(e,key){
  }catch(err){
   const fresh=await e.REGISTRY.get(key,"json");
   if(!fresh||fresh.id!==job.id||fresh.stage!==stage||fresh.auto_run_id!==runId)return;
-  const counts={...(fresh.auto_failure_counts||{})},tries=(counts[stage]||0)+1;counts[stage]=tries;
+  const errorText=String(err.message||err);
+  const transient=/(temporary visual browser|browser rendering.*(?:429|rate|unavailable)|rate limit|too many requests|fetch failed|timed? ?out|timeout|AbortError|OpenAI visual image inspection failed|(?:status |HTTP )(?:429|500|502|503|504))/i.test(errorText);
+  const counts={...(fresh.auto_failure_counts||{})},tries=(counts[stage]||0)+(transient?0:1);
+  counts[stage]=tries;
   const limit=stage==="planned"?5:8;
-  const blocked=tries>=limit;
-  job={...fresh,auto_failure_counts:counts,error:blocked,stage:blocked?"blocked":stage,auto_run_id:"",auto_running_until:"",
-   last_auto_error:String(err.message||err).slice(0,320),
-   message:blocked?"Automatic build needs technical attention. Production remains unchanged.":"AI is improving and retrying the website automatically (attempt "+tries+" of "+limit+").",
-   next_auto_retry_at:blocked?"":new Date(Date.now()+Math.min(300000,tries*55000)).toISOString(),
+  const blocked=!transient&&tries>=limit;
+  const retryDelay=transient?180000:Math.min(300000,Math.max(1,tries)*55000);
+  job={...fresh,auto_failure_counts:counts,transient_failure_count:(fresh.transient_failure_count||0)+(transient?1:0),
+   error:blocked,stage:blocked?"blocked":stage,auto_run_id:"",auto_running_until:"",
+   last_auto_error:errorText.slice(0,320),
+   message:blocked?"Automatic build needs technical attention. Production remains unchanged.":
+    transient?"The design is saved; an external service is temporarily unavailable. Retrying automatically.":
+    "The AI is improving the website automatically (repair "+tries+" of "+limit+").",
+   next_auto_retry_at:blocked?"":new Date(Date.now()+retryDelay).toISOString(),
    updated_at:new Date().toISOString()};
   await e.REGISTRY.put(key,JSON.stringify(job));
  }
