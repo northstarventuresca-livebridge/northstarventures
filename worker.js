@@ -306,7 +306,6 @@ async function prospectsApi(r,e,u){
   if(result.stage!==valid[stage])return regJson({error:"Unexpected build stage. No changes saved."},502);
   job={...job,...result,stage:result.stage,error:false,updated_at:new Date().toISOString()};
   delete job.ok;
-  await e.REGISTRY.put(buildKey,JSON.stringify(job));
   if(job.stage==="ready"){
    // Update the prospective lead and the completed website registry only after branded HTTPS verification.
    const sites=await regList(e);
@@ -334,6 +333,7 @@ async function prospectsApi(r,e,u){
    await e.REGISTRY.put("history:prospect:"+prospect.id+":"+Date.now(),JSON.stringify({operation:"site built",record:prospect}));
    await e.REGISTRY.put("prospect:"+prospect.id,JSON.stringify(newer));
   }
+  await e.REGISTRY.put(buildKey,JSON.stringify(job));
   return regJson({build:brief(job)});
  }
  const found=path.match(/^\/api\/registry\/prospects\/([a-zA-Z0-9_-]{1,100})$/);
