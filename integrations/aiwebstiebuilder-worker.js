@@ -141,6 +141,7 @@ async function bbGenerate(job,p,env){
  if(start>=0&&end>start)html=html.slice(start,end+7);
  if(!/^<!doctype html/i.test(html)||!html.includes("</html>")||html.length<4500||html.length>145000)throw Error("Generated website was incomplete. Retry the generation.");
  if(!html.toLowerCase().includes(facts.business_name.toLowerCase()))throw Error("Website generation omitted the business name.");
+ if(!/<meta[^>]+name=["\x27]viewport["\x27]/i.test(html)||!/<style\b/i.test(html)||!/<nav\b/i.test(html)||!/<main\b/i.test(html)||!/<footer\b/i.test(html))throw Error("Generated website failed basic structural and responsive checks. Retry.");
  const notUsed=photos.filter(u=>!html.includes(u));
  if(notUsed.length){
   const images=notUsed.map((u,i)=>'<img src="'+u.replace(/"/g,"%22")+'" loading="lazy" alt="Business project photograph '+(i+1)+'" style="width:100%;height:245px;object-fit:cover;border-radius:12px">').join("");
