@@ -163,6 +163,11 @@ async function prospectsApi(r,e,u){
   await e.REGISTRY.put("prospect:"+id,JSON.stringify(record));return regJson({ok:true,prospect:record},201);
  }
 
+ if(path==="/api/registry/prospects/search-report"&&m==="GET"){
+  const category=u.searchParams.get("category")||"";
+  if(!PROSPECT_CATEGORIES.includes(category))return regJson({error:"Invalid search category."},400);
+  return regJson({report:await e.REGISTRY.get("search:report:"+category,"json")||null});
+ }
  if(path==="/api/registry/prospects/search"&&m==="POST"){
   if(!e.NS_INTERNAL_AUTH)return regJson({error:"Search integration not configured."},503);
   let data;try{const raw=await r.text();if(raw.length>2500)return regJson({error:"Request too large"},413);data=JSON.parse(raw)}catch{return regJson({error:"Invalid search"},400)}
@@ -196,7 +201,19 @@ async function prospectsApi(r,e,u){
    const record={...prospectInput(safeLead),id,added_at:now,pulled_date:date,updated_at:now,source_checked:true,source_status:"active",source_checked_at:String(lead.source_checked_at||now).slice(0,35),source_note:"Live Kijiji listing and images verified",photos_mentioned:!!lead.photos_mentioned,suitability_score:Number(lead.suitability_score)};
    await e.REGISTRY.put("prospect:"+id,JSON.stringify(record));saved.push(record);added++;
   }
-  return regJson({ok:true,added,duplicates,reviewed:candidates.length,search_note:String(results.search_note||"").slice(0,240)});
+
+  const report={
+   category,cities,searched_at:now,
+   added,duplicates,reviewed:candidates.length,
+   search_queries:Array.isArray(results.search_queries)?results.search_queries.map(x=>String(x).slice(0,420)).slice(0,4):[],
+   breakdown:results.search_breakdown&&typeof results.search_breakdown==="object"?results.search_breakdown:{},
+   failures:Array.isArray(results.search_failures)?results.search_failures.map(x=>String(x).slice(0,250)).slice(0,3):[],
+   review_candidates:Array.isArray(results.review_candidates)?results.review_candidates.slice(0,8).map(x=>({name:String(x.name||"").slice(0,100),area:String(x.area||"").slice(0,100),ad_url:String(x.ad_url||"").slice(0,1250),reason:String(x.reason||"").slice(0,240)})):[],
+   search_note:String(results.search_note||"").slice(0,400)
+  };
+  await e.REGISTRY.put("search:report:"+category,JSON.stringify(report));
+  return regJson({ok:true,added,duplicates,reviewed:candidates.length,search_note:report.search_note,report});
+
  }
 
  const aiMatch=path.match(/^\/api\/registry\/prospects\/([a-zA-Z0-9_-]{1,100})\/assistant$/);
