@@ -265,16 +265,49 @@ function bbCandidates(company){
  const slug=bbSlug(company);
  return [...new Set([words[0],words.slice(0,2).join("-"),slug].filter(x=>x&&x.length>=3))];
 }
+
+async function bbZone(method,path,env,data){
+ return bbHttp("https://api.cloudflare.com/client/v4/zones/"+BB_ZONE+path,{
+  method:method||"GET",headers:{"authorization":"Bearer "+env.NS_NS_CF_TOKEN,...(data?{"content-type":"application/json"}:{})},
+  ...(data?{body:JSON.stringify(data)}:{})
+ });
+}
+async function bbDns(host,env){
+ const result=await bbZone("GET","/dns_records?name="+encodeURIComponent(host),env);
+ return Array.isArray(result.result)?result.result:[];
+}
+async function bbRoutes(env){
+ const result=await bbZone("GET","/workers/routes",env);
+ return Array.isArray(result.result)?result.result:[];
+}
 async function bbDomain(job,env){
- const used=(await bbCF(BB_NS,"/workers/domains","GET",env.NS_NS_CF_TOKEN)).result||[];
- const candidates=bbCandidates(job.company);
+ const routes=await bbRoutes(env),candidates=bbCandidates(job.company),repo=String(job.repo||"");
  for(const suffix of candidates){
   const host=suffix+".northstarventures.ca";
-  if(used.some(x=>x.hostname===host))continue;
-  const dns=await bbHttp("https://api.cloudflare.com/client/v4/zones/"+BB_ZONE+"/dns_records?name="+encodeURIComponent(host),{headers:{"authorization":"Bearer "+env.NS_NS_CF_TOKEN}});
-  if((dns.result||[]).length===0)return {subdomain:suffix,preview_url:"https://"+host+"/"};
+  if(routes.some(x=>String(x.pattern||"").toLowerCase().startsWith(host.toLowerCase()+"/")))continue;
+  const records=await bbDns(host,env);
+  const owned=records.length===1&&records[0].type==="A"&&records[0].proxied===true&&records[0].content==="192.0.2.1"&&
+   String(records[0].comment||"").includes("rwyers/"+repo);
+  if(records.length===0||owned)return {subdomain:suffix,preview_url:"https://"+host+"/"};
  }
- throw Error("All clear branded subdomains are already in use. Choose another business name.");
+ throw Error("The proposed branded subdomains are already in use; nothing was changed.");
+}
+async function bbEnsureRouteDns(host,repo,env){
+ const records=await bbDns(host,env);
+ if(records.length){
+  const owned=records.length===1&&records[0].type==="A"&&records[0].content==="192.0.2.1"&&records[0].proxied===true&&
+   String(records[0].comment||"").includes("rwyers/"+repo);
+  if(!owned)throw Error("The branded subdomain has an existing DNS record not owned by this preview. Nothing was overwritten.");
+  return;
+ }
+ try{await bbZone("POST","/dns_records",env,{
+  type:"A",name:host,content:"192.0.2.1",proxied:true,ttl:1,
+  comment:"North Star website preview reserved for rwyers/"+repo
+ })}
+ catch(e){
+  if(e.httpStatus===403||e.httpStatus===401)throw Error("Branded domain setup requires Zone > DNS > Edit permission on the Northstar Cloudflare API token (NS_NS_CF_TOKEN). The GitHub and Rwyers accounts are working. No existing DNS record was changed.");
+  throw e
+ }
 }
 
 
@@ -292,7 +325,7 @@ async function bbStep(job,p,env){
   try{head=await bbGit("/repos/rwyers/"+repo+"/git/ref/heads/main","GET",env.NS_GITHUB_TOKEN)}
   catch(err){if(err.httpStatus===404||err.httpStatus===409)throw Error("Initialize this repository with a README on main and retry.");throw err}
   if(!head?.object?.sha)throw Error("The repository has no initialized main commit. Add a README and retry.");
-  const domains=await bbDomain({company},env);
+  const domains=await bbDomain({company,repo},env);
   const scripts=(await bbCF(BB_RY,"/workers/scripts","GET",env.NS_RY_CF_TOKEN)).result||[];
   if(scripts.some(x=>x.id===name))throw Error("A Cloudflare Worker with this client name already exists; a safe unused repo name is required.");
   let existing;
@@ -325,15 +358,24 @@ async function bbStep(job,p,env){
   if(r.status!==200||!content.toLowerCase().includes(company.toLowerCase()))throw Error("Hosting deployment completed but the website content could not be verified yet. Retry.");
   return {worker_url:origin,stage:"deployed",message:"Dedicated client Cloudflare Worker deployed and verified."};
  }
+
  if(stage==="deployed"){
-  if(!job.worker_url||!job.subdomain)throw Error("Missing verified Worker URL or selected brand domain.");
+  if(!job.worker_url||!job.subdomain)throw Error("Missing verified Worker URL or branded preview name.");
   const host=job.subdomain+".northstarventures.ca",proxy="nsv-proxy-"+job.subdomain;
-  const domains=(await bbCF(BB_NS,"/workers/domains","GET",env.NS_NS_CF_TOKEN)).result||[];
-  if(domains.some(x=>x.hostname===host&&x.service!==proxy))throw Error("Branded preview domain is now used by another site; stopped without overwriting it.");
-  // Deploy a separate proxy under Northstar; actual hosting stays with Rwyers.
+  const routes=await bbRoutes(env);
+  if(routes.some(x=>String(x.pattern||"").toLowerCase()===host.toLowerCase()+"/*"&&x.script!==proxy))
+   throw Error("The preview route already belongs to another Worker. Nothing was overwritten.");
+  await bbEnsureRouteDns(host,repo,env);
+  // Each client is still hosted independently under rwyers. This is only the named front-door proxy.
   await bbCF(BB_NS,"/workers/scripts/"+proxy,"PUT",env.NS_NS_CF_TOKEN,bbForm(bbProxy(job.worker_url)));
-  await bbCF(BB_NS,"/workers/domains","PUT",env.NS_NS_CF_TOKEN,{hostname:host,service:proxy,zone_id:BB_ZONE});
-  return {proxy_worker:proxy,stage:"branded",message:"Branded North Star subdomain configured with SSL."};
+  if(!routes.some(x=>String(x.pattern||"").toLowerCase()===host.toLowerCase()+"/*"&&x.script===proxy)){
+   try{await bbZone("POST","/workers/routes",env,{pattern:host+"/*",script:proxy})}
+   catch(e){
+    if(e.httpStatus===401||e.httpStatus===403)throw Error("Branded routing requires Zone > Workers Routes > Edit on the Northstar token. The preview was not switched to another client.");
+    throw e
+   }
+  }
+  return {proxy_worker:proxy,stage:"branded",message:"Independent client site linked to branded North Star URL through its own Worker route."};
  }
  if(stage==="branded"){
   const r=await fetch(job.preview_url,{redirect:"follow"}),html=await r.text();
