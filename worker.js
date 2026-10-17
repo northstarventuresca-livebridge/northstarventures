@@ -114,8 +114,29 @@ async function registryApi(r,e,u){
 
 /* Private prospect CRM; separate KV prefix from current websites and contact messages. */
 const PROSPECT_CATEGORIES=["Landscaping","Electrical","Painting","Framing","Plumbing","Flooring","House Cleaning","Home Based Businesses"];
+
+const TOPIC_KV_KEY="settings:potential-websites:topics";
+const topicError=message=>Object.assign(Error(message),{status:400});
+const topicName=name=>String(name||"").replace(/[<>]/g,"").trim().replace(/\s+/g," ");
+const topicValid=name=>name.length>=2&&name.length<=55&&/^[\p{L}\p{N}][\p{L}\p{N} &/',.-]*$/u.test(name);
+async function prospectTopics(e){
+ const stored=await e.REGISTRY.get(TOPIC_KV_KEY,"json");
+ const defaults=PROSPECT_CATEGORIES.map(name=>({name,focus:""}));
+ if(!Array.isArray(stored))return defaults;
+ const topics=defaults.map(d=>{
+  const x=stored.find(v=>topicName(v?.name).toLowerCase()===d.name.toLowerCase());
+  return {name:d.name,focus:typeof x?.focus==="string"?x.focus.slice(0,1200):""};
+ });
+ for(const entry of stored){
+  const name=topicName(entry?.name);
+  if(!topicValid(name)||topics.some(x=>x.name.toLowerCase()===name.toLowerCase())||topics.length>=45)continue;
+  topics.push({name,focus:typeof entry?.focus==="string"?entry.focus.slice(0,1200):""});
+ }
+ return topics;
+}
+
 const PROSPECT_FIELDS=["company","category","owner","area","stage","priority","services","phone","email","ad_url","preview_url","website_status","notes","contact_date","follow_up","website_name","website_url","proposal","offer","contact_notes","logo_url","brand_colors","photo_urls"];
-function prospectInput(body){
+function prospectInput(body,available=PROSPECT_CATEGORIES){
  if(!body||typeof body!=="object"||Array.isArray(body))throw Object.assign(Error("Invalid record"),{status:400});
  const x={};
  for(const k of PROSPECT_FIELDS){
@@ -124,7 +145,7 @@ function prospectInput(body){
   x[k]=String(body[k]??"").trim().slice(0,max).replace(/[<>]/g,"");
  }
  if(!x.company)throw Object.assign(Error("Business name is required."),{status:400});
- if(!PROSPECT_CATEGORIES.includes(x.category))throw Object.assign(Error("Choose a valid industry."),{status:400});
+ if(!available.includes(x.category))throw Object.assign(Error("Choose a valid industry."),{status:400});
  if(!["new","researching","preview","pitched","followup","won","not_interested"].includes(x.stage))x.stage="new";
  if(!["high","medium","low"].includes(x.priority))x.priority="medium";
  if(!["not_in_ad","unverified","has_website"].includes(x.website_status))x.website_status="unverified";
@@ -148,6 +169,28 @@ async function prospectsApi(r,e,u){
  const path=u.pathname,m=r.method;
  if(m!=="GET"&&r.headers.get("origin")&&r.headers.get("origin")!==u.origin)return regJson({error:"Invalid origin."},403);
  if(!await sessionReg(r,e))return regJson({error:"Administrator authentication required."},401);
+
+ if(path==="/api/registry/prospects/topics"){
+  if(m==="GET")return regJson({topics:await prospectTopics(e)});
+  if(m!=="POST")return regJson({error:"Method not allowed."},405);
+  let body;try{const raw=await r.text();if(raw.length>2400)return regJson({error:"Topic settings too long."},413);body=JSON.parse(raw)}
+  catch{return regJson({error:"Invalid topic settings."},400)}
+  const topics=await prospectTopics(e),name=topicName(body.name),focus=String(body.focus??"").trim();
+  if(!topicValid(name))return regJson({error:"Topic name must be 2–55 letters, numbers or simple punctuation."},400);
+  if(focus.length>1200||/[<>]/.test(focus))return regJson({error:"Search instructions must be under 1,200 characters and must be plain text."},400);
+  const existing=topics.find(x=>x.name.toLowerCase()===name.toLowerCase());
+  if(body.action==="create"){
+   if(existing)return regJson({error:"This search topic already exists. Edit its search details instead."},409);
+   if(topics.length>=45)return regJson({error:"Maximum 45 topics. Please contact support."},400);
+   topics.push({name,focus});
+  }else if(body.action==="update"){
+   if(!existing)return regJson({error:"Search topic not found."},404);
+   existing.focus=focus;
+  }else return regJson({error:"Invalid topic operation."},400);
+  await e.REGISTRY.put(TOPIC_KV_KEY,JSON.stringify(topics));
+  return regJson({topics,saved:true});
+ }
+
  if(path==="/api/registry/prospects"&&m==="GET"){
   let cursor=undefined,list=[],n=0;
   do{const page=await e.REGISTRY.list({prefix:"prospect:",limit:1000,...(cursor?{cursor}:{})});
@@ -159,13 +202,13 @@ async function prospectsApi(r,e,u){
  if(path==="/api/registry/prospects"&&m==="POST"){
   const raw=await r.text();if(raw.length>12000)return regJson({error:"Record too large"},413);
   let body;try{body=JSON.parse(raw)}catch{return regJson({error:"Invalid JSON"},400)}
-  const id=crypto.randomUUID(),record={...prospectInput(body),id,added_at:new Date().toISOString(),updated_at:new Date().toISOString(),source_status:"unverified",source_checked:false};
+  const id=crypto.randomUUID(),record={...prospectInput(body,(await prospectTopics(e)).map(x=>x.name)),id,added_at:new Date().toISOString(),updated_at:new Date().toISOString(),source_status:"unverified",source_checked:false};
   await e.REGISTRY.put("prospect:"+id,JSON.stringify(record));return regJson({ok:true,prospect:record},201);
  }
 
  if(path==="/api/registry/prospects/search-report"&&m==="GET"){
   const category=u.searchParams.get("category")||"";
-  if(!PROSPECT_CATEGORIES.includes(category))return regJson({error:"Invalid search category."},400);
+  if(!(await prospectTopics(e)).some(x=>x.name===category))return regJson({error:"Invalid search category."},400);
   return regJson({report:await e.REGISTRY.get("search:report:"+category,"json")||null});
  }
  if(path==="/api/registry/prospects/search"&&m==="POST"){
@@ -173,11 +216,12 @@ async function prospectsApi(r,e,u){
   let data;try{const raw=await r.text();if(raw.length>2500)return regJson({error:"Request too large"},413);data=JSON.parse(raw)}catch{return regJson({error:"Invalid search"},400)}
   const category=String(data.category||"").trim();
   const cities=Array.isArray(data.cities)?[...new Set(data.cities.map(x=>String(x).trim().slice(0,60)).filter(x=>/^[a-zA-Z .'-]{2,60}$/.test(x)))]:[];
-  if(!PROSPECT_CATEGORIES.includes(category)||!cities.length||cities.length>6)return regJson({error:"Select 1 to 6 Alberta communities."},400);
+  const allowedTopics=await prospectTopics(e),settings=allowedTopics.find(x=>x.name===category);
+  if(!settings||!cities.length||cities.length>6)return regJson({error:"Select a valid topic and 1 to 6 Alberta communities."},400);
   const last=Number(await e.REGISTRY.get("search:recent:"+category)||"0");
   if(Date.now()-last<20000)return regJson({error:"This industry was searched recently. Try again shortly."},429);
   await e.REGISTRY.put("search:recent:"+category,String(Date.now()),{expirationTtl:70});
-  let response;try{response=await fetch("https://aiwebstiebuilder.rwyers.workers.dev/search",{method:"POST",headers:{"content-type":"application/json","x-northstar-internal":e.NS_INTERNAL_AUTH},body:JSON.stringify({category,cities})})}catch{return regJson({error:"Search service cannot be reached."},502)}
+  let response;try{response=await fetch("https://aiwebstiebuilder.rwyers.workers.dev/search",{method:"POST",headers:{"content-type":"application/json","x-northstar-internal":e.NS_INTERNAL_AUTH},body:JSON.stringify({category,cities,focus:settings.focus})})}catch{return regJson({error:"Search service cannot be reached."},502)}
   const results=await response.json().catch(()=>({}));
   if(!response.ok)return regJson({error:String(results.error||"Search failed").slice(0,280)},502);
   const candidates=Array.isArray(results.leads)?results.leads.slice(0,20):[];
@@ -198,17 +242,17 @@ async function prospectsApi(r,e,u){
       (owner&&owner===normalize(x.owner)||!/^(lawn care|landscaping services|cleaning services|painting services)$/.test(name))));
    if(duplicate){duplicates++;continue}
    const safeLead={...lead,category,email:email(String(lead.email||""))?lead.email:"",logo_url:"",photo_urls:Array.isArray(lead.photo_urls)?lead.photo_urls:[]};
-   const record={...prospectInput(safeLead),id,added_at:now,pulled_date:date,updated_at:now,source_checked:true,source_status:"active",source_checked_at:String(lead.source_checked_at||now).slice(0,35),source_note:"Live Kijiji listing and images verified",photos_mentioned:!!lead.photos_mentioned,suitability_score:Number(lead.suitability_score)};
+   const record={...prospectInput(safeLead,allowedTopics.map(x=>x.name)),id,added_at:now,pulled_date:date,updated_at:now,source_checked:true,source_status:"active",source_checked_at:String(lead.source_checked_at||now).slice(0,35),source_note:"Live Kijiji listing and images verified",photos_mentioned:!!lead.photos_mentioned,suitability_score:Number(lead.suitability_score)};
    await e.REGISTRY.put("prospect:"+id,JSON.stringify(record));saved.push(record);added++;
   }
 
   const report={
-   category,cities,searched_at:now,
+   category,cities,focus:settings.focus,searched_at:now,
    added,duplicates,reviewed:candidates.length,
    search_queries:Array.isArray(results.search_queries)?results.search_queries.map(x=>String(x).slice(0,420)).slice(0,4):[],
    breakdown:results.search_breakdown&&typeof results.search_breakdown==="object"?results.search_breakdown:{},
    failures:Array.isArray(results.search_failures)?results.search_failures.map(x=>String(x).slice(0,250)).slice(0,3):[],
-   review_candidates:Array.isArray(results.review_candidates)?results.review_candidates.slice(0,8).map(x=>({name:String(x.name||"").slice(0,100),area:String(x.area||"").slice(0,100),ad_url:String(x.ad_url||"").slice(0,1250),reason:String(x.reason||"").slice(0,240)})):[],
+   // Never display unverified advertisements as prospect results.
    search_note:String(results.search_note||"").slice(0,400)
   };
   await e.REGISTRY.put("search:report:"+category,JSON.stringify(report));
@@ -382,7 +426,7 @@ async function prospectsApi(r,e,u){
   if(!existing)return regJson({error:"Prospect not found"},404);
   if(m==="PUT"){const raw=await r.text();if(raw.length>12000)return regJson({error:"Record too large"},413);
    let body;try{body=JSON.parse(raw)}catch{return regJson({error:"Invalid JSON"},400)}
-   const record={...existing,...prospectInput(body),id:existing.id,updated_at:new Date().toISOString()};
+   const record={...existing,...prospectInput(body,(await prospectTopics(e)).map(x=>x.name)),id:existing.id,updated_at:new Date().toISOString()};
    if(record.ad_url!==existing.ad_url){record.source_status="unverified";record.source_checked=false;record.source_note="Ad link edited — recheck required.";record.source_checked_at="";}
    await e.REGISTRY.put("history:prospect:"+existing.id+":"+Date.now(),JSON.stringify({operation:"updated",record:existing}));
    await e.REGISTRY.put(key,JSON.stringify(record));return regJson({ok:true,prospect:record});
