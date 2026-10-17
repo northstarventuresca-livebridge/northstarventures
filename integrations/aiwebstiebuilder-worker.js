@@ -300,23 +300,36 @@ async function bbCreativeReview(html,facts,direction,env){
 async function bbVisualReview(html,facts,env){
  if(!env.NS_RY_CF_TOKEN)return {score:0,problems:["Visual QA lacks an authorized browser-rendering connection"]};
  const sizes=[{name:"desktop",width:1440,height:900,fullPage:true},{name:"mobile",width:390,height:844,fullPage:true}];
- let images;
+
+ const images=[];
  try{
-  images=await Promise.all(sizes.map(async size=>{
-   const r=await fetch("https://api.cloudflare.com/client/v4/accounts/"+BB_RY+"/browser-rendering/screenshot",{
-    method:"POST",
-    headers:{"content-type":"application/json","authorization":"Bearer "+env.NS_RY_CF_TOKEN},
-    body:JSON.stringify({html,viewport:{width:size.width,height:size.height,deviceScaleFactor:1,isMobile:size.name==="mobile"},scrollPage:true,screenshotOptions:{type:"jpeg",quality:65,encoding:"base64",fullPage:size.fullPage},waitForTimeout:950,actionTimeout:30000}),
-    signal:AbortSignal.timeout(40000)
-   });
-   if(!r.ok)throw Error("Browser rendering "+size.name+" "+r.status);
-   let data=(await r.text()).trim();
+  for(let i=0;i<sizes.length;i++){
+   const size=sizes[i];
+   // Browser Rendering Free plan permits only one quick action per ten seconds.
+   // Sequential capture plus retry-after prevents a multi-viewport build from hitting its rate limiter.
+   if(i>0)await new Promise(resolve=>setTimeout(resolve,11000));
+   let data="";
+   for(let attempt=0;attempt<2;attempt++){
+    const r=await fetch("https://api.cloudflare.com/client/v4/accounts/"+BB_RY+"/browser-rendering/screenshot",{
+     method:"POST",headers:{"content-type":"application/json","authorization":"Bearer "+env.NS_RY_CF_TOKEN},
+     body:JSON.stringify({html,viewport:{width:size.width,height:size.height,deviceScaleFactor:1,isMobile:size.name==="mobile"},scrollPage:true,screenshotOptions:{type:"jpeg",quality:65,encoding:"base64",fullPage:size.fullPage},waitForTimeout:950,actionTimeout:30000}),
+     signal:AbortSignal.timeout(40000)
+    });
+    if(r.status===429&&attempt===0){
+     const delay=Math.min(30,Math.max(11,Number(r.headers.get("retry-after"))||11));
+     await new Promise(resolve=>setTimeout(resolve,delay*1000));
+     continue;
+    }
+    if(!r.ok)throw Error("Browser rendering "+size.name+" "+r.status+". Please retry the build when screenshot service is available.");
+    data=(await r.text()).trim();
+    break;
+   }
    if(/^\/9j\//.test(data))data="data:image/jpeg;base64,"+data;
    else if(data.startsWith("{")){const parsed=JSON.parse(data);data=String(parsed.result||parsed.image||"");if(/^\/9j\//.test(data))data="data:image/jpeg;base64,"+data}
-   if(!/^data:image\/jpeg;base64,/.test(data)||data.length<3000||data.length>10500000)throw Error("Invalid "+size.name+" rendered screenshot ("+(r.headers.get("content-type")||"unknown")+")");
-   return {name:size.name,src:data};
-  }));
- }catch(e){return {score:0,problems:["Could not render desktop and mobile screenshots: "+trim(e.message,120)]}}
+   if(!/^data:image\/jpeg;base64,/.test(data)||data.length<3000||data.length>10500000)throw Error("Invalid "+size.name+" rendered screenshot");
+   images.push({name:size.name,src:data});
+  }
+ }catch(e){return {score:0,problems:["Unable to complete actual desktop and mobile visual rendering: "+trim(e.message,125)]}}
  const prompt="You are the independent VISUAL quality director of a top-tier design agency. You are looking at ACTUAL full-page browser screenshots of a client-website draft on desktop (1440px) and mobile (390px), not just code. This is a serious pre-publication veto, not a compliment exercise. Grade visual quality 0-100 and reject generic AI-generated appearances, tiny ad images, awkward cropping, excessively empty giant hero, same-size basic cards, thin tiny typography, low contrast, unstyled FAQ, overlapping/cut-off content, broken mobile menu, horizontal overflow, inconsistent imagery, misaligned headers, overly repetitive sections, clutter, and poor professional finishing. Reward highly distinctive industry-relevant art direction, remarkable above-the-fold hero, well-composed photography, careful responsive details, compelling sections and thoughtful microinteraction presentation. Report only issues that you can observe in screenshots. Return JSON ONLY {\"score\":85,\"problems\":[\"specific visual fix with location\",\"another\"]}. Be skeptical; an 85+ should be truly client-ready.";
  try{
   const content=[{type:"input_text",text:prompt+"\nBusiness: "+facts.business_name+"; Industry: "+facts.industry}];
