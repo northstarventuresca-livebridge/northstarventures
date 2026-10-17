@@ -79,6 +79,56 @@ async function prospectAssistant(request,env){
  }catch(err){return J({error:trim(err.message||"Assistant temporarily unavailable.",250)},502)}
 }
 
+
+/* Site builder: each client has a dedicated repo, Worker, and branded proxy. */
+const BB_RY="2eece500e23b1863ef99c7341722495f",BB_NS="de139270326790931c82df02d785528f",BB_ZONE="39ac18cdc478feff4e24790733dac668";
+function bbMissing(env){return ["NS_GITHUB_TOKEN","NS_RY_CF_TOKEN","NS_NS_CF_TOKEN"].filter(k=>!env[k])}
+function bbAuthorized(r,e){const a=r.headers.get("x-northstar-internal")||"",b=e.NS_INTERNAL_AUTH||"";if(!a||a.length!==b.length)return false;let x=0;for(let i=0;i<a.length;i++)x|=a.charCodeAt(i)^b.charCodeAt(i);return x===0}
+const bbSlug=s=>trim(s,140).toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"").slice(0,45);
+const bbUrl=u=>{try{const x=new URL(u);return x.protocol==="https:"?x.href:null}catch{return null}};
+function bbB64(s){const bytes=new TextEncoder().encode(s);let out="";for(let i=0;i<bytes.length;i+=8192)out+=String.fromCharCode(...bytes.slice(i,i+8192));return btoa(out)}
+async function bbHttp(url,opts={}){
+ const response=await fetch(url,opts);let data;const str=await response.text();
+ try{data=JSON.parse(str)}catch{data={message:str.slice(0,150)}}
+ if(!response.ok||data?.success===false){const message=data?.errors?.map(x=>x.message).join("; ")||data?.message||data?.error||"External service returned an error";const e=Error(trim(message,320));e.httpStatus=response.status;throw e}
+ return data;
+}
+function bbGit(path,method,token,body){
+ return bbHttp("https://api.github.com"+path,{method:method||"GET",headers:{"accept":"application/vnd.github+json","authorization":"Bearer "+token,"user-agent":"NorthStarWebBuilder","x-github-api-version":"2022-11-28",...(body?{"content-type":"application/json"}:{})},...(body?{body:JSON.stringify(body)}:{})});
+}
+function bbCF(account,path,method,token,body){
+ const opts={method:method||"GET",headers:{"authorization":"Bearer "+token}};
+ if(body!==undefined){if(body instanceof FormData)opts.body=body;else{opts.headers["content-type"]="application/json";opts.body=JSON.stringify(body)}}
+ return bbHttp("https://api.cloudflare.com/client/v4/accounts/"+account+path,opts);
+}
+function bbForm(script){
+ const f=new FormData();
+ f.append("metadata",new Blob([JSON.stringify({main_module:"worker.js",compatibility_date:"2026-10-17"})],{type:"application/json"}));
+ f.append("worker.js",new Blob([script],{type:"application/javascript+module"}),"worker.js");
+ return f;
+}
+async function bbFile(repo,path,content,token){
+ let old;
+ try{old=await bbGit("/repos/rwyers/"+repo+"/contents/"+encodeURIComponent(path)+"?ref=main","GET",token)}
+ catch(e){if(e.httpStatus!==404)throw e}
+ if(old){
+  const bytes=Uint8Array.from(atob(String(old.content||"").replace(/\s/g,"")),x=>x.charCodeAt(0));
+  if(new TextDecoder().decode(bytes)!==content)throw Error("Existing repository file "+path+" is different. Nothing was overwritten.");
+  return;
+ }
+ await bbGit("/repos/rwyers/"+repo+"/contents/"+encodeURIComponent(path),"PUT",token,{message:"Add North Star website preview "+path,branch:"main",content:bbB64(content)});
+}
+function bbSiteWorker(html){
+ return "const HTML="+JSON.stringify(html)+";\nexport default {async fetch(r){const p=new URL(r.url).pathname;if(!['GET','HEAD'].includes(r.method))return new Response('Method not allowed',{status:405});if(!['/','/index.html'].includes(p))return new Response('Not found',{status:404});return new Response(r.method==='HEAD'?null:HTML,{headers:{'content-type':'text/html;charset=utf-8','x-content-type-options':'nosniff','cache-control':'public,max-age=60'}})}};";
+}
+function bbProxy(host){
+ return "const ORIGIN="+JSON.stringify(host)+";\nexport default {async fetch(r){if(!['GET','HEAD'].includes(r.method))return new Response('Preview only',{status:405});const u=new URL(r.url);const resp=await fetch(ORIGIN+u.pathname,{method:r.method});const h=new Headers(resp.headers);h.set('x-robots-tag','noindex,nofollow');return new Response(resp.body,{status:resp.status,headers:h})}};";
+}
+function bbOutput(data){
+ const raw=(data.output||[]).flatMap(x=>(x.content||[]).filter(p=>p.type==="output_text").map(p=>p.text)).join("\n")||data.output_text||"";
+ return raw.trim();
+}
+
 export default{async fetch(req,env){const path=new URL(req.url).pathname;if(path==="/health"&&req.method==="GET")return J({ok:true,openai_configured:!!(env.find_web_clients||env.find_web_client)});
 if(path==="/prospect-assistant"&&req.method==="POST")return prospectAssistant(req,env);
 if(path!=="/search"||req.method!=="POST")return J({error:"Not found"},404);
