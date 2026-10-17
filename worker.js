@@ -191,7 +191,8 @@ async function prospectsApi(r,e,u){
     (name.length>11&&name===normalize(x.company)&&area===normalize(x.area)&&
       (owner&&owner===normalize(x.owner)||!/^(lawn care|landscaping services|cleaning services|painting services)$/.test(name))));
    if(duplicate){duplicates++;continue}
-   const record={...prospectInput({...lead,category}),id,added_at:now,pulled_date:date,updated_at:now,source_checked:!!lead.source_checked,photos_mentioned:!!lead.photos_mentioned,suitability_score:Number(lead.suitability_score)};
+   const safeLead={...lead,category,email:email(String(lead.email||""))?lead.email:"",logo_url:"",photo_urls:Array.isArray(lead.photo_urls)?lead.photo_urls:[]};
+   const record={...prospectInput(safeLead),id,added_at:now,pulled_date:date,updated_at:now,source_checked:!!lead.source_checked,photos_mentioned:!!lead.photos_mentioned,suitability_score:Number(lead.suitability_score)};
    await e.REGISTRY.put("prospect:"+id,JSON.stringify(record));saved.push(record);added++;
   }
   return regJson({ok:true,added,duplicates,reviewed:candidates.length,search_note:String(results.search_note||"").slice(0,240)});
