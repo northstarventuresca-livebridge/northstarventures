@@ -159,7 +159,7 @@ async function prospectsApi(r,e,u){
  if(path==="/api/registry/prospects"&&m==="POST"){
   const raw=await r.text();if(raw.length>12000)return regJson({error:"Record too large"},413);
   let body;try{body=JSON.parse(raw)}catch{return regJson({error:"Invalid JSON"},400)}
-  const id=crypto.randomUUID(),record={...prospectInput(body),id,added_at:new Date().toISOString(),updated_at:new Date().toISOString()};
+  const id=crypto.randomUUID(),record={...prospectInput(body),id,added_at:new Date().toISOString(),updated_at:new Date().toISOString(),source_status:"unverified",source_checked:false};
   await e.REGISTRY.put("prospect:"+id,JSON.stringify(record));return regJson({ok:true,prospect:record},201);
  }
 
@@ -185,6 +185,7 @@ async function prospectsApi(r,e,u){
    const m=url.pathname.match(/\/(\d{9,12})(?:\/|$)/);
    if(!["www.kijiji.ca","kijiji.ca"].includes(url.hostname.toLowerCase())||!m||!url.pathname.startsWith("/v-"))continue;
    if(!lead.company||String(lead.services||"").length<60||Number(lead.suitability_score||0)<75)continue;
+   if(lead.source_status!=="active"||lead.source_checked!==true||!Array.isArray(lead.photo_urls)||!lead.photo_urls.length)continue;
    const id="kijiji-"+m[1],name=normalize(lead.company),area=normalize(lead.area),owner=normalize(lead.owner),tel=phone(lead.phone);
    const duplicate=saved.some(x=>x.id===id||x.ad_url===lead.ad_url||
     (tel.length===10&&tel===phone(x.phone))||
@@ -192,7 +193,7 @@ async function prospectsApi(r,e,u){
       (owner&&owner===normalize(x.owner)||!/^(lawn care|landscaping services|cleaning services|painting services)$/.test(name))));
    if(duplicate){duplicates++;continue}
    const safeLead={...lead,category,email:email(String(lead.email||""))?lead.email:"",logo_url:"",photo_urls:Array.isArray(lead.photo_urls)?lead.photo_urls:[]};
-   const record={...prospectInput(safeLead),id,added_at:now,pulled_date:date,updated_at:now,source_checked:!!lead.source_checked,photos_mentioned:!!lead.photos_mentioned,suitability_score:Number(lead.suitability_score)};
+   const record={...prospectInput(safeLead),id,added_at:now,pulled_date:date,updated_at:now,source_checked:true,source_status:"active",source_checked_at:String(lead.source_checked_at||now).slice(0,35),source_note:"Live Kijiji listing and images verified",photos_mentioned:!!lead.photos_mentioned,suitability_score:Number(lead.suitability_score)};
    await e.REGISTRY.put("prospect:"+id,JSON.stringify(record));saved.push(record);added++;
   }
   return regJson({ok:true,added,duplicates,reviewed:candidates.length,search_note:String(results.search_note||"").slice(0,240)});
@@ -336,12 +337,36 @@ async function prospectsApi(r,e,u){
   await e.REGISTRY.put(buildKey,JSON.stringify(job));
   return regJson({build:brief(job)});
  }
+
+ const verifyMatch=path.match(/^\/api\/registry\/prospects\/([a-zA-Z0-9_-]{1,100})\/verify$/);
+ if(verifyMatch&&m==="POST"){
+  if(!e.NS_INTERNAL_AUTH)return regJson({error:"Kijiji verification service is not configured."},503);
+  const key="prospect:"+verifyMatch[1],existing=await e.REGISTRY.get(key,"json");
+  if(!existing)return regJson({error:"Prospect not found."},404);
+  if(!existing.ad_url)return regJson({error:"This business has no saved Kijiji ad URL."},400);
+  let response;
+  try{response=await fetch("https://aiwebstiebuilder.rwyers.workers.dev/verify-ad",{
+   method:"POST",headers:{"content-type":"application/json","x-northstar-internal":e.NS_INTERNAL_AUTH},
+   body:JSON.stringify({ad_url:existing.ad_url})
+  })}catch{return regJson({error:"Verification service is unreachable."},502)}
+  const result=await response.json().catch(()=>({}));
+  if(!response.ok)return regJson({error:String(result.error||"Verification failed.").slice(0,250)},502);
+  if(!["active","expired","unverified"].includes(result.source_status))return regJson({error:"Invalid verification result."},502);
+  const record={...existing,source_checked:result.source_status==="active",source_status:result.source_status,
+   source_note:String(result.source_note||"").slice(0,250),source_checked_at:new Date().toISOString(),updated_at:new Date().toISOString()};
+  if(record.source_checked&&Array.isArray(result.photo_urls)&&result.photo_urls.length&&!existing.photo_urls?.length)
+   record.photo_urls=result.photo_urls.slice(0,12);
+  await e.REGISTRY.put("history:prospect:"+existing.id+":"+Date.now(),JSON.stringify({operation:"source checked",record:existing}));
+  await e.REGISTRY.put(key,JSON.stringify(record));
+  return regJson({ok:true,source_status:record.source_status,source_note:record.source_note,source_checked_at:record.source_checked_at,photo_count:record.photo_urls?.length||0});
+ }
  const found=path.match(/^\/api\/registry\/prospects\/([a-zA-Z0-9_-]{1,100})$/);
  if(found){const key="prospect:"+found[1],existing=await e.REGISTRY.get(key,"json");
   if(!existing)return regJson({error:"Prospect not found"},404);
   if(m==="PUT"){const raw=await r.text();if(raw.length>12000)return regJson({error:"Record too large"},413);
    let body;try{body=JSON.parse(raw)}catch{return regJson({error:"Invalid JSON"},400)}
    const record={...existing,...prospectInput(body),id:existing.id,updated_at:new Date().toISOString()};
+   if(record.ad_url!==existing.ad_url){record.source_status="unverified";record.source_checked=false;record.source_note="Ad link edited — recheck required.";record.source_checked_at="";}
    await e.REGISTRY.put("history:prospect:"+existing.id+":"+Date.now(),JSON.stringify({operation:"updated",record:existing}));
    await e.REGISTRY.put(key,JSON.stringify(record));return regJson({ok:true,prospect:record});
   }
