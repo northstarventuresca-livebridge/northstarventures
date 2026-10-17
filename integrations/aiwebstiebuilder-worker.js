@@ -483,10 +483,10 @@ async function bbDesignResponse(env,instructions,input,limit=20000){
     return {text:html,model:choice.name,visual_references:isImageInput&&candidate===input};
    }catch(err){
     const reason=String(err.message||"");
-    const modelUnavailable=[400,403,404].includes(err.httpStatus)&&/model|access|not found|permission|unsupported/i.test(reason);
-    if(choice.name==="gpt-6.1-sol"&&modelUnavailable){unavailable=err;break}
-    // Kijiji sometimes rejects image retrieval by OpenAI. Retry without those images.
+    // Kijiji image URLs may be temporarily inaccessible to OpenAI; preserve the same model first.
     if(candidate===input&&isImageInput&&[400,403,404,422].includes(err.httpStatus))continue;
+    // Access to newer models varies by API account. Retain a working legacy fallback.
+    if(choice.name==="gpt-6.1-sol"&&[400,403,404].includes(err.httpStatus)){unavailable=err;break}
     throw err;
    }
   }
