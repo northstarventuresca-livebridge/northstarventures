@@ -197,6 +197,44 @@ async function prospectsApi(r,e,u){
   }
   return regJson({ok:true,added,duplicates,reviewed:candidates.length,search_note:String(results.search_note||"").slice(0,240)});
  }
+
+ const aiMatch=path.match(/^\/api\/registry\/prospects\/([a-zA-Z0-9_-]{1,100})\/assistant$/);
+ if(aiMatch&&m==="POST"){
+  if(!e.NS_INTERNAL_AUTH)return regJson({error:"Private AI integration is not configured."},503);
+  const key="prospect:"+aiMatch[1],existing=await e.REGISTRY.get(key,"json");
+  if(!existing)return regJson({error:"Save this prospect before using AI."},404);
+  let data;
+  try{const raw=await r.text();if(raw.length>12000)return regJson({error:"Request is too large."},413);data=JSON.parse(raw)}
+  catch{return regJson({error:"Invalid assistant request."},400)}
+  if(!["research","pitch"].includes(data.kind))return regJson({error:"Invalid assistant action."},400);
+  const content=String(data.kind==="pitch"?data.focus||"":data.question||"").trim();
+  if(content.length<8||content.length>1300)return regJson({error:"Enter a question or focus (8–1300 characters)."},400);
+  const rateKey="assistant:rate:"+aiMatch[1]+":"+Math.floor(Date.now()/60000);
+  const used=Number(await e.REGISTRY.get(rateKey)||0);
+  if(used>=8)return regJson({error:"Too many AI requests. Please try again shortly."},429);
+  await e.REGISTRY.put(rateKey,String(used+1),{expirationTtl:120});
+  const context={...existing};
+  const allowed=["company","category","owner","area","services","phone","email","ad_url","preview_url","website_url","website_name","notes","proposal","offer","contact_notes","stage"];
+  if(data.prospect&&typeof data.prospect==="object"&&!Array.isArray(data.prospect))
+   for(const field of allowed)if(typeof data.prospect[field]==="string")context[field]=data.prospect[field].slice(0,2500);
+  const history=Array.isArray(data.history)?data.history.slice(-6).map(x=>({question:String(x.question||"").slice(0,350),answer:String(x.answer||"").slice(0,900)})):[];
+  let upstream;try{
+   upstream=await fetch("https://aiwebstiebuilder.rwyers.workers.dev/prospect-assistant",{
+    method:"POST",headers:{"content-type":"application/json","x-northstar-internal":e.NS_INTERNAL_AUTH},
+    body:JSON.stringify({kind:data.kind,prospect:context,question:content,focus:content,history})
+   });
+  }catch{return regJson({error:"AI assistant couldn't connect. Try again."},502)}
+  const result=await upstream.json().catch(()=>({}));
+  if(!upstream.ok)return regJson({error:String(result.error||"AI assistant unavailable.").slice(0,260)},upstream.status===429?429:502);
+  if(data.kind==="pitch"){
+   if(typeof result.phone_script!=="string"||typeof result.text_message!=="string"||!result.phone_script.trim()||!result.text_message.trim())return regJson({error:"The pitch response was incomplete."},502);
+   const now=new Date().toISOString(),saved={...existing,pitch_phone:result.phone_script.slice(0,3400),pitch_text:result.text_message.slice(0,3200),pitch_focus:content,pitch_generated_at:now,updated_at:now};
+   await e.REGISTRY.put("history:prospect:"+existing.id+":"+Date.now(),JSON.stringify({operation:"pitch refreshed",record:existing}));
+   await e.REGISTRY.put(key,JSON.stringify(saved));
+   return regJson({phone_script:saved.pitch_phone,text_message:saved.pitch_text,focus:content,generated_at:now});
+  }
+  return regJson({answer:String(result.answer||"").slice(0,4500),confidence:String(result.confidence||"low"),sources:Array.isArray(result.sources)?result.sources.slice(0,8):[]});
+ }
  const found=path.match(/^\/api\/registry\/prospects\/([a-zA-Z0-9_-]{1,100})$/);
  if(found){const key="prospect:"+found[1],existing=await e.REGISTRY.get(key,"json");
   if(!existing)return regJson({error:"Prospect not found"},404);
