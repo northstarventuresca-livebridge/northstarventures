@@ -396,7 +396,7 @@ if(path!=="/search"||req.method!=="POST")return J({error:"Not found"},404);
 const a=req.headers.get("x-northstar-internal")||"",b=env.NS_INTERNAL_AUTH||"";let diff=0;if(!a||a.length!==b.length)return J({error:"Unauthorized"},401);for(let i=0;i<a.length;i++)diff|=a.charCodeAt(i)^b.charCodeAt(i);if(diff)return J({error:"Unauthorized"},401);
 const key=env.find_web_clients||env.find_web_client;if(!key)return J({error:"OpenAI key binding missing"},503);
 let input;try{const body=await req.text();if(body.length>4000)return J({error:"Search too large"},413);input=JSON.parse(body)}catch{return J({error:"Invalid request"},400)}
-const category=trim(input.category,80),focus=trim(input.focus,1200),cities=Array.isArray(input.cities)?[...new Set(input.cities.map(x=>trim(x,60)).filter(x=>/^[a-zA-Z .'-]{2,60}$/.test(x)))].slice(0,6):[];if(!/^[\\p{L}\\p{N}][\\p{L}\\p{N} &\x27/,.-]{1,54}$/u.test(category)||!cities.length)return J({error:"Choose a valid search topic and one or more cities"},400);
+const category=trim(input.category,80),focus=trim(input.focus,1200),cities=Array.isArray(input.cities)?[...new Set(input.cities.map(x=>trim(x,60)).filter(x=>/^[a-zA-Z .'-]{2,60}$/.test(x)))].slice(0,6):[];if(category.length<2||category.length>55||category.includes("<")||category.includes(">")||!cities.length)return J({error:"Choose a valid search topic and one or more cities"},400);
 
 
 const angles=focus?
