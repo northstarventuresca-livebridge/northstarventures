@@ -183,6 +183,7 @@ async function bbStep(job,p,env){
  if(stage==="new"){
   const info=await bbGit("/repos/rwyers/"+repo,"GET",env.NS_GITHUB_TOKEN);
   if(info.full_name?.toLowerCase()!=="rwyers/"+repo)throw Error("Repository must be owned by rwyers.");
+  if(info.default_branch!=="main"||info.size===0)throw Error("Create the GitHub repository with an initial README and main as its default branch, then retry. Existing files are preserved.");
   const domains=await bbDomain({company},env);
   const scripts=(await bbCF(BB_RY,"/workers/scripts","GET",env.NS_RY_CF_TOKEN)).result||[];
   if(scripts.some(x=>x.id===name))throw Error("A Cloudflare Worker with this client name already exists; a safe unused repo name is required.");
@@ -200,11 +201,11 @@ async function bbStep(job,p,env){
   if(!job.html||job.html.length<4500)throw Error("Website source missing; regenerate before publishing.");
   const worker=bbSiteWorker(job.html);
   const config=JSON.stringify({name,main:"./worker.js",compatibility_date:"2026-10-17"},null,2)+"\n";
-  const readme="# "+company+"\n\nNorth Star Ventures website preview. Dedicated repository for this prospective client.\n\nPreview: "+job.preview_url+"\n\nFiles: index.html (source); worker.js (Cloudflare Worker); wrangler.jsonc (deployment config).\n";
+
   await bbFile(repo,"index.html",job.html,env.NS_GITHUB_TOKEN);
   await bbFile(repo,"worker.js",worker,env.NS_GITHUB_TOKEN);
   await bbFile(repo,"wrangler.jsonc",config,env.NS_GITHUB_TOKEN);
-  await bbFile(repo,"README.md",readme,env.NS_GITHUB_TOKEN);
+  // Preserve the README created by the user; never overwrite an existing GitHub file.
   return {stage:"committed",message:"Website source committed to the dedicated rwyers GitHub repository."};
  }
  if(stage==="committed"){
