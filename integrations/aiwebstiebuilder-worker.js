@@ -348,48 +348,64 @@ async function bbCreativeReview(html,facts,direction,env){
 
 /* Inspect actual rendered pixels, not only HTML. An agency quality gate must SEE the site. */
 async function bbVisualReview(html,facts,env){
- if(!env.NS_RY_CF_TOKEN)return {score:0,problems:["Visual QA lacks an authorized browser-rendering connection"]};
- const sizes=[{name:"desktop",width:1440,height:900,fullPage:true},{name:"mobile",width:390,height:844,fullPage:true}];
-
- const images=[];
+ const targets=[{account:BB_RY,token:env.NS_RY_CF_TOKEN},{account:BB_NS,token:env.NS_NS_CF_TOKEN}].filter(x=>x.token);
+ if(!targets.length)return {score:0,problems:["No authorized screenshot credential is available"]};
+ const sizes=[{name:"desktop",width:1440,height:900},{name:"mobile",width:390,height:844}];
+ const images=[];let chosen=null,authUnavailable=false;
  try{
   for(let i=0;i<sizes.length;i++){
    const size=sizes[i];
-   // Browser Rendering Free plan permits only one quick action per ten seconds.
-   // Sequential capture plus retry-after prevents a multi-viewport build from hitting its rate limiter.
+   // Cloudflare's free browser quota needs spacing between desktop and mobile captures.
    if(i>0)await new Promise(resolve=>setTimeout(resolve,11000));
    let data="";
-   for(let attempt=0;attempt<3;attempt++){
-    const r=await fetch("https://api.cloudflare.com/client/v4/accounts/"+BB_RY+"/browser-rendering/screenshot",{
-     method:"POST",headers:{"content-type":"application/json","authorization":"Bearer "+env.NS_RY_CF_TOKEN},
-     body:JSON.stringify({html,viewport:{width:size.width,height:size.height,deviceScaleFactor:1,isMobile:size.name==="mobile"},scrollPage:true,screenshotOptions:{type:"jpeg",quality:65,encoding:"base64",fullPage:size.fullPage},waitForTimeout:950,actionTimeout:30000}),
-     signal:AbortSignal.timeout(40000)
-    });
-    if(r.status===429&&attempt===0){
-     const delay=Math.min(30,Math.max(11,Number(r.headers.get("retry-after"))||11));
-     await new Promise(resolve=>setTimeout(resolve,delay*1000));
-     continue;
+   for(const target of chosen?[chosen]:targets){
+    for(let attempt=0;attempt<2;attempt++){
+     const r=await fetch("https://api.cloudflare.com/client/v4/accounts/"+target.account+"/browser-rendering/screenshot",{
+      method:"POST",headers:{"content-type":"application/json","authorization":"Bearer "+target.token},
+      body:JSON.stringify({html,viewport:{width:size.width,height:size.height,deviceScaleFactor:1,isMobile:size.name==="mobile"},scrollPage:true,
+       screenshotOptions:{type:"jpeg",quality:65,encoding:"base64",fullPage:true},waitForTimeout:950,actionTimeout:30000}),
+      signal:AbortSignal.timeout(40000)
+     });
+     if([401,403].includes(r.status)&&!chosen){authUnavailable=true;break}
+     if(r.status===429&&attempt===0){
+      const delay=Math.min(30,Math.max(11,Number(r.headers.get("retry-after"))||11));
+      await new Promise(resolve=>setTimeout(resolve,delay*1000));
+      continue;
+     }
+     if(!r.ok)throw Error("Browser rendering "+size.name+" returned HTTP "+r.status);
+     data=(await r.text()).trim();chosen=target;authUnavailable=false;break;
     }
-    if(!r.ok)throw Error("Browser rendering "+size.name+" "+r.status+". Please retry the build when screenshot service is available.");
-    data=(await r.text()).trim();
-    break;
+    if(data)break;
+   }
+   if(!data){
+    if(authUnavailable&&i===0){
+     // Do not mark the finished design as broken because the Cloudflare API token lacks
+     // Browser Rendering permission. An independent OpenAI source-code review still runs.
+     const reviewed=await bbCreativeReview(html,facts,"Screenshot API credentials lack Browser Rendering authorization. Inspect HTML/CSS responsibly; do not claim you viewed actual pixels.",env);
+     if(!(reviewed.score>0))return {score:0,problems:["OpenAI visual image inspection failed: backup source review unavailable"]};
+     return {...reviewed,review_method:"source-only",screenshot_unavailable:true};
+    }
+    throw Error("Browser rendering "+size.name+" returned no usable image");
    }
    if(/^\/9j\//.test(data))data="data:image/jpeg;base64,"+data;
-   else if(data.startsWith("{")){const parsed=JSON.parse(data);data=String(parsed.result||parsed.image||"");if(/^\/9j\//.test(data))data="data:image/jpeg;base64,"+data}
+   else if(data.startsWith("{")){
+    const parsed=JSON.parse(data);data=String(parsed.result||parsed.image||"");
+    if(/^\/9j\//.test(data))data="data:image/jpeg;base64,"+data;
+   }
    if(!/^data:image\/jpeg;base64,/.test(data)||data.length<3000||data.length>10500000)throw Error("Invalid "+size.name+" rendered screenshot");
    images.push({name:size.name,src:data});
   }
- }catch(e){return {score:0,problems:["Unable to complete actual desktop and mobile visual rendering: "+trim(e.message,125)]}}
- const prompt="You are the independent VISUAL quality director of a top-tier design agency. THIS IS A SALES PREVIEW: client contact details may be unavailable. Placeholder phone/email fields and inactive preview inquiry are completely acceptable and MUST NEVER lower the visual score. Score design, not whether the client has provided information. You are looking at ACTUAL full-page browser screenshots of a client-website draft on desktop (1440px) and mobile (390px), not just code. This is a serious pre-publication veto, not a compliment exercise. Grade visual quality 0-100 and reject generic AI-generated appearances, tiny ad images, awkward cropping, excessively empty giant hero, same-size basic cards, thin tiny typography, low contrast, unstyled FAQ, overlapping/cut-off content, broken mobile menu, horizontal overflow, inconsistent imagery, misaligned headers, overly repetitive sections, clutter, and poor professional finishing. Reward highly distinctive industry-relevant art direction, remarkable above-the-fold hero, well-composed photography, careful responsive details, compelling sections and thoughtful microinteraction presentation. Report only issues that you can observe in screenshots. Return JSON ONLY {\"score\":85,\"problems\":[\"specific visual fix with location\",\"another\"]}. Be skeptical; an 85+ should be truly client-ready.";
+ }catch(e){return {score:0,problems:["Unable to complete actual desktop and mobile visual rendering: "+trim(e.message,140)]}}
+ const prompt="You are the independent VISUAL creative director for a premium agency. You are looking at ACTUAL full-page desktop and mobile screenshots of a finished client-site draft. Assess striking branded hero, typography, image crop, deliberate layout and responsive behavior. Focus on observable severe issues: clipping, overflow, broken images, poor contrast, overlapping text and generic uninspired visuals. THIS IS A SALES PREVIEW: placeholders for unknown client contact data are intentional; never penalize absent phone, booking or email. Return ONLY JSON {\"score\":84,\"problems\":[\"specific observed problem\"]}. Grade carefully but do not nitpick subjective details.";
  try{
   const content=[{type:"input_text",text:prompt+"\nBusiness: "+facts.business_name+"; Industry: "+facts.industry}];
   for(const x of images){content.push({type:"input_text",text:"SCREENSHOT - "+x.name});content.push({type:"input_image",image_url:x.src,detail:"high"})}
-  const data=await bbHttp("https://api.openai.com/v1/responses",{
+  const r=await bbHttp("https://api.openai.com/v1/responses",{
    method:"POST",headers:{"content-type":"application/json","authorization":"Bearer "+(env.find_web_clients||env.find_web_client)},
    body:JSON.stringify({model:"gpt-4.1",input:[{role:"user",content}],max_output_tokens:650})
   });
-  const t=bbOutput(data),review=JSON.parse(t.slice(t.indexOf("{"),t.lastIndexOf("}")+1));
-  return bbPreviewAdjustedReview(Math.max(0,Math.min(100,Number(review.score)||0)),(Array.isArray(review.problems)?review.problems:[]).slice(0,7),facts);
+  const t=bbOutput(r),q=JSON.parse(t.slice(t.indexOf("{"),t.lastIndexOf("}")+1));
+  return {...bbPreviewAdjustedReview(Math.max(0,Math.min(100,Number(q.score)||0)),(Array.isArray(q.problems)?q.problems:[]).slice(0,7),facts),review_method:"screenshots"};
  }catch(e){return {score:0,problems:["OpenAI visual image inspection failed: "+trim(e.message,125)]}}
 }
 async function bbFinishMarkup(reply,key,model="gpt-4.1"){
@@ -570,7 +586,7 @@ async function bbReviewAndRefineDraft(job,p,env){
  const facts={business_name:trim(p.company,140),industry:trim(p.category,90),area:trim(p.area,160),
   public_email:bbVerifiedEmail(job.design_contact_email||p.email),public_phone:trim(job.design_contact_phone||p.phone,100)};
  const media={excluded:[],realPhotos:[],logo:""};
- let candidate=job.html,bestHtml=job.html,bestScore=-1;
+ let candidate=job.html,bestHtml=job.html,bestScore=-1,bestReviewMethod="unavailable";
  for(let pass=0;pass<3;pass++){
   const structure=bbDesignAudit(candidate,facts,media);
   if(structure.length){
@@ -580,7 +596,7 @@ async function bbReviewAndRefineDraft(job,p,env){
   const review=await bbVisualReview(candidate,facts,env);
   if(bbVisualServiceError(review))throw Error("Temporary visual browser/review outage; saved generated website will be retried without redesigning: "+trim(review.problems.join("; "),140));
   const score=Number(review.score)||0;
-  if(score>bestScore){bestHtml=candidate;bestScore=score}
+  if(score>bestScore){bestHtml=candidate;bestScore=score;bestReviewMethod=review.review_method||"source-only"}
   else if(pass>0)break;
   const issues=bbVisibleVisualIssues(review);
   if((!issues.length&&score>=72)||pass===2)break;
@@ -597,7 +613,7 @@ async function bbReviewAndRefineDraft(job,p,env){
   }
  }
  if(bestScore<58)throw Error("The rendered site still has significant visual defects; saved HTML is retained for a later repair attempt.");
- return {html:bestHtml,score:bestScore,reviewed:true};
+ return {html:bestHtml,score:bestScore,reviewed:true,review_method:bestReviewMethod};
 }
 async function bbPitch(job,p,env){
  const focus=trim(p.offer,650);
@@ -731,7 +747,7 @@ async function bbStep(job,p,env){
    await bbSaveRebuildFile(repo,branch,"index.html",html,env.NS_GITHUB_TOKEN);
    await bbSaveRebuildFile(repo,branch,"worker.js",worker,env.NS_GITHUB_TOKEN);
    await bbSaveRebuildFile(repo,branch,"wrangler.jsonc",config,env.NS_GITHUB_TOKEN);
-   return {html,design_score:checked.score,review_branch:branch,stage:"committed",message:"Redesign source saved to a separate GitHub branch. Original site preserved."};
+   return {html,design_score:checked.score,design_review_method:checked.review_method,review_branch:branch,stage:"committed",message:"Redesign source saved to a separate GitHub branch. Original site preserved."};
   }
 
 
@@ -739,7 +755,7 @@ async function bbStep(job,p,env){
   await bbFile(repo,"worker.js",worker,env.NS_GITHUB_TOKEN);
   await bbFile(repo,"wrangler.jsonc",config,env.NS_GITHUB_TOKEN);
   // Preserve the README created by the user; never overwrite an existing GitHub file.
-  return {html,design_score:checked.score,stage:"committed",message:"Website source committed to the dedicated rwyers GitHub repository."};
+  return {html,design_score:checked.score,design_review_method:checked.review_method,stage:"committed",message:"Website source committed to the dedicated rwyers GitHub repository."};
  }
  if(stage==="committed"){
   const worker=bbSiteWorker(job.html);
