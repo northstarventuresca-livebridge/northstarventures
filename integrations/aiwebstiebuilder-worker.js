@@ -347,18 +347,45 @@ async function bbCreativeReview(html,facts,direction,env){
 }
 
 /* Inspect actual rendered pixels, not only HTML. An agency quality gate must SEE the site. */
+
+/* Cloudflare Browser Run Quick Actions use native Worker bindings; no REST API token is needed. */
+async function bbBoundScreenshot(html,size,env){
+ if(!env.BROWSER||typeof env.BROWSER.quickAction!=="function")return "";
+ try{
+  const response=await env.BROWSER.quickAction("screenshot",{
+   html,viewport:{width:size.width,height:size.height,deviceScaleFactor:1,isMobile:size.name==="mobile"},
+   scrollPage:true,screenshotOptions:{type:"jpeg",quality:65,fullPage:true,encoding:"base64"},
+   waitForTimeout:700,actionTimeout:30000
+  });
+  if(!response?.ok)return "";
+  const type=String(response.headers?.get?.("content-type")||"");
+  if(type.startsWith("image/")){
+   const buf=new Uint8Array(await response.arrayBuffer());
+   if(buf.length>5500000)throw Error("Rendered image exceeds safe review size");
+   let binary="";
+   for(let i=0;i<buf.length;i+=8192)binary+=String.fromCharCode(...buf.subarray(i,i+8192));
+   return "data:image/jpeg;base64,"+btoa(binary);
+  }
+  let text=(await response.text()).trim();
+  if(text.startsWith("{")){
+   const j=JSON.parse(text);text=String(j.result||j.image||j.screenshot||"");
+  }
+  if(/^\/9j\//.test(text))text="data:image/jpeg;base64,"+text;
+  return /^data:image\/jpeg;base64,/.test(text)?text:"";
+ }catch{return ""}
+}
+
 async function bbVisualReview(html,facts,env){
  const targets=[{account:BB_RY,token:env.NS_RY_CF_TOKEN},{account:BB_NS,token:env.NS_NS_CF_TOKEN}].filter(x=>x.token);
- if(!targets.length)return {score:0,problems:["No authorized screenshot credential is available"]};
+ if(!targets.length&&!env.BROWSER?.quickAction)return {score:0,problems:["No authorized screenshot credential or browser binding is available"]};
  const sizes=[{name:"desktop",width:1440,height:900},{name:"mobile",width:390,height:844}];
  const images=[];let chosen=null,authUnavailable=false;
  try{
   for(let i=0;i<sizes.length;i++){
    const size=sizes[i];
-   // Cloudflare's free browser quota needs spacing between desktop and mobile captures.
    if(i>0)await new Promise(resolve=>setTimeout(resolve,11000));
-   let data="";
-   for(const target of chosen?[chosen]:targets){
+   let data=await bbBoundScreenshot(html,size,env);
+   for(const target of data?[]:(chosen?[chosen]:targets)){
     for(let attempt=0;attempt<2;attempt++){
      const r=await fetch("https://api.cloudflare.com/client/v4/accounts/"+target.account+"/browser-rendering/screenshot",{
       method:"POST",headers:{"content-type":"application/json","authorization":"Bearer "+target.token},
