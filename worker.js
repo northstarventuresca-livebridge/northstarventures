@@ -133,6 +133,16 @@ function prospectInput(body){
  for(const k of ["contact_date","follow_up"])if(x[k]&&!/^\d{4}-\d{2}-\d{2}$/.test(x[k]))throw Object.assign(Error("Invalid date."),{status:400});
  return x;
 }
+async function regProspectList(e){
+ let cursor,items=[],pages=0;
+ do{const p=await e.REGISTRY.list({prefix:"prospect:",limit:1000,...(cursor?{cursor}:{})});
+ const v=await Promise.all(p.keys.map(k=>e.REGISTRY.get(k.name,"json")));
+ items.push(...v.filter(x=>x&&typeof x==="object"));
+ cursor=p.list_complete?null:p.cursor;
+ if(++pages>30)throw Error("Too many prospects");
+ }while(cursor);
+ return items;
+}
 async function prospectsApi(r,e,u){
  if(!e.REGISTRY)return regJson({error:"Registry unavailable."},503);
  const path=u.pathname,m=r.method;
