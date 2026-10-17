@@ -436,12 +436,15 @@ async function bbDiscoverPublicContact(p,env){
  if(phone&&email)return {phone,email,source:"provided"};
  if(!p.company||!(env.find_web_clients||env.find_web_client))return {phone,email,source:"not_verified"};
  try{
-  const instructions="Search public Kijiji listing, Google, Facebook business pages for the EXACT named company and advertised area. Extract business contact details only when the source explicitly matches that business and city or the exact original ad ID. Do not infer identity from owner name alone or combine unrelated records. Output JSON only: {\"phone\":\"\",\"email\":\"\",\"source_url\":\"\",\"evidence\":\"\"}. Empty fields when unverified.";
+  const instructions="Search public Kijiji listing, Google, Facebook business pages for the EXACT named company and advertised area. Extract business contact details only when the source explicitly matches that business and city or the exact original ad ID. Do not infer identity from owner name alone or combine unrelated records. If the business name is generic like House Cleaning Services, require an exact original Kijiji listing ID match or verifiable owner+business+city association. Output JSON only: {\"phone\":\"\",\"email\":\"\",\"source_url\":\"\",\"evidence\":\"\"}. Empty fields when unverified.";
   const r=await bbHttp("https://api.openai.com/v1/responses",{method:"POST",headers:{"authorization":"Bearer "+(env.find_web_clients||env.find_web_client),"content-type":"application/json"},body:JSON.stringify({model:"gpt-4.1-mini",tools:[{type:"web_search",search_context_size:"low"}],tool_choice:"required",instructions,input:JSON.stringify({company:trim(p.company,140),area:trim(p.area,100),services:trim(p.services,180),ad_url:bbUrl(p.ad_url)}),max_output_tokens:460})});
   const raw=bbOutput(r),v=JSON.parse(raw.slice(raw.indexOf("{"),raw.lastIndexOf("}")+1));
   const source=bbUrl(v.source_url),evidence=String(v.evidence||"").toLowerCase();
   const exactAd=source&&p.ad_url&&new URL(source).pathname===new URL(p.ad_url).pathname;
-  const matched=source&&(exactAd||(evidence.includes(String(p.company).toLowerCase())&&evidence.includes(String(p.area||"").toLowerCase())));
+  const business=String(p.company||"").toLowerCase().trim(),area=String(p.area||"").toLowerCase().trim(),owner=String(p.owner||"").toLowerCase().trim();
+  const generic=/^(house|home|apartment|residential|commercial|car|auto|yard|lawn|painting|cleaning|plumbing|electrical)\s/i.test(business)&&/(services|cleaning|solutions|repair|maintenance)$/i.test(business);
+  const namedMatch=business.length>5&&area.length>2&&evidence.includes(business)&&evidence.includes(area)&&(!generic||(owner.length>4&&evidence.includes(owner)));
+  const matched=source&&(exactAd||namedMatch);
   const number=matched?trim(v.phone,80):"";
   return {phone:phone||(/^\+?[\d()\s.-]{10,25}$/.test(number)&&number.replace(/\D/g,"").length>=10?number:""),email:email||(matched?bbVerifiedEmail(v.email):""),source:matched?source:"unverified"};
  }catch{return {phone,email,source:"unverified"}}
