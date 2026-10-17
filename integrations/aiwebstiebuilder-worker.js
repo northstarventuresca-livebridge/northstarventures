@@ -310,8 +310,10 @@ async function bbVisualReview(html,facts,env){
     signal:AbortSignal.timeout(40000)
    });
    if(!r.ok)throw Error("Browser rendering "+size.name+" "+r.status);
-   const data=(await r.text()).trim();
-   if(!/^data:image\/jpeg;base64,/.test(data)||data.length<3000||data.length>10500000)throw Error("Invalid "+size.name+" rendered screenshot");
+   let data=(await r.text()).trim();
+   if(/^\/9j\//.test(data))data="data:image/jpeg;base64,"+data;
+   else if(data.startsWith("{")){const parsed=JSON.parse(data);data=String(parsed.result||parsed.image||"");if(/^\/9j\//.test(data))data="data:image/jpeg;base64,"+data}
+   if(!/^data:image\/jpeg;base64,/.test(data)||data.length<3000||data.length>10500000)throw Error("Invalid "+size.name+" rendered screenshot ("+(r.headers.get("content-type")||"unknown")+")");
    return {name:size.name,src:data};
   }));
  }catch(e){return {score:0,problems:["Could not render desktop and mobile screenshots: "+trim(e.message,120)]}}
