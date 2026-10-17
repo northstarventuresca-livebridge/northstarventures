@@ -1,5 +1,27 @@
 const J=(v,s=200)=>new Response(JSON.stringify(v),{status:s,headers:{"content-type":"application/json","cache-control":"no-store"}});
-const topics={"Landscaping":"landscape lawn tree yard work snow removal","Electrical":"electrician wiring electrical contracting","Painting":"house painting interior exterior","Framing":"framing construction carpentry","Plumbing":"plumber drain plumbing","Flooring":"flooring hardwood tile laminate carpet","House Cleaning":"cleaners housekeeping residential cleaning","Home Based Businesses":"home bakery crafts tutoring home business"};
+const topics={
+ "Landscaping":"landscape design lawn care mowing acreage maintenance tree trimming arborist yard cleanup sod patio decks fencing snow removal",
+ "Electrical":"licensed electrician residential commercial wiring fixtures outlets electrical panel EV charger lighting renovation contractor",
+ "Painting":"interior exterior house residential commercial building painters cabinet spray painting refinishing deck fence staining floor concrete roof coating and painting stucco siding doors trim drywall",
+ "Framing":"rough framing house construction decks garages timber structural framing carpenter renovations basement framing",
+ "Plumbing":"plumber residential commercial drain sewer hot water heater fixtures repairs bathroom renovation emergency plumbing",
+ "Flooring":"flooring contractor hardwood vinyl plank laminate tile epoxy carpet refinishing restoration installation",
+ "House Cleaning":"residential housekeeping deep cleaning move out post construction office commercial carpet window cleaning",
+ "Home Based Businesses":"home bakery cakes catering crafts seamstress pet groomer tutoring bookkeeping alterations photography beauty home studio"
+};
+const searchAngles={
+ "Painting":[
+  "house painters residential interior exterior commercial wall ceilings trim doors drywall spray painting building painter",
+  "cabinet painting refinishing kitchen cupboards lacquer spray paint deck staining fences siding roof painting coating garage epoxy floor painting furniture staining"
+ ],
+ "Landscaping":["lawn care mowing tree hedge pruning landscape design sod yard cleanups","snow clearing fence construction patio deck acreage maintenance tree care"],
+ "Electrical":["electrician wiring electrical service panel renovation switches outlets","lighting installs EV charger electrical inspections commercial residential"],
+ "Framing":["residential framing walls houses buildings garages carpenter","structural framing basement renovation deck building framing"],
+ "Plumbing":["plumber residential plumbing fixtures water heater leak repairs","drain sewer cleaning bathroom renovation pipe installation"],
+ "Flooring":["hardwood tile vinyl plank laminate flooring installer","carpet epoxy flooring sanding floor refinishing concrete"],
+ "House Cleaning":["home cleaning housekeeping maid deep cleaning","move out cleaning commercial office janitorial post construction"],
+ "Home Based Businesses":["home-based bakery cake catering crafter custom products","home studio tutoring photography seamstress pet grooming microbusiness"]
+};
 const trim=(v,n=500)=>String(v??"").replace(/[<>]/g,"").trim().slice(0,n);
 function adUrl(url){try{let u=new URL(url),m=u.pathname.match(/\/(\d{9,12})(?:\/|$)/);return ["kijiji.ca","www.kijiji.ca"].includes(u.hostname)&&u.pathname.startsWith("/v-")&&m?{id:m[1],url:"https://www.kijiji.ca"+u.pathname}:null}catch{return null}}
 function imgUrl(url){try{let u=new URL(url);return u.protocol==="https:"&&(/(^|\.)kijiji\.ca$|(^|\.)classistatic\.com$|^i\.ebayimg\.com$/).test(u.hostname)?u.href:null}catch{return null}}
@@ -312,9 +334,9 @@ function searchParse(data){
   return null;
  }
 }
-async function callKijijiSearch(key,category,cities){
- const prompt="Find genuine CURRENT Kijiji.ca individual service-provider ADS offering "+category+" services in "+cities.join(", ")+" (Alberta). Look up actual recent listings through site:kijiji.ca/v- searches. Include up to 8 genuinely distinct current small businesses; cite the exact original ad URL for each. Only report business names, services, image presence and contacts visibly provided in reliable search findings. Never invent an ID/URL/business/photo, never use generic or archived landing pages. If there are zero confirmed current ads, return {leads:[]} rather than guesses.";
- const request={model:"gpt-4.1-mini",tools:[{type:"web_search",search_context_size:"medium"}],tool_choice:"required",instructions:guide,input:prompt,max_output_tokens:7000,text:{format:searchFormat}};
+async function callKijijiSearch(key,category,cities,angle){
+ const prompt="Find real CURRENT Kijiji.ca service-provider advertisements, category "+category+". Search across ALL these specialties, not just companies using the category name: "+angle+". Search terms include "+cities.map(c=>"site:kijiji.ca/v- "+c+" "+angle.split(" ").slice(0,4).join(" ")).join(" | ")+". Search specifically within Alberta communities "+cities.join(", ")+", and advertisers offering services to nearby towns. Look up individual Kijiji listing pages (e.g. /v-painters-painting/, /v-other-services/, /v-lawn-tree-eavestrough/); ads can be under unrelated service categories. Return up to 10 real advertisements with full original listing URLs and at least one detailed service description; prioritize photo-rich ads but DO NOT make up photos or links. Names can be proprietor's advertised name. Never invent an ID/URL or claim a listing is definitely live when only search snippets exist. Return leads [] when no individual ads can be found.";
+ const request={model:"gpt-4.1-mini",tools:[{type:"web_search",search_context_size:"medium"}],tool_choice:"required",instructions:guide,input:prompt,max_output_tokens:5400,text:{format:searchFormat}};
  async function post(payload){
   let response;
   try{response=await fetch("https://api.openai.com/v1/responses",{method:"POST",headers:{"content-type":"application/json","authorization":"Bearer "+key},body:JSON.stringify(payload)})}
@@ -331,7 +353,7 @@ async function callKijijiSearch(key,category,cities){
   const followup={model:"gpt-4.1-mini",previous_response_id:first.id,
    instructions:"Finalize the prior web research. Do not perform new research and do not invent business information. Output strictly the requested JSON. If sources do not clearly identify a current original Kijiji.ca listing, omit it. You must return a leads array, even if empty.",
    input:"Return the searched Kijiji leads now as concise structured JSON. Maximum 8. Do not invent any listing URLs.",
-   text:{format:searchFormat},max_output_tokens:5000};
+   text:{format:searchFormat},max_output_tokens:3800};
   try{
    const second=await post(followup);parsed=searchParse(second);
    if(parsed)return parsed;
