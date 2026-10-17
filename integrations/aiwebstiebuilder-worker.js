@@ -271,6 +271,42 @@ async function bbInspectVisuals(env,logo,photos){
   return {notes:"No safely verified photography or isolated company logo.",logo:"",realPhotos:[],excluded:items.map(x=>x.url)};
  }
 }
+
+/* Never give a prospect a fake destination or a pretend working contact form. */
+function bbVerifiedEmail(value){
+ const x=String(value||"").trim().toLowerCase();
+ return /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/i.test(x)&&!/(?:^|[.@])(?:example|test|placeholder|yourdomain|yourcompany|domain)(?:[.@]|$)/i.test(x)&&!/^your@/i.test(x)?x:"";
+}
+function bbContactGuard(html,facts){
+ const email=bbVerifiedEmail(facts.public_email);
+ const phone=String(facts.public_phone||"").trim();
+ const validPhone=phone.replace(/\D/g,"").length>=10;
+ let out=String(html||"");
+ out=out.replace(/mailto:[^\s"'<>]+/gi,email?"mailto:"+email:"#preview-contact");
+ out=out.replace(/(?<![\w-])[\w.+-]+@[\w.-]+\.[a-z]{2,}(?![\w-])/gi,found=>{
+  if(/(?:googleapis|gstatic|w3|schema)\./i.test(found))return found;
+  return email||"Contact details available after launch";
+ });
+ if(!validPhone)out=out.replace(/tel:[^\s"'<>]+/gi,"#preview-contact");
+ if(!email){
+  let added=false;
+  const preview=function(){
+   const title=trim(facts.business_name,100).replace(/&/g,"&amp;").replace(/"/g,"&quot;");
+   const call=validPhone?'<a href="tel:'+phone.replace(/[^\d+()\s-]/g,"")+'" style="display:inline-flex;align-items:center;gap:8px;padding:12px 18px;border:1px solid currentColor;border-radius:6px;text-decoration:underline">Call for an enquiry</a>':"";
+   return '<div id="preview-contact" class="preview-contact-panel" role="note" style="margin:1.3rem auto;padding:clamp(20px,4vw,40px);max-width:760px;border-radius:12px;background:rgba(128,128,128,.10);border:1px solid rgba(128,128,128,.28);box-shadow:0 14px 42px rgba(0,0,0,.06);color:inherit;text-align:left"><span style="font-size:.72em;letter-spacing:.14em;text-transform:uppercase;font-weight:750">Client website preview</span><h3 style="font-size:clamp(1.4rem,2.6vw,2rem);line-height:1.15;margin:.65rem 0">Contact '+title+'</h3><p style="font-size:1rem;line-height:1.6;max-width:56ch">This is a design preview. Enquiry and booking options will be connected only after the business confirms its preferred contact information.</p>'+call+'</div>';
+  };
+  out=out.replace(/<form\b([^>]*)>[\s\S]*?<\/form\s*>/gi,(whole,attrs)=>{
+   added=true;
+   const matched=/\bid\s*=\s*(["'])([^"']+)\1/i.exec(attrs);
+   const id=matched?matched[2].replace(/[^a-zA-Z0-9_-]/g,""):"";
+   return (id?'<form id="'+id+'" aria-hidden="true" style="display:none!important"></form>':"")+preview();
+  });
+  if(!added)out=out.replace(/<\/main\s*>/i,preview()+"</main>");
+  if(!out.includes('id="preview-contact"'))out=out.replace(/<\/body\s*>/i,preview()+"</body>");
+  out=out.replace(/(<button\b[^>]*type=["']submit["'][^>]*)(>)/gi,(whole,attrs,end)=>attrs+' disabled aria-disabled="true"'+end);
+ }
+ return out;
+}
 function bbDesignAudit(html,facts,media){
  const errors=[];
  if(!/^<!doctype html/i.test(html)||!/<\/html>/i.test(html))errors.push("Incomplete HTML document");
@@ -284,6 +320,9 @@ function bbDesignAudit(html,facts,media){
  if(media.logo&&!html.includes(media.logo))errors.push("Verified business logo omitted");
  if(!facts.public_phone&&/href=["']tel:/i.test(html))errors.push("Invented telephone link");
  if(!facts.public_email&&/href=["']mailto:/i.test(html))errors.push("Invented email address");
+ if(!bbVerifiedEmail(facts.public_email)&&(/mailto:/i.test(html)||/\b[\w.+-]+@[\w.-]+\.[a-z]{2,}\b/i.test(html)))errors.push("Unverified contact address in website");
+ if(!facts.public_phone&&/tel:/i.test(html))errors.push("Unverified phone link in website");
+ if(/<form\b(?![^>]*\bhidden\b)[^>]*\baction\s*=\s*["']https?:/i.test(html))errors.push("Unverified contact form submission endpoint");
  if(/href=["']#["']|href=["']javascript:/i.test(html))errors.push("Nonfunctional or unsafe link");
  return errors;
 }
@@ -420,6 +459,7 @@ async function bbGenerate(job,p,env){
   html=await bbFinishMarkup(out,env.find_web_clients||env.find_web_client);
   const a=html.toLowerCase().indexOf("<!doctype html"),b=html.toLowerCase().lastIndexOf("</html>");
   if(a>=0&&b>a)html=html.slice(a,b+7);
+  html=bbContactGuard(html,facts);
   problems=bbDesignAudit(html,facts,media);
   if(problems.length&&html.toLowerCase().includes('</html>')&&problems.every(x=>x==='Missing heading'||x==='Missing footer')){
    html=await bbRepairMissingStructure(html,facts,direction,env.find_web_clients||env.find_web_client);
@@ -434,7 +474,7 @@ async function bbGenerate(job,p,env){
   }
   feedback=[...problems,...review.problems,...visualReview.problems,"Recompose the actual layout to resolve screenshot issues. Never ignore a visual defect."].join("; ").slice(0,1900);
  }
- if(problems.length||review.score<83||visualReview.score<85)throw Error("Custom design failed visual or code QA. Nothing was published. "+trim(feedback,200)+" Retry generation.");
+ if(problems.length||review.score<83||visualReview.score<85)throw Error("Custom design failed visual or code QA. Nothing was published. "+trim(feedback,340)+" Retry generation.");
  // No third-party JavaScript may run in client previews.
  html=html.replace(/<script\b[^>]*\bsrc\s*=\s*["'][^"']+["'][^>]*>[\s\S]*?<\/script>/gi,"");
  return {html,photos:media.realPhotos.length,quality_score:Math.min(review.score,visualReview.score),design_direction:direction.slice(0,180)};
