@@ -487,8 +487,34 @@ async function nsAutoFinalizeBuild(job,prospect,e){
    await e.REGISTRY.put("history:prospect:"+prospect.id+":"+Date.now(),JSON.stringify({operation:"site built",record:prospect}));
    await e.REGISTRY.put("prospect:"+prospect.id,JSON.stringify(newer));
 }
+
+/* A new builder revision may retry QA-blocked drafts ONCE, not replay unsafe deployments. */
+const NS_BUILDER_RECOVERY_REVISION="2026-10-17-qa-recovery-01";
+function nsQualifiesForAutomaticRecovery(job){
+ if(!job||job.stage!=="blocked"||job.auto_recovery_revision===NS_BUILDER_RECOVERY_REVISION)return false;
+ const failed=String(job.last_auto_error||"");
+ const counts=job.auto_failure_counts||{};
+ // Only the design/visual generation stage is eligible; never reset deployment/auth/data safety blockers.
+ return Number(counts.planned||0)>=3 &&
+  /(Custom design failed|visual or code QA|rendered screenshot|visual image inspection|premium design review|HTML document)/i.test(failed) &&
+  !!job.repo&&!!job.id&&(!job.mode||job.mode!=="rebuild"||!!(job.original_main_sha&&job.original_version_id));
+}
+async function nsRestoreEligibleBuild(e,key,job){
+ if(!nsQualifiesForAutomaticRecovery(job))return job;
+ const recovery={
+  ...job,stage:"planned",error:false,
+  auto_failure_counts:{},auto_recovery_revision:NS_BUILDER_RECOVERY_REVISION,
+  last_auto_error:"",auto_run_id:"",auto_running_until:"",next_auto_retry_at:"",
+  message:"Updated AI designer is revising the preview automatically; no approval required.",
+  updated_at:new Date().toISOString()
+ };
+ await e.REGISTRY.put(key,JSON.stringify(recovery));
+ return recovery;
+}
+
 async function nsAutoAdvanceOne(e,key){
  let job=await e.REGISTRY.get(key,"json");
+ if(job?.stage==="blocked")job=await nsRestoreEligibleBuild(e,key,job);
  if(!job||["ready","blocked"].includes(job.stage))return;
  const now=Date.now();
  if(job.next_auto_retry_at&&Date.parse(job.next_auto_retry_at)>now)return;
@@ -536,7 +562,7 @@ async function nsProcessPendingWebsiteBuilds(e){
  if(!e.REGISTRY)return;
  const page=await e.REGISTRY.list({prefix:"build:prospect:",limit:100});
  const jobs=(await Promise.all(page.keys.map(async k=>({name:k.name,job:await e.REGISTRY.get(k.name,"json")}))))
-  .filter(x=>x.job&&!["ready","blocked"].includes(x.job.stage)&&(!x.job.next_auto_retry_at||Date.parse(x.job.next_auto_retry_at)<=Date.now())&&(!x.job.auto_running_until||Date.parse(x.job.auto_running_until)<=Date.now()))
+  .filter(x=>x.job&&x.job.stage!=="ready"&&(x.job.stage!=="blocked"||nsQualifiesForAutomaticRecovery(x.job))&&(!x.job.next_auto_retry_at||Date.parse(x.job.next_auto_retry_at)<=Date.now())&&(!x.job.auto_running_until||Date.parse(x.job.auto_running_until)<=Date.now()))
   .sort((a,b)=>String(a.job.updated_at||"").localeCompare(String(b.job.updated_at||"")));
  // One job per cron tick avoids duplicate deployments and Cloudflare execution limits.
  for(const x of jobs.slice(0,1))await nsAutoAdvanceOne(e,x.name);
