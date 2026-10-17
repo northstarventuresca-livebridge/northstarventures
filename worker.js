@@ -249,6 +249,93 @@ async function prospectsApi(r,e,u){
   await e.REGISTRY.put(key,JSON.stringify(saved));
   return regJson({ok:true});
  }
+
+ // Resumable client build requests, private to the existing registry session.
+ const bm=path.match(/^\/api\/registry\/prospects\/([a-zA-Z0-9_-]{1,100})\/build(?:\/(step))?$/);
+ if(bm){
+  const prospect=await e.REGISTRY.get("prospect:"+bm[1],"json");
+  if(!prospect)return regJson({error:"Prospect not found."},404);
+  const buildKey="build:prospect:"+bm[1];
+  let job=await e.REGISTRY.get(buildKey,"json");
+  const brief=x=>x?{id:x.id,repo:x.repo,stage:x.stage,message:x.message||"",preview_url:x.preview_url||"",subdomain:x.subdomain||"",worker_url:x.worker_url||"",started_at:x.started_at,updated_at:x.updated_at,pitch_text:x.stage==="ready"?x.pitch_text:""}:null;
+  if(m==="GET"&&!bm[2])return regJson({build:brief(job)});
+  if(m!=="POST")return regJson({error:"Method not allowed."},405);
+  if(!e.NS_INTERNAL_AUTH)return regJson({error:"Builder connection is not configured."},503);
+  if(!bm[2]){
+   let input;try{const raw=await r.text();if(raw.length>1200)return regJson({error:"Invalid repository name."},413);input=JSON.parse(raw)}catch{return regJson({error:"Invalid request."},400)}
+   const repo=String(input.repo||"").trim().toLowerCase();
+   if(!/^[a-z0-9][a-z0-9-]{1,54}$/.test(repo)||/--/.test(repo))return regJson({error:"Enter the exact new rwyers repository name (letters, digits, hyphens)."},400);
+   if(!input.confirmed)return regJson({error:"Confirm that the repository has been created in GitHub under rwyers."},400);
+   if(job&&job.stage!=="ready"){
+    if(job.repo!==repo)return regJson({error:"A build for this prospect is already underway with another repo. Resume it instead."},409);
+    return regJson({build:brief(job),resumed:true});
+   }
+   if(job&&job.stage==="ready")return regJson({build:brief(job),resumed:true});
+   const existingSites=await regList(e);
+   if(existingSites.some(x=>(x.github_repo||"").toLowerCase()==="rwyers/"+repo||
+     x.company?.toLowerCase()===prospect.company.toLowerCase()&&(x.preview_url||x.website_url))){
+    return regJson({error:"This business or repository already has a website record. Open Current Websites instead of creating a duplicate."},409);
+   }
+   let cfg;
+   try{cfg=await fetch("https://aiwebstiebuilder.rwyers.workers.dev/build/config",{method:"POST",headers:{"x-northstar-internal":e.NS_INTERNAL_AUTH}})}
+   catch{return regJson({error:"Site builder connection is temporarily unavailable."},502)}
+   const configuration=await cfg.json().catch(()=>({}));
+   if(!cfg.ok)return regJson({error:"Builder setup needed: "+String(configuration.missing?.join(", ")||configuration.error||"Deployment credentials missing.")},503);
+   job={id:crypto.randomUUID(),repo,company:prospect.company,stage:"new",message:"Repository confirmed by you; checking GitHub ownership, available preview domain and deployment safety.",started_at:new Date().toISOString(),updated_at:new Date().toISOString()};
+   await e.REGISTRY.put(buildKey,JSON.stringify(job));
+   return regJson({build:brief(job)},201);
+  }
+  if(!job)return regJson({error:"Start the build first."},409);
+  if(job.stage==="ready")return regJson({build:brief(job)});
+  const stage=job.stage;
+  let result;
+  try{
+   const response=await fetch("https://aiwebstiebuilder.rwyers.workers.dev/build/step",{
+    method:"POST",headers:{"content-type":"application/json","x-northstar-internal":e.NS_INTERNAL_AUTH},
+    body:JSON.stringify({job,prospect})
+   });
+   result=await response.json().catch(()=>({}));
+   if(!response.ok)throw new Error(String(result.error||"Website build step failed.").slice(0,320));
+  }catch(err){
+   job.message=String(err.message||"Build step failed.").slice(0,400);
+   job.error=true;job.updated_at=new Date().toISOString();
+   await e.REGISTRY.put(buildKey,JSON.stringify(job));
+   return regJson({error:job.message,build:brief(job)},502);
+  }
+  const valid={new:"planned",planned:"generated",generated:"committed",committed:"deployed",deployed:"branded",branded:"verified",verified:"ready"};
+  if(result.stage!==valid[stage])return regJson({error:"Unexpected build stage. No changes saved."},502);
+  job={...job,...result,stage:result.stage,error:false,updated_at:new Date().toISOString()};
+  delete job.ok;
+  await e.REGISTRY.put(buildKey,JSON.stringify(job));
+  if(job.stage==="ready"){
+   // Update the prospective lead and the completed website registry only after branded HTTPS verification.
+   const sites=await regList(e);
+   const reference="rwyers/"+job.repo;
+   let current=sites.find(x=>String(x.github_repo).toLowerCase()===reference||x.company.toLowerCase()===prospect.company.toLowerCase()&&x.preview_url===job.preview_url);
+   const record={
+    company:prospect.company,industry:prospect.category,status:"preview",
+    created_at:new Date().toISOString().slice(0,10),website_url:"",
+    preview_url:job.preview_url,github_repo:reference,cloudflare_project:job.worker_name,
+    github_account:"rwyers",cloudflare_account:"rwyers",
+    contact_name:prospect.owner||"",contact_email:prospect.email||"",contact_phone:prospect.phone||"",
+    last_contacted:prospect.contact_date||"",next_followup:prospect.follow_up||"",
+    quoted_price:prospect.offer||"",
+    notes:"Website preview built from prospective client research. "+(prospect.notes||"").slice(0,1700)+"\nRwyers client Worker: "+job.worker_url+"\nNorthstar branded proxy: "+job.proxy_worker+"\nOriginal Kijiji ad: "+(prospect.ad_url||"")
+   };
+   if(current){
+    const updated={...current,...record,id:current.id,notes:(current.notes||"")+"\n"+record.notes,updated_at:new Date().toISOString()};
+    await e.REGISTRY.put("site:"+current.id,JSON.stringify(updated));
+   }else{
+    const sid=crypto.randomUUID();await e.REGISTRY.put("site:"+sid,JSON.stringify({...record,id:sid,updated_at:new Date().toISOString()}));
+   }
+   const newer={...prospect,stage:"preview",preview_url:job.preview_url,website_url:prospect.website_url||job.preview_url,
+    github_repo:reference,pitch_text:job.pitch_text,pitch_focus:"Trade proposal after completed website preview",pitch_generated_at:new Date().toISOString(),
+    updated_at:new Date().toISOString()};
+   await e.REGISTRY.put("history:prospect:"+prospect.id+":"+Date.now(),JSON.stringify({operation:"site built",record:prospect}));
+   await e.REGISTRY.put("prospect:"+prospect.id,JSON.stringify(newer));
+  }
+  return regJson({build:brief(job)});
+ }
  const found=path.match(/^\/api\/registry\/prospects\/([a-zA-Z0-9_-]{1,100})$/);
  if(found){const key="prospect:"+found[1],existing=await e.REGISTRY.get(key,"json");
   if(!existing)return regJson({error:"Prospect not found"},404);
