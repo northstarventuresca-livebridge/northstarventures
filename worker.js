@@ -470,6 +470,10 @@ async function nsAutoAdvanceOne(e,key){
  if(!job||["ready","blocked"].includes(job.stage))return;
  const now=Date.now();
  if(job.next_auto_retry_at&&Date.parse(job.next_auto_retry_at)>now)return;
+ if(job.auto_running_until&&Date.parse(job.auto_running_until)>now)return;
+ const runId=crypto.randomUUID();
+ job={...job,auto_run_id:runId,auto_running_until:new Date(now+13*60000).toISOString(),message:"Building and reviewing your website automatically. No action needed."};
+ await e.REGISTRY.put(key,JSON.stringify(job));
  const id=key.replace("build:prospect:","");
  const prospect=await e.REGISTRY.get("prospect:"+id,"json");
  if(!prospect){job.stage="blocked";job.message="Prospect record missing; manual review required";await e.REGISTRY.put(key,JSON.stringify(job));return}
@@ -487,18 +491,18 @@ async function nsAutoAdvanceOne(e,key){
   if(data.stage!==allowed[stage])throw Error("Unexpected build stage; refusing unsafe transition");
   // Re-fetch to preserve operator edits made while the AI was generating.
   const fresh=await e.REGISTRY.get(key,"json");
-  if(!fresh||fresh.id!==job.id||fresh.stage!==stage)return;
-  job={...fresh,...data,stage:data.stage,error:false,updated_at:new Date().toISOString(),next_auto_retry_at:""};
+  if(!fresh||fresh.id!==job.id||fresh.stage!==stage||fresh.auto_run_id!==runId)return;
+  job={...fresh,...data,stage:data.stage,error:false,updated_at:new Date().toISOString(),next_auto_retry_at:"",auto_run_id:"",auto_running_until:""};
   delete job.ok;
   if(job.stage==="ready")await nsAutoFinalizeBuild(job,prospect,e);
   await e.REGISTRY.put(key,JSON.stringify(job));
  }catch(err){
   const fresh=await e.REGISTRY.get(key,"json");
-  if(!fresh||fresh.id!==job.id||fresh.stage!==stage)return;
+  if(!fresh||fresh.id!==job.id||fresh.stage!==stage||fresh.auto_run_id!==runId)return;
   const counts={...(fresh.auto_failure_counts||{})},tries=(counts[stage]||0)+1;counts[stage]=tries;
   const limit=stage==="planned"?5:8;
   const blocked=tries>=limit;
-  job={...fresh,auto_failure_counts:counts,error:blocked,stage:blocked?"blocked":stage,
+  job={...fresh,auto_failure_counts:counts,error:blocked,stage:blocked?"blocked":stage,auto_run_id:"",auto_running_until:"",
    last_auto_error:String(err.message||err).slice(0,320),
    message:blocked?"Automatic build needs technical attention. Production remains unchanged.":"AI is improving and retrying the website automatically (attempt "+tries+" of "+limit+").",
    next_auto_retry_at:blocked?"":new Date(Date.now()+Math.min(300000,tries*55000)).toISOString(),
@@ -510,7 +514,7 @@ async function nsProcessPendingWebsiteBuilds(e){
  if(!e.REGISTRY)return;
  const page=await e.REGISTRY.list({prefix:"build:prospect:",limit:100});
  const jobs=(await Promise.all(page.keys.map(async k=>({name:k.name,job:await e.REGISTRY.get(k.name,"json")}))))
-  .filter(x=>x.job&&!["ready","blocked"].includes(x.job.stage)&&(!x.job.next_auto_retry_at||Date.parse(x.job.next_auto_retry_at)<=Date.now()))
+  .filter(x=>x.job&&!["ready","blocked"].includes(x.job.stage)&&(!x.job.next_auto_retry_at||Date.parse(x.job.next_auto_retry_at)<=Date.now())&&(!x.job.auto_running_until||Date.parse(x.job.auto_running_until)<=Date.now()))
   .sort((a,b)=>String(a.job.updated_at||"").localeCompare(String(b.job.updated_at||"")));
  // One job per cron tick avoids duplicate deployments and Cloudflare execution limits.
  for(const x of jobs.slice(0,1))await nsAutoAdvanceOne(e,x.name);
