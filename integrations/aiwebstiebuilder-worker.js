@@ -348,7 +348,9 @@ function strictFocusMatch(item,focus){
  const words=[...new Set(normalize(positives).filter(x=>x.length>2&&!stop.has(x)))];
  if(!words.length)return true;
  const count=words.filter(w=>tokens.has(w)||[...tokens].some(t=>t.startsWith(w)||w.startsWith(t))).length;
- return words.length<=2?count>=words.length:count>=Math.max(1,Math.ceil(words.length*.4));
+ const notSection=note.match(/\b(?:not|exclude|excluding|without)\s+(.+?)(?=\bjust\b|[.!]|$)/)?.[1]||"";
+ const excluded=normalize(notSection).filter(w=>w.length>3&&!stop.has(w));
+ return count>=Math.min(2,Math.max(1,Math.floor(words.length/3)))&&!excluded.some(w=>tokens.has(w));
 }
 
 async function callKijijiSearch(key,category,cities,angle,focus){
@@ -410,7 +412,7 @@ const groups=attempts.filter(x=>x.status==="fulfilled").map(x=>x.value);
 if(!groups.length)return J({error:"No search completed: "+failures.join(" | ").slice(0,210)},502);
 const candidates=groups.flatMap(x=>Array.isArray(x.leads)?x.leads:[]).slice(0,35);
 // Enforce a saved specialty focus independently of OpenAI results.
-const tally={discovered:candidates.length,valid_url:0,invalid_or_missing_url:0,duplicate_ads:0,insufficient_details:0,below_score:0,outside_area:0,outside_focus:0,expired:0,not_accessible:0,no_usable_photos:0,verified:0};
+const tally={discovered:candidates.length,valid_url:0,invalid_or_missing_url:0,duplicate_ads:0,insufficient_details:0,below_score:0,outside_area:0,outside_focus:0,sponsored:0,expired:0,not_accessible:0,no_usable_photos:0,verified:0};
 const seen=new Set(),leads=[],review=[];
 const checkArea=area=>{
  const v=trim(area,130).toLowerCase();
@@ -424,6 +426,7 @@ const checked=await Promise.all(candidates.map(async (x,i)=>{
  if(!ad)return {i,x,reject:"invalid_or_missing_url",reason:"No valid individual Kijiji ad URL."};
  if(!x.company||services.length<40)return {i,x,ad,reject:"insufficient_details",reason:"Not enough business/service details to build a preview."};
  if(score<70)return {i,x,ad,reject:"below_score",reason:"Low website-readiness score."};
+ if(/\b(sponsored|paid placement|promoted search result|advertising network)\b/i.test(String(x.notes||"")))return {i,x,ad,reject:"sponsored",reason:"Sponsored/promoted placement not a business prospect."};
  if(!checkArea(x.area))return {i,x,ad,reject:"outside_area",reason:"Advertised service area did not clearly match the selected communities."};
  if(focus&&!strictFocusMatch(x,focus))return {i,x,ad,reject:"outside_focus",reason:"Business services did not match the saved topic search focus."};
  const media=await photos(ad);
