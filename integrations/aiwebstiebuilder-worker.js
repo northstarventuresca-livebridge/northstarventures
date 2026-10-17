@@ -366,6 +366,31 @@ async function bbFinishMarkup(reply,key){
  }
  return html;
 }
+async function bbRepairMissingStructure(html,facts,direction,key){
+ let page=html;
+ if(!/<h1\b/i.test(page)){
+  const headings=[...page.matchAll(/<h([234])\b[^>]*>/gi)];
+  const main=page.search(/<main\b/i);
+  const match=headings.find(x=>/hero|headline|masthead|banner|display/i.test(x[0]))||headings.find(x=>main>=0&&x.index>main)||headings[0];
+  if(match){
+   const tag=match[1],start=match.index,end=start+match[0].length;
+   const close=new RegExp('</h'+tag+'\\s*>','i').exec(page.slice(end));
+   if(close){const p=end+close.index;page=page.slice(0,start)+match[0].replace(/^<h[234]/i,'<h1')+page.slice(end,p)+'</h1>'+page.slice(p+close[0].length)}
+  }
+ }
+ if(!/<footer\b/i.test(page)&&page.toLowerCase().includes('</body>')){
+  try {
+   const response=await bbHttp('https://api.openai.com/v1/responses',{
+    method:'POST',headers:{'content-type':'application/json','authorization':'Bearer '+key},
+    body:JSON.stringify({model:'gpt-4.1-mini',instructions:'You are a senior bespoke web designer completing a client website. Output ONLY a premium brand-specific <footer>...</footer> HTML fragment using attractive inline styles on its elements. Tailor typography and color to the existing site, include actual company name, meaningful service area and trustworthy CTA only with available verified contact info. NEVER invent phones, emails, testimonials or credentials. Do not include any JavaScript. Keep it under 2500 characters.',
+     input:JSON.stringify({business:facts.business_name,industry:facts.industry,area:facts.area,services:facts.services,phone:facts.public_phone,email:facts.public_email,direction,existingStyle:page.slice(0,6000)}),max_output_tokens:1200})
+   });
+   const output=bbOutput(response),a=output.search(/<footer\b/i),z=output.search(/<\/footer\s*>/i);
+   if(a>=0&&z>a){const fragment=output.slice(a,z+9);if(fragment.toLowerCase().includes(facts.business_name.toLowerCase()))page=page.replace(/<\/body\s*>/i,fragment+'\n</body>')}
+  }catch{}
+ }
+ return page;
+}
 async function bbGenerate(job,p,env){
  const incoming=(Array.isArray(p.photo_urls)?p.photo_urls:[]).map(bbUrl).filter(Boolean).slice(0,12);
  const media=await bbInspectVisuals(env,bbUrl(p.logo_url),incoming);
@@ -396,6 +421,10 @@ async function bbGenerate(job,p,env){
   const a=html.toLowerCase().indexOf("<!doctype html"),b=html.toLowerCase().lastIndexOf("</html>");
   if(a>=0&&b>a)html=html.slice(a,b+7);
   problems=bbDesignAudit(html,facts,media);
+  if(problems.length&&html.toLowerCase().includes('</html>')&&problems.every(x=>x==='Missing heading'||x==='Missing footer')){
+   html=await bbRepairMissingStructure(html,facts,direction,env.find_web_clients||env.find_web_client);
+   problems=bbDesignAudit(html,facts,media);
+  }
   if(!problems.length){
    review=await bbCreativeReview(html,facts,direction,env);
    if(review.score>=78){
