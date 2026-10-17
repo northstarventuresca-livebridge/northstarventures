@@ -286,7 +286,12 @@ async function bbStep(job,p,env){
  if(stage==="new"){
   const info=await bbGit("/repos/rwyers/"+repo,"GET",env.NS_GITHUB_TOKEN);
   if(info.full_name?.toLowerCase()!=="rwyers/"+repo)throw Error("Repository must be owned by rwyers.");
-  if(info.default_branch!=="main"||info.size===0)throw Error("Create the GitHub repository with an initial README and main as its default branch, then retry. Existing files are preserved.");
+  if(info.default_branch!=="main")throw Error("This repository must use main as its default branch. Existing files are preserved.");
+  // GitHub can report size=0 immediately after README creation; confirm the actual branch instead.
+  let head;
+  try{head=await bbGit("/repos/rwyers/"+repo+"/git/ref/heads/main","GET",env.NS_GITHUB_TOKEN)}
+  catch(err){if(err.httpStatus===404||err.httpStatus===409)throw Error("Initialize this repository with a README on main and retry.");throw err}
+  if(!head?.object?.sha)throw Error("The repository has no initialized main commit. Add a README and retry.");
   const domains=await bbDomain({company},env);
   const scripts=(await bbCF(BB_RY,"/workers/scripts","GET",env.NS_RY_CF_TOKEN)).result||[];
   if(scripts.some(x=>x.id===name))throw Error("A Cloudflare Worker with this client name already exists; a safe unused repo name is required.");
