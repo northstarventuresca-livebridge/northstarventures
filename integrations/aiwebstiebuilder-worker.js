@@ -283,6 +283,64 @@ async function siteBuilder(req,env){
  try{return J({ok:true,...await bbStep(job,prospect,env)})}catch(e){return J({error:trim(e.message||"Build step failed",350)},502)}
 }
 
+
+const leadShape={
+ type:"object",additionalProperties:false,
+ properties:{
+  company:{type:"string"},owner:{type:"string"},area:{type:"string"},
+  services:{type:"string"},ad_url:{type:"string"},phone:{type:"string"},
+  email:{type:"string"},notes:{type:"string"},suitability_score:{type:"integer"},
+  photos_mentioned:{type:"boolean"},brand_colors:{type:"string"}
+ },
+ required:["company","owner","area","services","ad_url","phone","email","notes","suitability_score","photos_mentioned","brand_colors"]
+};
+const searchFormat={type:"json_schema",name:"verified_kijiji_leads",strict:true,schema:{
+ type:"object",additionalProperties:false,
+ properties:{leads:{type:"array",items:leadShape}},
+ required:["leads"]
+}};
+function searchOutputText(data){return (data.output||[]).flatMap(x=>(x.content||[]).filter(y=>y.type==="output_text").map(y=>y.text)).join("\n")||data.output_text||""}
+function searchParse(data){
+ const text=searchOutputText(data).trim();
+ if(!text)return null;
+ try{
+  const obj=JSON.parse(text);return Array.isArray(obj.leads)?obj:null;
+ }catch{
+  // Tolerate ordinary Markdown wrappers in older provider responses.
+  const a=text.indexOf("{"),b=text.lastIndexOf("}");
+  if(a>=0&&b>a){try{const obj=JSON.parse(text.slice(a,b+1));if(Array.isArray(obj.leads))return obj}catch{}}
+  return null;
+ }
+}
+async function callKijijiSearch(key,category,cities){
+ const prompt="Find genuine CURRENT Kijiji.ca individual service-provider ADS offering "+category+" services in "+cities.join(", ")+" (Alberta). Look up actual recent listings through site:kijiji.ca/v- searches. Include up to 8 genuinely distinct current small businesses; cite the exact original ad URL for each. Only report business names, services, image presence and contacts visibly provided in reliable search findings. Never invent an ID/URL/business/photo, never use generic or archived landing pages. If there are zero confirmed current ads, return {leads:[]} rather than guesses.";
+ const request={model:"gpt-4.1-mini",tools:[{type:"web_search",search_context_size:"medium"}],tool_choice:"required",instructions:guide,input:prompt,max_output_tokens:7000,text:{format:searchFormat}};
+ async function post(payload){
+  let response;
+  try{response=await fetch("https://api.openai.com/v1/responses",{method:"POST",headers:{"content-type":"application/json","authorization":"Bearer "+key},body:JSON.stringify(payload)})}
+  catch{throw Error("Could not reach OpenAI. Please try again.")}
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)throw Error("OpenAI search failed: "+trim(data.error?.message||response.status,200));
+  return data;
+ }
+ const first=await post(request);let parsed=searchParse(first);
+ if(parsed)return parsed;
+ // Searching can exhaust the first call's token budget before a final message is produced.
+ // A no-tool continuation uses the already searched results and a strictly enforced output shape.
+ if(first.id){
+  const followup={model:"gpt-4.1-mini",previous_response_id:first.id,
+   instructions:"Finalize the prior web research. Do not perform new research and do not invent business information. Output strictly the requested JSON. If sources do not clearly identify a current original Kijiji.ca listing, omit it. You must return a leads array, even if empty.",
+   input:"Return the searched Kijiji leads now as concise structured JSON. Maximum 8. Do not invent any listing URLs.",
+   text:{format:searchFormat},max_output_tokens:5000};
+  try{
+   const second=await post(followup);parsed=searchParse(second);
+   if(parsed)return parsed;
+  }catch(err){if(String(err.message).includes("OpenAI search failed"))throw err}
+ }
+ const cause=first.status==="incomplete"?"OpenAI stopped before completing its search response.":"OpenAI returned no usable structured listings.";
+ throw Error(cause+" Please run this search again.");
+}
+
 export default{async fetch(req,env){const path=new URL(req.url).pathname;if(path==="/health"&&req.method==="GET")return J({ok:true,openai_configured:!!(env.find_web_clients||env.find_web_client)});
 
 if(path==="/verify-ad"&&req.method==="POST"){
@@ -300,9 +358,23 @@ const a=req.headers.get("x-northstar-internal")||"",b=env.NS_INTERNAL_AUTH||"";l
 const key=env.find_web_clients||env.find_web_client;if(!key)return J({error:"OpenAI key binding missing"},503);
 let input;try{const body=await req.text();if(body.length>4000)return J({error:"Search too large"},413);input=JSON.parse(body)}catch{return J({error:"Invalid request"},400)}
 const category=trim(input.category,80),cities=Array.isArray(input.cities)?[...new Set(input.cities.map(x=>trim(x,60)).filter(x=>/^[a-zA-Z .'-]{2,60}$/.test(x)))].slice(0,6):[];if(!topics[category]||!cities.length)return J({error:"Choose an industry and one or more cities"},400);
-let r;try{r=await fetch("https://api.openai.com/v1/responses",{method:"POST",headers:{"content-type":"application/json","authorization":"Bearer "+key},body:JSON.stringify({model:"gpt-4.1-mini",tools:[{type:"web_search"}],tool_choice:"required",instructions:guide,input:"Find Kijiji "+category+" ("+topics[category]+") service offers in Alberta and serving ONLY "+cities.join(", ")+". Reject ads outside these selected locations. Only website-ready businesses. Search the web and return JSON.",max_output_tokens:4500})})}catch{return J({error:"Could not reach OpenAI."},502)}
-const data=await r.json().catch(()=>({}));if(!r.ok)return J({error:"OpenAI search failed: "+trim(data.error?.message||r.status,200)},502);
-const text=(data.output||[]).flatMap(x=>(x.content||[]).filter(y=>y.type==="output_text").map(y=>y.text)).join("\n")||data.output_text||"";let parsed;try{parsed=JSON.parse(text.slice(text.indexOf("{"),text.lastIndexOf("}")+1))}catch{return J({error:"Search returned incomplete results. Try again."},502)}
-const seen=new Set(),leads=[];for(const x of (Array.isArray(parsed.leads)?parsed.leads:[]).slice(0,18)){const url=adUrl(x.ad_url),services=trim(x.services,1800),score=Number(x.suitability_score)||0;if(!url||seen.has(url.id)||!x.company||services.length<60||score<75)continue;seen.add(url.id);const media=await photos(url);if(!media.ok||media.status!=="active"||media.photos.length===0)continue;leads.push({id:"kijiji-"+url.id,company:trim(x.company,140),owner:trim(x.owner,120),area:trim(x.area||cities[0],140),category,services,phone:trim(x.phone,120),email:trim(x.email,180),ad_url:url.url,priority:score>=88?"high":"medium",stage:"new",website_status:"not_in_ad",notes:trim(x.notes,2400),suitability_score:score,photos_mentioned:!!x.photos_mentioned,photo_urls:media.photos,logo_url:"",brand_colors:trim(x.brand_colors,120),source_checked:true,source_status:"active",source_checked_at:new Date().toISOString(),source_note:"Verified live Kijiji ad and real listing images"})}
+
+let parsed;
+try{parsed=await callKijijiSearch(key,category,cities)}
+catch(error){return J({error:trim(error.message||"Search could not be completed.",260)},502)}
+const candidates=Array.isArray(parsed.leads)?parsed.leads.slice(0,8):[];
+const seen=new Set(),leads=[];
+const checked=await Promise.all(candidates.map(async x=>{
+ const ad=adUrl(x.ad_url),services=trim(x.services,1800),score=Number(x.suitability_score)||0;
+ if(!ad||!x.company||services.length<60||score<75||!cities.some(c=>trim(x.area,100).toLowerCase().includes(c.toLowerCase())||c.toLowerCase().includes(trim(x.area,100).toLowerCase())))return null;
+ const media=await photos(ad);
+ if(!media.ok||media.status!=="active"||media.photos.length===0)return null;
+ return {ad,services,score,media,x};
+}));
+for(const entry of checked){
+ if(!entry||seen.has(entry.ad.id))continue;
+ const {ad,services,score,media,x}=entry;seen.add(ad.id);
+ leads.push({id:"kijiji-"+ad.id,company:trim(x.company,140),owner:trim(x.owner,120),area:trim(x.area,140),category,services,phone:trim(x.phone,120),email:trim(x.email,180),ad_url:ad.url,priority:score>=88?"high":"medium",stage:"new",website_status:"not_in_ad",notes:trim(x.notes,2400),suitability_score:score,photos_mentioned:!!x.photos_mentioned,photo_urls:media.photos,logo_url:"",brand_colors:trim(x.brand_colors,120),source_checked:true,source_status:"active",source_checked_at:new Date().toISOString(),source_note:"Verified live Kijiji ad and real listing images"});
+}
 await inspectBrand(key,leads);
 return J({leads,search_note:leads.length?"New leads with confirmed active Kijiji pages and verified listing photos.":"No listings passed live-page and photo verification. Expired, inaccessible or unverified links were not saved."})}};
