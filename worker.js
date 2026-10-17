@@ -114,7 +114,7 @@ async function registryApi(r,e,u){
 
 /* Private prospect CRM; separate KV prefix from current websites and contact messages. */
 const PROSPECT_CATEGORIES=["Landscaping","Electrical","Painting","Framing","Plumbing","Flooring","House Cleaning","Home Based Businesses"];
-const PROSPECT_FIELDS=["company","category","owner","area","stage","priority","services","phone","email","ad_url","preview_url","website_status","notes"];
+const PROSPECT_FIELDS=["company","category","owner","area","stage","priority","services","phone","email","ad_url","preview_url","website_status","notes","contact_date","follow_up","website_name","website_url","proposal","offer","contact_notes","logo_url","brand_colors","photo_urls"];
 function prospectInput(body){
  if(!body||typeof body!=="object"||Array.isArray(body))throw Object.assign(Error("Invalid record"),{status:400});
  const x={};
