@@ -445,6 +445,33 @@ async function bbEnsureRouteDns(host,repo,env){
 }
 
 
+
+async function bbSaveRebuildFile(repo,branch,path,content,token){
+ const endpoint="/repos/rwyers/"+repo+"/contents/"+encodeURIComponent(path);
+ let old=null;
+ try{old=await bbGit(endpoint+"?ref="+encodeURIComponent(branch),"GET",token)}
+ catch(e){if(e.httpStatus!==404)throw e}
+ if(old){
+  const prev=new TextDecoder().decode(Uint8Array.from(atob(String(old.content||"").replace(/\s/g,"")),x=>x.charCodeAt(0)));
+  if(prev===content)return;
+ }
+ await bbGit(endpoint,"PUT",token,{message:"AI redesign: "+path,branch,content:bbB64(content),...(old?.sha?{sha:old.sha}:{})});
+}
+async function bbRenderVerify(url,company,env){
+ const response=await fetch("https://api.cloudflare.com/client/v4/accounts/"+BB_RY+"/browser-rendering/content",{
+  method:"POST",headers:{"content-type":"application/json","authorization":"Bearer "+env.NS_RY_CF_TOKEN},
+  body:JSON.stringify({url,actionTimeout:21000}),signal:AbortSignal.timeout(34000)
+ });
+ const j=await response.json().catch(()=>null),h=String(j?.result||"");
+ if(!response.ok||!j?.success||!/<html\b/i.test(h)||!h.toLowerCase().includes(company.toLowerCase()))
+  throw Error("Redesign preview did not pass a real-browser load test. The original site is untouched.");
+ return true;
+}
+async function bbCheckPublic(url,company){
+ const r=await fetch(url,{redirect:"follow",signal:AbortSignal.timeout(17000)});
+ if(!r.ok||(await r.text()).toLowerCase().indexOf(company.toLowerCase())<0)
+  throw Error("The public branded domain did not return the correct client page.");
+}
 async function bbStep(job,p,env){
  const repo=String(job.repo||""),company=String(p.company||"");
  if(!/^[a-z0-9][a-z0-9-]{1,54}$/.test(repo)||!company)throw Error("Invalid repository or company name.");
@@ -470,12 +497,28 @@ async function bbStep(job,p,env){
  }
  if(stage==="planned"){
   const site=await bbGenerate(job,p,env);
-  return {html:site.html,photos_used:site.photos,stage:"generated",message:"Custom website designed from the business details and all available photos."};
+  return {html:site.html,photos_used:site.photos,design_score:site.quality_score,stage:"generated",message:"Premium redesign created and reviewed with actual desktop/mobile screenshots."};
  }
  if(stage==="generated"){
   if(!job.html||job.html.length<4500)throw Error("Website source missing; regenerate before publishing.");
   const worker=bbSiteWorker(job.html);
   const config=JSON.stringify({name,main:"./worker.js",compatibility_date:"2026-10-17"},null,2)+"\n";
+
+  if(job.mode==="rebuild"){
+   if(!job.original_main_sha||!job.original_version_id||!job.id)throw Error("Missing previous site backup; production left untouched.");
+   const ref=await bbGit("/repos/rwyers/"+repo+"/git/ref/heads/main","GET",env.NS_GITHUB_TOKEN);
+   if(ref.object?.sha!==job.original_main_sha)throw Error("Main branch has changed since backup; a fresh review is required.");
+   const branch="redesign-"+job.id.replace(/[^a-z0-9]/gi,"").slice(0,12);
+   let found=false;
+   try{await bbGit("/repos/rwyers/"+repo+"/git/ref/heads/"+branch,"GET",env.NS_GITHUB_TOKEN);found=true}
+   catch(e){if(e.httpStatus!==404)throw e}
+   if(!found)await bbGit("/repos/rwyers/"+repo+"/git/refs","POST",env.NS_GITHUB_TOKEN,{ref:"refs/heads/"+branch,sha:job.original_main_sha});
+   await bbSaveRebuildFile(repo,branch,"index.html",job.html,env.NS_GITHUB_TOKEN);
+   await bbSaveRebuildFile(repo,branch,"worker.js",worker,env.NS_GITHUB_TOKEN);
+   await bbSaveRebuildFile(repo,branch,"wrangler.jsonc",config,env.NS_GITHUB_TOKEN);
+   return {review_branch:branch,stage:"committed",message:"Redesign source saved to a separate GitHub branch. Original site preserved."};
+  }
+
 
   await bbFile(repo,"index.html",job.html,env.NS_GITHUB_TOKEN);
   await bbFile(repo,"worker.js",worker,env.NS_GITHUB_TOKEN);
