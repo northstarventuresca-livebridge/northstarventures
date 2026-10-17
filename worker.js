@@ -119,7 +119,8 @@ function prospectInput(body){
  if(!body||typeof body!=="object"||Array.isArray(body))throw Object.assign(Error("Invalid record"),{status:400});
  const x={};
  for(const k of PROSPECT_FIELDS){
-  const max=k==="notes"?3000:k==="services"?1800:k==="company"||k==="area"?140:500;
+  const max=["notes","proposal","offer","contact_notes"].includes(k)?3000:k==="services"?1800:k==="company"||k==="area"?140:500;
+  if(k==="photo_urls"){const raw=Array.isArray(body[k])?body[k]:typeof body[k]==="string"?body[k].split(/\n/):[];x[k]=raw.slice(0,12).map(v=>String(v).trim()).filter(v=>{try{return ["https:","http:"].includes(new URL(v).protocol)}catch{return false}}).map(v=>v.slice(0,1500));continue}
   x[k]=String(body[k]??"").trim().slice(0,max).replace(/[<>]/g,"");
  }
  if(!x.company)throw Object.assign(Error("Business name is required."),{status:400});
@@ -127,8 +128,9 @@ function prospectInput(body){
  if(!["new","researching","preview","pitched","followup","won","not_interested"].includes(x.stage))x.stage="new";
  if(!["high","medium","low"].includes(x.priority))x.priority="medium";
  if(!["not_in_ad","unverified","has_website"].includes(x.website_status))x.website_status="unverified";
- for(const k of ["ad_url","preview_url"])if(x[k]){try{const u=new URL(x[k]);if(!["http:","https:"].includes(u.protocol))throw 0;x[k]=u.toString()}catch{throw Object.assign(Error("Invalid URL."),{status:400})}}
+ for(const k of ["ad_url","preview_url","website_url","logo_url"])if(x[k]){try{const u=new URL(x[k]);if(!["http:","https:"].includes(u.protocol))throw 0;x[k]=u.toString()}catch{throw Object.assign(Error("Invalid URL."),{status:400})}}
  if(x.email&&!email(x.email))throw Object.assign(Error("Invalid contact email."),{status:400});
+ for(const k of ["contact_date","follow_up"])if(x[k]&&!/^\d{4}-\d{2}-\d{2}$/.test(x[k]))throw Object.assign(Error("Invalid date."),{status:400});
  return x;
 }
 async function prospectsApi(r,e,u){
