@@ -152,6 +152,40 @@ async function prospectsApi(r,e,u){
   const id=crypto.randomUUID(),record={...prospectInput(body),id,added_at:new Date().toISOString(),updated_at:new Date().toISOString()};
   await e.REGISTRY.put("prospect:"+id,JSON.stringify(record));return regJson({ok:true,prospect:record},201);
  }
+
+ if(path==="/api/registry/prospects/search"&&m==="POST"){
+  if(!e.NS_INTERNAL_AUTH)return regJson({error:"Search integration not configured."},503);
+  let data;try{const raw=await r.text();if(raw.length>2500)return regJson({error:"Request too large"},413);data=JSON.parse(raw)}catch{return regJson({error:"Invalid search"},400)}
+  const category=String(data.category||"").trim();
+  const cities=Array.isArray(data.cities)?[...new Set(data.cities.map(x=>String(x).trim().slice(0,60)).filter(x=>/^[a-zA-Z .'-]{2,60}$/.test(x)))]:[];
+  if(!PROSPECT_CATEGORIES.includes(category)||!cities.length||cities.length>6)return regJson({error:"Select 1 to 6 Alberta communities."},400);
+  const last=Number(await e.REGISTRY.get("search:recent:"+category)||"0");
+  if(Date.now()-last<20000)return regJson({error:"This industry was searched recently. Try again shortly."},429);
+  await e.REGISTRY.put("search:recent:"+category,String(Date.now()),{expirationTtl:70});
+  let response;try{response=await fetch("https://aiwebstiebuilder.rwyers.workers.dev/search",{method:"POST",headers:{"content-type":"application/json","x-northstar-internal":e.NS_INTERNAL_AUTH},body:JSON.stringify({category,cities})})}catch{return regJson({error:"Search service cannot be reached."},502)}
+  const results=await response.json().catch(()=>({}));
+  if(!response.ok)return regJson({error:String(results.error||"Search failed").slice(0,280)},502);
+  const candidates=Array.isArray(results.leads)?results.leads.slice(0,20):[];
+  const saved=await regProspectList(e);
+  const now=new Date().toISOString(),date=new Intl.DateTimeFormat("en-CA",{timeZone:"America/Edmonton",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
+  const normalize=x=>String(x||"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim(),phone=x=>String(x||"").replace(/\D/g,"").slice(-10);
+  let duplicates=0,added=0;
+  for(const lead of candidates){
+   let url;try{url=new URL(lead.ad_url)}catch{continue}
+   const m=url.pathname.match(/\/(\d{9,12})(?:\/|$)/);
+   if(!["www.kijiji.ca","kijiji.ca"].includes(url.hostname.toLowerCase())||!m||!url.pathname.startsWith("/v-"))continue;
+   if(!lead.company||String(lead.services||"").length<60||Number(lead.suitability_score||0)<75)continue;
+   const id="kijiji-"+m[1],name=normalize(lead.company),area=normalize(lead.area),owner=normalize(lead.owner),tel=phone(lead.phone);
+   const duplicate=saved.some(x=>x.id===id||x.ad_url===lead.ad_url||
+    (tel.length===10&&tel===phone(x.phone))||
+    (name.length>11&&name===normalize(x.company)&&area===normalize(x.area)&&
+      (owner&&owner===normalize(x.owner)||!/^(lawn care|landscaping services|cleaning services|painting services)$/.test(name))));
+   if(duplicate){duplicates++;continue}
+   const record={...prospectInput({...lead,category}),id,added_at:now,pulled_date:date,updated_at:now,source_checked:!!lead.source_checked,photos_mentioned:!!lead.photos_mentioned,suitability_score:Number(lead.suitability_score)};
+   await e.REGISTRY.put("prospect:"+id,JSON.stringify(record));saved.push(record);added++;
+  }
+  return regJson({ok:true,added,duplicates,reviewed:candidates.length,search_note:String(results.search_note||"").slice(0,240)});
+ }
  const found=path.match(/^\/api\/registry\/prospects\/([a-zA-Z0-9_-]{1,100})$/);
  if(found){const key="prospect:"+found[1],existing=await e.REGISTRY.get(key,"json");
   if(!existing)return regJson({error:"Prospect not found"},404);
