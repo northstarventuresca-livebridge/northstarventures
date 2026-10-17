@@ -234,7 +234,7 @@ async function prospectsApi(r,e,u){
    const m=url.pathname.match(/\/(\d{9,12})(?:\/|$)/);
    if(!["www.kijiji.ca","kijiji.ca"].includes(url.hostname.toLowerCase())||!m||!url.pathname.startsWith("/v-"))continue;
    if(!lead.company||String(lead.services||"").length<60||Number(lead.suitability_score||0)<75)continue;
-   if(lead.source_status!=="active"||lead.source_checked!==true||!Array.isArray(lead.photo_urls)||!lead.photo_urls.length)continue;
+   if(!["active","unverified"].includes(lead.source_status)||!Array.isArray(lead.photo_urls))continue;
    const id="kijiji-"+m[1],name=normalize(lead.company),area=normalize(lead.area),owner=normalize(lead.owner),tel=phone(lead.phone);
    const duplicate=saved.some(x=>x.id===id||x.ad_url===lead.ad_url||
     (tel.length===10&&tel===phone(x.phone))||
@@ -242,7 +242,8 @@ async function prospectsApi(r,e,u){
       (owner&&owner===normalize(x.owner)||!/^(lawn care|landscaping services|cleaning services|painting services)$/.test(name))));
    if(duplicate){duplicates++;continue}
    const safeLead={...lead,category,email:email(String(lead.email||""))?lead.email:"",logo_url:"",photo_urls:Array.isArray(lead.photo_urls)?lead.photo_urls:[]};
-   const record={...prospectInput(safeLead,allowedTopics.map(x=>x.name)),id,added_at:now,pulled_date:date,updated_at:now,source_checked:true,source_status:"active",source_checked_at:String(lead.source_checked_at||now).slice(0,35),source_note:"Live Kijiji listing and images verified",photos_mentioned:!!lead.photos_mentioned,suitability_score:Number(lead.suitability_score)};
+   const verified=lead.source_checked===true&&lead.source_status==="active";
+   const record={...prospectInput(safeLead,allowedTopics.map(x=>x.name)),id,added_at:now,pulled_date:date,updated_at:now,source_checked:verified,source_status:verified?"active":"unverified",source_checked_at:verified?String(lead.source_checked_at||now).slice(0,35):"",source_note:verified?"Kijiji ad verified; inspect images before website use.":"Research lead: Kijiji restricted automatic checking. Open the listing and confirm it is current before pitching.",photos_mentioned:!!lead.photos_mentioned,suitability_score:Number(lead.suitability_score)};
    await e.REGISTRY.put("prospect:"+id,JSON.stringify(record));saved.push(record);added++;
   }
 
