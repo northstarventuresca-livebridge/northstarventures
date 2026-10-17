@@ -381,22 +381,46 @@ const key=env.find_web_clients||env.find_web_client;if(!key)return J({error:"Ope
 let input;try{const body=await req.text();if(body.length>4000)return J({error:"Search too large"},413);input=JSON.parse(body)}catch{return J({error:"Invalid request"},400)}
 const category=trim(input.category,80),cities=Array.isArray(input.cities)?[...new Set(input.cities.map(x=>trim(x,60)).filter(x=>/^[a-zA-Z .'-]{2,60}$/.test(x)))].slice(0,6):[];if(!topics[category]||!cities.length)return J({error:"Choose an industry and one or more cities"},400);
 
-let parsed;
-try{parsed=await callKijijiSearch(key,category,cities)}
-catch(error){return J({error:trim(error.message||"Search could not be completed.",260)},502)}
-const candidates=Array.isArray(parsed.leads)?parsed.leads.slice(0,8):[];
-const seen=new Set(),leads=[];
-const checked=await Promise.all(candidates.map(async x=>{
+
+const angles=searchAngles[category]||[topics[category]];
+const queries=angles.map(angle=>category+" — "+angle+" — "+cities.join(", "));
+const attempts=await Promise.allSettled(angles.map(angle=>callKijijiSearch(key,category,cities,angle)));
+const failures=attempts.filter(x=>x.status==="rejected").map(x=>trim(x.reason?.message||"Unknown search failure",240));
+const groups=attempts.filter(x=>x.status==="fulfilled").map(x=>x.value);
+if(!groups.length)return J({error:"No search completed: "+failures.join(" | ").slice(0,210)},502);
+const candidates=groups.flatMap(x=>Array.isArray(x.leads)?x.leads:[]).slice(0,35);
+const tally={discovered:candidates.length,valid_url:0,invalid_or_missing_url:0,duplicate_ads:0,insufficient_details:0,below_score:0,outside_area:0,expired:0,not_accessible:0,no_usable_photos:0,verified:0};
+const seen=new Set(),leads=[],review=[];
+const checkArea=area=>{
+ const v=trim(area,130).toLowerCase();
+ if(!v)return true; // AI might omit explicit town while finding a real target-area ad URL.
+ if(cities.some(c=>v.includes(c.toLowerCase())||c.toLowerCase().includes(v)))return true;
+ const region=["edmonton area","greater edmonton","metro edmonton","edmonton region","surrounding areas","and area","area and surrounding","parkland county","strathcona county","central alberta"];
+ return region.some(x=>v.includes(x));
+};
+const checked=await Promise.all(candidates.map(async (x,i)=>{
  const ad=adUrl(x.ad_url),services=trim(x.services,1800),score=Number(x.suitability_score)||0;
- if(!ad||!x.company||services.length<60||score<75||!cities.some(c=>trim(x.area,100).toLowerCase().includes(c.toLowerCase())||c.toLowerCase().includes(trim(x.area,100).toLowerCase())))return null;
+ if(!ad)return {i,x,reject:"invalid_or_missing_url",reason:"No valid individual Kijiji ad URL."};
+ if(!x.company||services.length<40)return {i,x,ad,reject:"insufficient_details",reason:"Not enough business/service details to build a preview."};
+ if(score<70)return {i,x,ad,reject:"below_score",reason:"Low website-readiness score."};
+ if(!checkArea(x.area))return {i,x,ad,reject:"outside_area",reason:"Advertised service area did not clearly match the selected communities."};
  const media=await photos(ad);
- if(!media.ok||media.status!=="active"||media.photos.length===0)return null;
- return {ad,services,score,media,x};
+ if(media.status==="expired")return {i,x,ad,reject:"expired",reason:"Kijiji says listing is unavailable."};
+ if(!media.ok)return {i,x,ad,reject:"not_accessible",reason:media.reason||"Kijiji blocked page verification."};
+ if(media.photos.length===0)return {i,x,ad,reject:"no_usable_photos",reason:"Ad was found, but its images could not be extracted."};
+ return {i,x,ad,media,score,services};
 }));
-for(const entry of checked){
- if(!entry||seen.has(entry.ad.id))continue;
- const {ad,services,score,media,x}=entry;seen.add(ad.id);
- leads.push({id:"kijiji-"+ad.id,company:trim(x.company,140),owner:trim(x.owner,120),area:trim(x.area,140),category,services,phone:trim(x.phone,120),email:trim(x.email,180),ad_url:ad.url,priority:score>=88?"high":"medium",stage:"new",website_status:"not_in_ad",notes:trim(x.notes,2400),suitability_score:score,photos_mentioned:!!x.photos_mentioned,photo_urls:media.photos,logo_url:"",brand_colors:trim(x.brand_colors,120),source_checked:true,source_status:"active",source_checked_at:new Date().toISOString(),source_note:"Verified live Kijiji ad and real listing images"});
+for(const found of checked){
+ if(found.ad&&seen.has(found.ad.id)){tally.duplicate_ads++;continue}
+ if(found.ad){seen.add(found.ad.id);tally.valid_url++}
+ if(found.reject){
+  tally[found.reject]++;
+  if(found.ad&&found.reject!=="expired"&&review.length<8)
+   review.push({name:trim(found.x.company,110),ad_url:found.ad.url,reason:found.reason,area:trim(found.x.area,100),source_status:found.reject==="not_accessible"?"unverified":"requires_review"});
+  continue;
+ }
+ const {ad,services,score,media,x}=found;tally.verified++;
+ leads.push({id:"kijiji-"+ad.id,company:trim(x.company,140),owner:trim(x.owner,120),area:trim(x.area||cities[0],140),category,services,phone:trim(x.phone,120),email:trim(x.email,180),ad_url:ad.url,priority:score>=88?"high":"medium",stage:"new",website_status:"not_in_ad",notes:trim(x.notes,2400),suitability_score:score,photos_mentioned:!!x.photos_mentioned,photo_urls:media.photos,logo_url:"",brand_colors:trim(x.brand_colors,120),source_checked:true,source_status:"active",source_checked_at:new Date().toISOString(),source_note:"Verified live Kijiji ad and real listing images"});
 }
 await inspectBrand(key,leads);
-return J({leads,search_note:leads.length?"New leads with confirmed active Kijiji pages and verified listing photos.":"No listings passed live-page and photo verification. Expired, inaccessible or unverified links were not saved."})}};
+return J({leads,review_candidates:review,search_queries:queries,search_cities:cities,search_breakdown:tally,search_failures:failures,search_note:leads.length?"Verified live Kijiji leads were saved only when listing images were retrievable.":"No leads met every requirement. Review the counts and links below: listings may exist but be unverified, expired, or inaccessible to automatic checking."})}};
