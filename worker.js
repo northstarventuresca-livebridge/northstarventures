@@ -510,7 +510,7 @@ async function nsProcessPendingWebsiteBuilds(e){
  if(!e.REGISTRY)return;
  const page=await e.REGISTRY.list({prefix:"build:prospect:",limit:100});
  const jobs=(await Promise.all(page.keys.map(async k=>({name:k.name,job:await e.REGISTRY.get(k.name,"json")}))))
-  .filter(x=>x.job&&!["ready","blocked"].includes(x.job.stage))
+  .filter(x=>x.job&&!["ready","blocked"].includes(x.job.stage)&&(!x.job.next_auto_retry_at||Date.parse(x.job.next_auto_retry_at)<=Date.now()))
   .sort((a,b)=>String(a.job.updated_at||"").localeCompare(String(b.job.updated_at||"")));
  // One job per cron tick avoids duplicate deployments and Cloudflare execution limits.
  for(const x of jobs.slice(0,1))await nsAutoAdvanceOne(e,x.name);
