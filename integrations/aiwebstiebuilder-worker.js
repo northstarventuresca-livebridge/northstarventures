@@ -466,25 +466,29 @@ async function bbDiscoverPublicContact(p,env){
 async function bbDesignResponse(env,instructions,input,limit=20000){
  const key=env.find_web_clients||env.find_web_client;
  if(!key)throw Error("OpenAI website design connection is missing.");
- const choices=[
-  {name:"gpt-6.1-sol",reasoning:{effort:"low"}},
-  {name:"gpt-4.1"}
- ];
+ const choices=[{name:"gpt-6.1-sol",reasoning:{effort:"low"}},{name:"gpt-4.1"}];
  let unavailable;
+ const isImageInput=Array.isArray(input)&&input.some(x=>x.content?.some?.(y=>y.type==="input_image"));
+ const textFallback=isImageInput?input.map(x=>x.content?.filter(y=>y.type==="input_text").map(y=>y.text).join("\n")||"").join("\n"):input;
  for(const choice of choices){
-  try{
-   const payload={model:choice.name,instructions,input,max_output_tokens:limit, ...(choice.reasoning?{reasoning:choice.reasoning}:{})};
-   const out=await bbHttp("https://api.openai.com/v1/responses",{method:"POST",headers:{"authorization":"Bearer "+key,"content-type":"application/json"},body:JSON.stringify(payload),signal:AbortSignal.timeout(200000)});
-   const html=await bbFinishMarkup(out,key,choice.name);
-   if(html.length<300)throw Error("OpenAI returned an incomplete design response.");
-   return {text:html,model:choice.name};
-  }catch(err){
-   const reason=String(err.message||"");
-   // Only a model availability/permission problem warrants switching to the older model.
-   if(choice.name==="gpt-6.1-sol"&&([400,403,404].includes(err.httpStatus)||/model.*(not found|not available|access|unsupported)/i.test(reason))){
-    unavailable=err;continue;
+  for(const candidate of isImageInput?[input,textFallback]:[input]){
+   try{
+    const payload={model:choice.name,instructions,input:candidate,max_output_tokens:limit,...(choice.reasoning?{reasoning:choice.reasoning}:{})};
+    const out=await bbHttp("https://api.openai.com/v1/responses",{
+     method:"POST",headers:{"authorization":"Bearer "+key,"content-type":"application/json"},
+     body:JSON.stringify(payload),signal:AbortSignal.timeout(200000)
+    });
+    const html=await bbFinishMarkup(out,key,choice.name);
+    if(html.length<300)throw Error("OpenAI returned an incomplete design response.");
+    return {text:html,model:choice.name,visual_references:isImageInput&&candidate===input};
+   }catch(err){
+    const reason=String(err.message||"");
+    const modelUnavailable=[400,403,404].includes(err.httpStatus)&&/model|access|not found|permission|unsupported/i.test(reason);
+    if(choice.name==="gpt-6.1-sol"&&modelUnavailable){unavailable=err;break}
+    // Kijiji sometimes rejects image retrieval by OpenAI. Retry without those images.
+    if(candidate===input&&isImageInput&&[400,403,404,422].includes(err.httpStatus))continue;
+    throw err;
    }
-   throw err;
   }
  }
  throw unavailable||Error("No available OpenAI design model.");
@@ -538,7 +542,16 @@ async function bbGenerate(job,p,env){
   "\nSource flyer/reference images have been assessed for branding. Design an original distinctive business website for this prospect as an expert human agency would.";
  let html="",errors=[],usedModel="",failure="";
  for(let i=0;i<2;i++){
-  const result=await bbDesignResponse(env,instructions,request+(failure?"\nREPAIR FOLLOWING NONNEGOTIABLE CODE DEFECTS:\n"+failure:""),19000);
+  const textRequest=request+(failure?"\nREPAIR FOLLOWING NONNEGOTIABLE CODE DEFECTS:\n"+failure:"");
+  // Show the designer the original visual materials, just as a human ChatGPT build sees uploaded screenshots.
+  // Ads and flyers are REFERENCE ONLY; the model cannot place them in the website as client photography.
+  const references=media.notes==="No safely verified photography or isolated company logo."?[]:
+   [...new Set([media.logo,...media.realPhotos,...media.excluded.slice(0,1)].filter(Boolean))].slice(0,3);
+  const visualInput=references.length?[{role:"user",content:[
+   {type:"input_text",text:textRequest+"\nSUPPLIED REFERENCE IMAGES follow. Evaluate their actual atmosphere, brand colours, typography and services. Never show entire advertising flyers, screenshots or posters on the website, and never claim illustrative images are completed client jobs."},
+   ...references.flatMap((url,i)=>[{type:"input_text",text:"Visual reference #"+(i+1)+"; brand inspiration only unless classified as verified photograph."},{type:"input_image",image_url:url,detail:"low"}])
+  ]}]:textRequest;
+  const result=await bbDesignResponse(env,instructions,visualInput,19000);
   usedModel=result.model;
   html=bbContactGuard(bbExtractDocument(result.text),facts);
   errors=bbDesignAudit(html,facts,media);
