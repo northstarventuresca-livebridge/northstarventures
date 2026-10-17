@@ -489,7 +489,7 @@ async function nsAutoFinalizeBuild(job,prospect,e){
 }
 
 /* A new builder revision may retry QA-blocked drafts ONCE, not replay unsafe deployments. */
-const NS_BUILDER_RECOVERY_REVISION="2026-10-17-qa-recovery-01";
+const NS_BUILDER_RECOVERY_REVISION="2026-10-17-agentic-design-02";
 function nsQualifiesForAutomaticRecovery(job){
  if(!job||job.stage!=="blocked"||job.auto_recovery_revision===NS_BUILDER_RECOVERY_REVISION)return false;
  const failed=String(job.last_auto_error||"");
