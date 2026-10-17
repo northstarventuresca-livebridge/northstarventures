@@ -551,45 +551,39 @@ async function bbGenerate(job,p,env){
  }
  if(errors.length)throw Error("Website code needs another repair: "+trim(errors.join("; "),210));
  html=html.replace(/<script\b[^>]*\bsrc\s*=\s*["'][^"']+["'][^>]*>[\s\S]*?<\/script>/gi,"");
- return {html,photos:media.realPhotos.length,model:usedModel,quality_score:null};
+ return {html,photos:media.realPhotos.length,model:usedModel,contact_phone:facts.public_phone,contact_email:facts.public_email,quality_score:null};
 }
 async function bbReviewAndRefineDraft(job,p,env){
  const facts={business_name:trim(p.company,140),industry:trim(p.category,90),area:trim(p.area,160),
-  public_email:bbVerifiedEmail(p.email),public_phone:trim(p.phone,100)};
- let bestHtml=job.html,bestScore=-1,review=null;
+  public_email:bbVerifiedEmail(job.design_contact_email||p.email),public_phone:trim(job.design_contact_phone||p.phone,100)};
  const media={excluded:[],realPhotos:[],logo:""};
+ let candidate=job.html,bestHtml=job.html,bestScore=-1;
  for(let pass=0;pass<3;pass++){
-  const candidate=pass===0?bestHtml:null;
-  if(candidate&&bbDesignAudit(candidate,facts,media).length)throw Error("Generated page failed required structure checks.");
-  review=await bbVisualReview(bestHtml,facts,env);
-  if(bbVisualServiceError(review))throw Error("Temporary visual browser or AI review problem; retain generated draft and retry review later: "+trim(review.problems.join("; "),140));
-  bestScore=Math.max(bestScore,Number(review.score)||0);
-  const realProblems=bbVisibleVisualIssues(review);
-  const designBelowStandard=bestScore<72;
-  if((!realProblems.length&&!designBelowStandard)||pass===2)break;
-  const issueText=(realProblems.length?realProblems:review.problems||[]).slice(0,5).join("; ");
-  let replacement;
+  const structure=bbDesignAudit(candidate,facts,media);
+  if(structure.length){
+   if(pass===0)throw Error("Stored website source failed structural validation: "+structure.slice(0,3).join("; "));
+   break;
+  }
+  const review=await bbVisualReview(candidate,facts,env);
+  if(bbVisualServiceError(review))throw Error("Temporary visual browser/review outage; saved generated website will be retried without redesigning: "+trim(review.problems.join("; "),140));
+  const score=Number(review.score)||0;
+  if(score>bestScore){bestHtml=candidate;bestScore=score}
+  else if(pass>0)break;
+  const issues=bbVisibleVisualIssues(review);
+  if((!issues.length&&score>=72)||pass===2)break;
+  const instructions="You are continuing the SAME premium original website as its senior designer, correcting issues found in actual desktop/mobile screenshots. Preserve the unique design, verified facts, accessibility, imagery and working interactions. Repair only the observed defects. Never invent business phone, email, reviews or credentials, and do not object to clearly labelled preview placeholders or mailto links for verified emails. Return the COMPLETE improved HTML file, not a patch, with responsive CSS and JS, ending </html>.";
   try{
-   replacement=await bbDesignResponse(env,
-    "You are continuing your OWN custom designed website from the previous development pass. This is a targeted senior designer/frontend engineer revision, NOT a new starter template. Preserve the distinctive art direction, verified facts, colour system, overall structure, photographs and strong features. Fix the listed REAL visual problems, including mobile clipping, spacing and image crops. Never invent testimonials or real contact details. Missing client phone/email and inactive demo form are NOT defects. Return ONE FULL corrected HTML document only, including all inline CSS, JS, ending </html>. Improve aesthetics without rewriting into generic grid cards.",
-    "BUSINESS: "+JSON.stringify(facts)+"\nFULL EXISTING WORKING DOCUMENT:\n"+bestHtml+
-    "\nISSUES CONFIRMED BY ACTUAL RENDERED SCREENSHOTS:\n"+issueText+
-    "\nApply precise changes, preserve current strengths and return complete updated HTML.",20500);
+   const result=await bbDesignResponse(env,instructions,
+    "FACTS: "+JSON.stringify(facts)+"\nSOURCE HTML:\n"+bestHtml+
+    "\nVISUALLY CONFIRMED IMPROVEMENTS REQUESTED:\n"+(issues.length?issues:review.problems||[]).slice(0,5).join("; ")+
+    "\nRetain the best existing design and make careful targeted improvements.",20500);
+   candidate=bbContactGuard(bbExtractDocument(result.text),facts);
   }catch(err){
-   if(pass===0&&bestScore<60)throw err;
+   if(bestScore<58)throw err;
    break;
   }
-  let proposed=bbContactGuard(bbExtractDocument(replacement.text),facts);
-  const errs=bbDesignAudit(proposed,facts,media);
-  if(errs.length){
-   // Preserve the last complete design; a defective revision must not overwrite it.
-   if(pass===0&&bestScore<60)throw Error("Revision introduced invalid page structure: "+errs.join("; ").slice(0,160));
-   break;
-  }
-  // Evaluate the improved page in the next iteration; never publish it without rendering.
-  bestHtml=proposed;
  }
- if(bestScore<58)throw Error("Visual browser inspection found material design defects after targeted revisions; the saved source remains available for review.");
+ if(bestScore<58)throw Error("The rendered site still has significant visual defects; saved HTML is retained for a later repair attempt.");
  return {html:bestHtml,score:bestScore,reviewed:true};
 }
 async function bbPitch(job,p,env){
@@ -703,7 +697,7 @@ async function bbStep(job,p,env){
  }
  if(stage==="planned"){
   const site=await bbGenerate(job,p,env);
-  return {html:site.html,photos_used:site.photos,design_model:site.model,stage:"generated",message:"Premium design created. Running a separate visual browser review before publication."};
+  return {html:site.html,photos_used:site.photos,design_model:site.model,design_contact_phone:site.contact_phone,design_contact_email:site.contact_email,stage:"generated",message:"Premium design created. Running a separate visual browser review before publication."};
  }
  if(stage==="generated"){
   if(!job.html||job.html.length<4500)throw Error("Website source missing; regenerate before publishing.");
