@@ -528,6 +528,14 @@ async function bbStep(job,p,env){
  }
  if(stage==="committed"){
   const worker=bbSiteWorker(job.html);
+  if(job.mode==="rebuild"){
+   const staging="ns-redesign-"+repo.slice(0,20)+"-"+job.id.replace(/[^a-z0-9]/gi,"").slice(0,8);
+   await bbCF(BB_RY,"/workers/scripts/"+staging,"PUT",env.NS_RY_CF_TOKEN,bbForm(worker));
+   await bbCF(BB_RY,"/workers/scripts/"+staging+"/subdomain","POST",env.NS_RY_CF_TOKEN,{enabled:true});
+   const d=await bbCF(BB_RY,"/workers/scripts/"+staging+"/deployments","GET",env.NS_RY_CF_TOKEN);
+   if(!d.result?.deployments?.[0]?.versions?.some(v=>v.percentage===100))throw Error("Staging Worker failed deployment checks.");
+   return {review_worker:staging,candidate_url:"https://"+staging+".rwyers.workers.dev",stage:"deployed",message:"Redesigned preview is deployed in staging. Your existing domain is unchanged."};
+  }
   await bbCF(BB_RY,"/workers/scripts/"+name,"PUT",env.NS_RY_CF_TOKEN,bbForm(worker));
   await bbCF(BB_RY,"/workers/scripts/"+name+"/subdomain","POST",env.NS_RY_CF_TOKEN,{enabled:true});
   // Cloudflare blocks a Worker fetching another Worker on the same workers.dev account (1042).
@@ -540,6 +548,10 @@ async function bbStep(job,p,env){
  }
 
  if(stage==="deployed"){
+  if(job.mode==="rebuild"){
+   await bbRenderVerify(job.candidate_url,company,env);
+   return {stage:"branded",message:"New site passed browser testing before publication; old site remains online."};
+  }
   if(!job.worker_url||!job.subdomain)throw Error("Missing verified Worker URL or branded preview name.");
   const host=job.subdomain+".northstarventures.ca",proxy="nsv-proxy-"+job.subdomain;
   const routes=await bbRoutes(env);
@@ -558,6 +570,10 @@ async function bbStep(job,p,env){
   return {proxy_worker:proxy,stage:"branded",message:"Independent client site linked to branded North Star URL through its own Worker route."};
  }
  if(stage==="branded"){
+  if(job.mode==="rebuild"){
+   await bbCheckPublic(job.preview_url,company);
+   return {stage:"verified",message:"Old site verified live, new site approved for publication."};
+  }
   // Verify the public client-facing domain, which is on a separate Northstar Cloudflare account.
   let status=0,matched=false;
   try{const r=await fetch(job.preview_url,{redirect:"follow"});status=r.status;matched=status===200&&(await r.text()).toLowerCase().includes(company.toLowerCase())}
@@ -566,6 +582,37 @@ async function bbStep(job,p,env){
   return {stage:"verified",message:"Branded HTTPS website loads with the correct client content."};
  }
  if(stage==="verified"){
+  if(job.mode==="rebuild"){
+   if(!job.original_version_id||!job.original_main_sha)throw Error("No valid production restore point.");
+   const ref=await bbGit("/repos/rwyers/"+repo+"/git/ref/heads/main","GET",env.NS_GITHUB_TOKEN);
+   if(ref.object?.sha!==job.original_main_sha)throw Error("Repository main has changed. Refusing to overwrite newer work.");
+   await bbRenderVerify(job.candidate_url,company,env);
+   const pre=await bbCF(BB_RY,"/workers/scripts/"+name+"/deployments","GET",env.NS_RY_CF_TOKEN);
+   if(!pre.result?.deployments?.[0]?.versions?.some(v=>v.version_id===job.original_version_id&&v.percentage===100))
+    throw Error("Live deployment changed since backup; cancelled to avoid overwriting new client updates.");
+   let promoted=false;
+   try{
+    await bbCF(BB_RY,"/workers/scripts/"+name,"PUT",env.NS_RY_CF_TOKEN,bbForm(bbSiteWorker(job.html)));
+    promoted=true;
+    const d=await bbCF(BB_RY,"/workers/scripts/"+name+"/deployments","GET",env.NS_RY_CF_TOKEN);
+    if(!d.result?.deployments?.[0]?.versions?.some(v=>v.percentage===100))throw Error("New production deployment was not confirmed.");
+    await bbCheckPublic(job.preview_url,company);
+    await bbSaveRebuildFile(repo,"main","index.html",job.html,env.NS_GITHUB_TOKEN);
+    await bbSaveRebuildFile(repo,"main","worker.js",bbSiteWorker(job.html),env.NS_GITHUB_TOKEN);
+    const config=JSON.stringify({name,main:"./worker.js",compatibility_date:"2026-10-17"},null,2)+"\n";
+    await bbSaveRebuildFile(repo,"main","wrangler.jsonc",config,env.NS_GITHUB_TOKEN);
+   }catch(err){
+    if(promoted){
+     try{await bbCF(BB_RY,"/workers/scripts/"+name+"/deployments","POST",env.NS_RY_CF_TOKEN,{
+      strategy:"percentage",versions:[{version_id:job.original_version_id,percentage:100}]
+     })}catch(rollback){
+      throw Error("New production update failed; automated rollback also failed. Restore version "+job.original_version_id+". "+trim(rollback.message,110));
+     }
+    }
+    throw Error("Redesign publication did not complete; previous Worker deployment restored. "+trim(err.message,130));
+   }
+   return {stage:"ready",published_at:new Date().toISOString(),message:"Rebuilt site is live at the original URL, fully verified; earlier version preserved for rollback."};
+  }
   const result=await bbPitch(job,p,env);
   return {pitch_text:result.text,stage:"ready",message:"Preview is live, registry can be updated, and outreach text is ready."};
  }
