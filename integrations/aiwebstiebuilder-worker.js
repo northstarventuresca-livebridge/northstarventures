@@ -353,10 +353,13 @@ async function bbStep(job,p,env){
   const worker=bbSiteWorker(job.html);
   await bbCF(BB_RY,"/workers/scripts/"+name,"PUT",env.NS_RY_CF_TOKEN,bbForm(worker));
   await bbCF(BB_RY,"/workers/scripts/"+name+"/subdomain","POST",env.NS_RY_CF_TOKEN,{enabled:true});
+  // Cloudflare blocks a Worker fetching another Worker on the same workers.dev account (1042).
+  // Verify the deployment through Cloudflare's own deployment API instead of a Worker subrequest.
+  const deployments=await bbCF(BB_RY,"/workers/scripts/"+name+"/deployments","GET",env.NS_RY_CF_TOKEN);
+  const versions=deployments.result?.deployments?.[0]?.versions||[];
+  if(!versions.some(v=>v.percentage===100))throw Error("Cloudflare has not confirmed the published Worker yet. Retry deployment.");
   const origin="https://"+name+".rwyers.workers.dev";
-  const r=await fetch(origin+"/",{redirect:"manual"});const content=await r.text();
-  if(r.status!==200||!content.toLowerCase().includes(company.toLowerCase()))throw Error("Hosting deployment completed but the website content could not be verified yet. Retry.");
-  return {worker_url:origin,stage:"deployed",message:"Dedicated client Cloudflare Worker deployed and verified."};
+  return {worker_url:origin,stage:"deployed",message:"Dedicated Worker deployed successfully. Public HTTPS content is checked after branded routing."};
  }
 
  if(stage==="deployed"){
@@ -378,8 +381,11 @@ async function bbStep(job,p,env){
   return {proxy_worker:proxy,stage:"branded",message:"Independent client site linked to branded North Star URL through its own Worker route."};
  }
  if(stage==="branded"){
-  const r=await fetch(job.preview_url,{redirect:"follow"}),html=await r.text();
-  if(r.status!==200||!html.toLowerCase().includes(company.toLowerCase()))throw Error("The branded preview is not fully live over HTTPS yet. Retry verification.");
+  // Verify the public client-facing domain, which is on a separate Northstar Cloudflare account.
+  let status=0,matched=false;
+  try{const r=await fetch(job.preview_url,{redirect:"follow"});status=r.status;matched=status===200&&(await r.text()).toLowerCase().includes(company.toLowerCase())}
+  catch(error){if(/1042/.test(String(error?.message||"")))throw Error("Cloudflare blocked an internal cross-Worker verification request (1042). Public browser verification is required.");throw error}
+  if(!matched)throw Error("Branded preview is still propagating or returned HTTP "+status+". Retry verification shortly.");
   return {stage:"verified",message:"Branded HTTPS website loads with the correct client content."};
  }
  if(stage==="verified"){
