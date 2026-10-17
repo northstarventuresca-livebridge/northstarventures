@@ -174,8 +174,84 @@ async function bbDomain(job,env){
  throw Error("All clear branded subdomains are already in use. Choose another business name.");
 }
 
+
+async function bbStep(job,p,env){
+ const repo=String(job.repo||""),company=String(p.company||"");
+ if(!/^[a-z0-9][a-z0-9-]{1,54}$/.test(repo)||!company)throw Error("Invalid repository or company name.");
+ const name="ns-client-"+repo;
+ const stage=String(job.stage||"new");
+ if(stage==="new"){
+  const info=await bbGit("/repos/rwyers/"+repo,"GET",env.NS_GITHUB_TOKEN);
+  if(info.full_name?.toLowerCase()!=="rwyers/"+repo)throw Error("Repository must be owned by rwyers.");
+  const domains=await bbDomain({company},env);
+  const scripts=(await bbCF(BB_RY,"/workers/scripts","GET",env.NS_RY_CF_TOKEN)).result||[];
+  if(scripts.some(x=>x.id===name))throw Error("A Cloudflare Worker with this client name already exists; a safe unused repo name is required.");
+  let existing;
+  try{existing=await bbGit("/repos/rwyers/"+repo+"/contents/index.html?ref=main","GET",env.NS_GITHUB_TOKEN)}
+  catch(err){if(err.httpStatus!==404)throw err}
+  if(existing)throw Error("The repository already has an index.html. Existing work will not be overwritten.");
+  return {...domains,worker_name:name,stage:"planned",message:"Repository confirmed and branded subdomain reserved for this build."};
+ }
+ if(stage==="planned"){
+  const site=await bbGenerate(job,p,env);
+  return {html:site.html,photos_used:site.photos,stage:"generated",message:"Custom website designed from the business details and all available photos."};
+ }
+ if(stage==="generated"){
+  if(!job.html||job.html.length<4500)throw Error("Website source missing; regenerate before publishing.");
+  const worker=bbSiteWorker(job.html);
+  const config=JSON.stringify({name,main:"./worker.js",compatibility_date:"2026-10-17"},null,2)+"\n";
+  const readme="# "+company+"\n\nNorth Star Ventures website preview. Dedicated repository for this prospective client.\n\nPreview: "+job.preview_url+"\n\nFiles: index.html (source); worker.js (Cloudflare Worker); wrangler.jsonc (deployment config).\n";
+  await bbFile(repo,"index.html",job.html,env.NS_GITHUB_TOKEN);
+  await bbFile(repo,"worker.js",worker,env.NS_GITHUB_TOKEN);
+  await bbFile(repo,"wrangler.jsonc",config,env.NS_GITHUB_TOKEN);
+  await bbFile(repo,"README.md",readme,env.NS_GITHUB_TOKEN);
+  return {stage:"committed",message:"Website source committed to the dedicated rwyers GitHub repository."};
+ }
+ if(stage==="committed"){
+  const worker=bbSiteWorker(job.html);
+  await bbCF(BB_RY,"/workers/scripts/"+name,"PUT",env.NS_RY_CF_TOKEN,bbForm(worker));
+  await bbCF(BB_RY,"/workers/scripts/"+name+"/subdomain","POST",env.NS_RY_CF_TOKEN,{enabled:true});
+  const origin="https://"+name+".rwyers.workers.dev";
+  const r=await fetch(origin+"/",{redirect:"manual"});const content=await r.text();
+  if(r.status!==200||!content.toLowerCase().includes(company.toLowerCase()))throw Error("Hosting deployment completed but the website content could not be verified yet. Retry.");
+  return {worker_url:origin,stage:"deployed",message:"Dedicated client Cloudflare Worker deployed and verified."};
+ }
+ if(stage==="deployed"){
+  if(!job.worker_url||!job.subdomain)throw Error("Missing verified Worker URL or selected brand domain.");
+  const host=job.subdomain+".northstarventures.ca",proxy="nsv-proxy-"+job.subdomain;
+  const domains=(await bbCF(BB_NS,"/workers/domains","GET",env.NS_NS_CF_TOKEN)).result||[];
+  if(domains.some(x=>x.hostname===host&&x.service!==proxy))throw Error("Branded preview domain is now used by another site; stopped without overwriting it.");
+  // Deploy a separate proxy under Northstar; actual hosting stays with Rwyers.
+  await bbCF(BB_NS,"/workers/scripts/"+proxy,"PUT",env.NS_NS_CF_TOKEN,bbForm(bbProxy(job.worker_url)));
+  await bbCF(BB_NS,"/workers/domains","PUT",env.NS_NS_CF_TOKEN,{hostname:host,service:proxy,zone_id:BB_ZONE});
+  return {proxy_worker:proxy,stage:"branded",message:"Branded North Star subdomain configured with SSL."};
+ }
+ if(stage==="branded"){
+  const r=await fetch(job.preview_url,{redirect:"follow"}),html=await r.text();
+  if(r.status!==200||!html.toLowerCase().includes(company.toLowerCase()))throw Error("The branded preview is not fully live over HTTPS yet. Retry verification.");
+  return {stage:"verified",message:"Branded HTTPS website loads with the correct client content."};
+ }
+ if(stage==="verified"){
+  const result=await bbPitch(job,p,env);
+  return {pitch_text:result.text,stage:"ready",message:"Preview is live, registry can be updated, and outreach text is ready."};
+ }
+ throw Error("Unknown build step: "+stage);
+}
+async function siteBuilder(req,env){
+ if(!bbAuthorized(req,env))return J({error:"Unauthorized"},401);
+ const missing=bbMissing(env);
+ if(missing.length)return J({ready:false,error:"Deployment access is not configured.",missing},503);
+ if(new URL(req.url).pathname==="/build/config")return J({ready:true});
+ let data;try{const raw=await req.text();if(raw.length>215000)return J({error:"Build record too large."},413);data=JSON.parse(raw)}
+ catch{return J({error:"Invalid build data."},400)}
+ const job=data.job||{},prospect=data.prospect||{};
+ if(!job.repo||!prospect.company)return J({error:"Missing business or repository."},400);
+ try{return J({ok:true,...await bbStep(job,prospect,env)})}catch(e){return J({error:trim(e.message||"Build step failed",350)},502)}
+}
+
 export default{async fetch(req,env){const path=new URL(req.url).pathname;if(path==="/health"&&req.method==="GET")return J({ok:true,openai_configured:!!(env.find_web_clients||env.find_web_client)});
 if(path==="/prospect-assistant"&&req.method==="POST")return prospectAssistant(req,env);
+if((path==="/build/config"||path==="/build/step")&&req.method==="POST")return siteBuilder(req,env);
 if(path!=="/search"||req.method!=="POST")return J({error:"Not found"},404);
 const a=req.headers.get("x-northstar-internal")||"",b=env.NS_INTERNAL_AUTH||"";let diff=0;if(!a||a.length!==b.length)return J({error:"Unauthorized"},401);for(let i=0;i<a.length;i++)diff|=a.charCodeAt(i)^b.charCodeAt(i);if(diff)return J({error:"Unauthorized"},401);
 const key=env.find_web_clients||env.find_web_client;if(!key)return J({error:"OpenAI key binding missing"},503);
