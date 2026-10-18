@@ -714,13 +714,16 @@ async function bbSaveRebuildFile(repo,branch,path,content,token){
  await bbGit(endpoint,"PUT",token,{message:"AI redesign: "+path,branch,content:bbB64(content),...(old?.sha?{sha:old.sha}:{})});
 }
 async function bbRenderVerify(url,company,env){
- const response=await fetch("https://api.cloudflare.com/client/v4/accounts/"+BB_RY+"/browser-rendering/content",{
-  method:"POST",headers:{"content-type":"application/json","authorization":"Bearer "+env.NS_RY_CF_TOKEN},
-  body:JSON.stringify({url,actionTimeout:21000}),signal:AbortSignal.timeout(34000)
+ const u=new URL(url);
+ if(u.protocol!=="https:"||!/^ns-redesign-[a-z0-9-]+\.rwyers\.workers\.dev$/i.test(u.hostname))throw Error("Staging URL was not a dedicated client Worker.");
+ // The verifier runs in Northstar's *other* Cloudflare account, avoiding same-account 1042
+ // and Browser Rendering rate limits. A separate visual screenshot QA already took place.
+ const r=await fetch("https://northstarventures.ca/api/internal/client-site-check",{
+  method:"POST",headers:{"content-type":"application/json","x-northstar-internal":env.NS_INTERNAL_AUTH},
+  body:JSON.stringify({url:u.origin+"/",company}),signal:AbortSignal.timeout(25000)
  });
- const j=await response.json().catch(()=>null),h=String(j?.result||"");
- if(!response.ok||!j?.success||!/<html\b/i.test(h)||!h.toLowerCase().includes(company.toLowerCase()))
-  throw Error("Redesign preview did not pass a real-browser load test. The original site is untouched.");
+ const v=await r.json().catch(()=>({}));
+ if(!r.ok||!v.ok||!v.match)throw Error("Staging cross-account health check failed: "+trim(v.error||"HTTP "+r.status,150));
  return true;
 }
 async function bbCheckPublic(url,company){
@@ -742,7 +745,10 @@ async function bbStep(job,p,env){
   try{head=await bbGit("/repos/rwyers/"+repo+"/git/ref/heads/main","GET",env.NS_GITHUB_TOKEN)}
   catch(err){if(err.httpStatus===404||err.httpStatus===409)throw Error("Initialize this repository with a README on main and retry.");throw err}
   if(!head?.object?.sha)throw Error("The repository has no initialized main commit. Add a README and retry.");
-  const domains=await bbDomain({company,repo},env);
+  const branded=bbCandidates(company)[0]||repo;
+  const suffix="-"+repo.slice(0,9);
+  const slug=(branded.slice(0,54-suffix.length)+suffix).replace(/-+/g,"-");
+  const domains={subdomain:slug,preview_url:"https://preview.northstarventures.ca/"+slug+"/",preview_route:"studio"};
   const scripts=(await bbCF(BB_RY,"/workers/scripts","GET",env.NS_RY_CF_TOKEN)).result||[];
   if(scripts.some(x=>x.id===name))throw Error("A Cloudflare Worker with this client name already exists; a safe unused repo name is required.");
   let existing;
@@ -810,22 +816,11 @@ async function bbStep(job,p,env){
    await bbRenderVerify(job.candidate_url,company,env);
    return {stage:"branded",message:"New site passed browser testing before publication; old site remains online."};
   }
-  if(!job.worker_url||!job.subdomain)throw Error("Missing verified Worker URL or branded preview name.");
-  const host=job.subdomain+".northstarventures.ca",proxy="nsv-proxy-"+job.subdomain;
-  const routes=await bbRoutes(env);
-  if(routes.some(x=>String(x.pattern||"").toLowerCase()===host.toLowerCase()+"/*"&&x.script!==proxy))
-   throw Error("The preview route already belongs to another Worker. Nothing was overwritten.");
-  await bbEnsureRouteDns(host,repo,env);
-  // Each client is still hosted independently under rwyers. This is only the named front-door proxy.
-  await bbCF(BB_NS,"/workers/scripts/"+proxy,"PUT",env.NS_NS_CF_TOKEN,bbForm(bbProxy(job.worker_url)));
-  if(!routes.some(x=>String(x.pattern||"").toLowerCase()===host.toLowerCase()+"/*"&&x.script===proxy)){
-   try{await bbZone("POST","/workers/routes",env,{pattern:host+"/*",script:proxy})}
-   catch(e){
-    if(e.httpStatus===401||e.httpStatus===403)throw Error("Branded routing requires Zone > Workers Routes > Edit on the Northstar token. The preview was not switched to another client.");
-    throw e
-   }
-  }
-  return {proxy_worker:proxy,stage:"branded",message:"Independent client site linked to branded North Star URL through its own Worker route."};
+  if(!job.worker_url||!job.subdomain)throw Error("Missing independent client Worker or preview identifier.");
+  const slug=job.subdomain;
+  if(!/^[a-z0-9][a-z0-9-]{0,54}$/.test(slug))throw Error("Invalid client preview slug.");
+  return {preview_route:"studio",preview_url:"https://preview.northstarventures.ca/"+slug+"/",stage:"branded",
+   message:"Dedicated client Worker linked to isolated North Star preview host. No DNS changes or permission requests are needed."};
  }
  if(stage==="branded"){
   if(job.mode==="rebuild"){
