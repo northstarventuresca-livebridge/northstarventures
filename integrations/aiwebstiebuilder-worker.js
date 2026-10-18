@@ -714,13 +714,31 @@ async function bbSaveRebuildFile(repo,branch,path,content,token){
  await bbGit(endpoint,"PUT",token,{message:"AI redesign: "+path,branch,content:bbB64(content),...(old?.sha?{sha:old.sha}:{})});
 }
 async function bbRenderVerify(url,company,env){
+ const target=new URL(url);
+ if(target.protocol!=="https:"||!/^ns-redesign-[a-z0-9-]+\.rwyers\.workers\.dev$/i.test(target.hostname))throw Error("Staging URL is not a verified dedicated client preview.");
+ const check=html=>/<html\b/i.test(String(html))&&String(html).toLowerCase().includes(company.toLowerCase());
+ // Prefer a native Browser Run binding. It needs no Browser-Run API-token permission.
+ if(env.BROWSER?.quickAction){
+  let result;
+  try{
+   const r=await env.BROWSER.quickAction("content",{url:target.href,actionTimeout:24000,gotoOptions:{waitUntil:"domcontentloaded"}});
+   if(!r?.ok)throw Error("Browser Run returned "+(r?.status||"an error"));
+   result=await r.text();
+   if(!check(result))throw Error("The rendered staging page did not contain the correct business or HTML document.");
+   return true;
+  }catch(err){
+   // Never approve a failed browser test. Expose the actual cause for automatic repair.
+   throw Error("Staging browser verification: "+trim(err.message||err,215));
+  }
+ }
+ // Legacy fallback only for deployments where the browser binding is not installed.
  const response=await fetch("https://api.cloudflare.com/client/v4/accounts/"+BB_RY+"/browser-rendering/content",{
   method:"POST",headers:{"content-type":"application/json","authorization":"Bearer "+env.NS_RY_CF_TOKEN},
-  body:JSON.stringify({url,actionTimeout:21000}),signal:AbortSignal.timeout(34000)
+  body:JSON.stringify({url:target.href,actionTimeout:21000}),signal:AbortSignal.timeout(34000)
  });
- const j=await response.json().catch(()=>null),h=String(j?.result||"");
- if(!response.ok||!j?.success||!/<html\b/i.test(h)||!h.toLowerCase().includes(company.toLowerCase()))
-  throw Error("Redesign preview did not pass a real-browser load test. The original site is untouched.");
+ const j=await response.json().catch(()=>null),html=String(j?.result||"");
+ if(!response.ok||!j?.success||!check(html))
+  throw Error("Staging browser verification HTTP "+response.status+"; "+trim(JSON.stringify(j?.errors||[]),140));
  return true;
 }
 async function bbCheckPublic(url,company){
