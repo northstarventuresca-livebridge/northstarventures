@@ -653,7 +653,7 @@ async function nsProcessPendingWebsiteBuilds(e){
  for(const x of jobs.slice(0,1))await nsAutoAdvanceOne(e,x.name);
 }
 
-export default{async scheduled(event,e,ctx){ctx.waitUntil((async()=>{await nsProcessWebsiteReadyEmails(e);await nsProcessPendingWebsiteBuilds(e)})())},async fetch(r,e){const u=new URL(r.url);
+export default{async scheduled(event,e,ctx){ctx.waitUntil((async()=>{try{await nsProcessWebsiteReadyEmails(e)}catch{}await nsProcessPendingWebsiteBuilds(e)})())},async fetch(r,e){const u=new URL(r.url);
 if(u.pathname==="/admin/potential-websites"||u.pathname==="/admin/potential-websites/"){if(r.method!=="GET"&&r.method!=="HEAD")return new Response("Method not allowed",{status:405});return new Response(r.method==="HEAD"?null:NS_PROSPECT_HTML,{headers:{"content-type":"text/html; charset=utf-8","cache-control":"private,no-store","x-robots-tag":"noindex,nofollow","x-frame-options":"DENY","x-content-type-options":"nosniff"}})}
 if(u.pathname==="/admin/websites"||u.pathname==="/admin/websites/"){
  if(r.method!=="GET"&&r.method!=="HEAD")return new Response("Method not allowed",{status:405});
