@@ -27,39 +27,72 @@ function adUrl(url){try{let u=new URL(url),m=u.pathname.match(/\/(\d{9,12})(?:\/
 function imgUrl(url){try{let u=new URL(url);return u.protocol==="https:"&&(/(^|\.)kijiji\.ca$|(^|\.)classistatic\.com$|^i\.ebayimg\.com$/).test(u.hostname)?u.href:null}catch{return null}}
 
 
+/* The page may be a Kijiji CATEGORY PAGE redirected from a REMOVED ad.
+   The removed ad ID still appears in adRemoved= and in "related listings".
+   NEVER interpret this as a live ad or use general page images. */
+function listingAttr(tag,name){
+ const match=String(tag||"").match(new RegExp("(?:^|\\s)"+name+"\\s*=\\s*([\"'])(.*?)\\1","i"));
+ return match?match[2].replace(/&amp;/g,"&"):"";
+}
+function listingMeta(markup,property){
+ for(const match of markup.matchAll(/<meta\b[^>]*>/gi)){
+  const tag=match[0];
+  if(listingAttr(tag,"property")===property||listingAttr(tag,"name")===property)return listingAttr(tag,"content");
+ }
+ return "";
+}
+function listingCanonical(markup){
+ for(const match of markup.matchAll(/<link\b[^>]*>/gi))
+  if(listingAttr(match[0],"rel").toLowerCase().split(/\s+/).includes("canonical"))return listingAttr(match[0],"href");
+ return "";
+}
+function listingExactUrl(value,id){
+ try{const url=new URL(value);return ["kijiji.ca","www.kijiji.ca"].includes(url.hostname.toLowerCase())&&
+  url.pathname.startsWith("/v-")&&url.pathname.match(/\/(\d{9,12})(?:\/|$)/)?.[1]===String(id)&&
+  !url.searchParams.has("adRemoved")
+ }catch{return false}
+}
 function listingImages(h){
  const pics=[];
- // Kijiji serves modern listing images via media.kijiji.ca and legacy classistatic.
- // Only collect listing image assets, not Kijiji social icons and third-party banners.
- const patterns=[
- /<meta[^>]+(?:property|name)=["'](?:og:image|twitter:image)["'][^>]+content=["']([^"']+)["']/gi,
- /<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["'](?:og:image|twitter:image)["']/gi,
- /"(?:imageUrl|image_url|imageSrc|src)"\s*:\s*"(https:[^"]+(?:media\.kijiji\.ca|classistatic\.com)[^"]*)"/gi,
- /(?:https:\\\/\\\/|https:\/\/)(?:media\.kijiji\.ca|[^"'\s<>]*classistatic\.com)[^"'\s<>]+/gi
- ];
- for(const pattern of patterns){
-  let m,n=0;while((m=pattern.exec(h))&&n++<28){
-   let raw=m[1]||m[0];
-   raw=raw.replace(/&amp;/g,"&").replace(/\\u0026/g,"&").replace(/\\\//g,"/").replace(/&quot;/g,'"');
-   const url=imgUrl(raw);
-   if(!url||pics.includes(url)||/fb_desktop|social|favicon|placeholder|watermark|app-icon|\/next-assets\//i.test(url))continue;
-   if(!/(?:media\.kijiji\.ca\/api\/v1\/|classistatic\.com\/)/i.test(url))continue;
-   pics.push(url);if(pics.length>=12)return pics;
-  }
+ // Only metadata images attached to this listing's canonical page, never generic
+ // media links throughout the page (which include sponsored/related ads).
+ for(const property of ["og:image","twitter:image"]){
+  const image=listingMeta(h,property),url=imgUrl(image);
+  if(!url||!/(?:media\.kijiji\.ca\/api\/v1\/|classistatic\.com\/)/i.test(url)||pics.includes(url))continue;
+  pics.push(url);
  }
  return pics;
 }
-function readListingMarkup(ad,h,method){
+function listingIdentityVerified(markup,source){
+ if(!source||!source.company&&!source.phone&&!source.owner)return true;
+ const description=[listingMeta(markup,"og:description"),listingMeta(markup,"description"),
+  listingMeta(markup,"twitter:description")].filter(Boolean).join(" ").replace(/&amp;/g,"&");
+ const head=(markup.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1]||"");
+ const identity=(description+" "+head).toLowerCase().replace(/[^a-z0-9]/g," ");
+ const digits=description.replace(/\D/g,"");
+ const phone=String(source.phone||"").replace(/\D/g,"").slice(-10);
+ if(phone.length===10&&digits.includes(phone))return true;
+ const name=String(source.company||"").toLowerCase().replace(/[^a-z0-9]/g," ").replace(/\b(ltd|limited|inc|incorporated|the|services|service|company)\b/g," ").replace(/\s+/g," ").trim();
+ const significant=name.split(" ").filter(x=>x.length>=3);
+ if(significant.length&&significant.every(word=>identity.includes(word)))return true;
+ const owner=String(source.owner||"").toLowerCase().replace(/[^a-z]/g,"").trim();
+ // An owner's first name alone is insufficient to establish an exact business.
+ return false;
+}
+function readListingMarkup(ad,h,method,source){
  const markup=String(h||"").slice(0,850000);
- const direct=markup.includes(ad.id)&&/(?:og:url|rel=["']canonical["']|adid|adId)/i.test(markup)&&
-   /<title>\s*[^<]{7,}/i.test(markup)&&
-   (/og:type["']\s+content=["']product|(?:og:description|itemprop=["']description)/i.test(markup)||/\/v-[\w-]+\//.test(markup));
- if(direct){
-  return {ok:true,status:"active",reason:"Current Kijiji ad confirmed by "+method+".",photos:listingImages(markup)};
- }
- if(/apparently this page no longer exists|this ad is no longer available|listing (?:has been|was) removed/i.test(markup))
-  return {ok:false,status:"expired",reason:"Kijiji displayed a removed listing in "+method+".",photos:[]};
- return {ok:false,status:"unverified",reason:"Kijiji did not provide a verifiable live listing to "+method+".",photos:[]};
+ const canonical=listingCanonical(markup),social=listingMeta(markup,"og:url");
+ const removed=(()=>{
+  for(const url of [canonical,social]){
+   try{const u=new URL(url);if(u.searchParams.get("adRemoved")===ad.id)return true}catch{}
+  }
+  return /(?:this ad is no longer available|this ad has been removed|listing was removed)/i.test(markup.slice(0,45000));
+ })();
+ if(removed)return {ok:false,status:"expired",reason:"Kijiji confirms this ad was removed or redirected to a category listing.",photos:[]};
+ const exact=listingExactUrl(canonical,ad.id)||listingExactUrl(social,ad.id);
+ if(!exact)return {ok:false,status:"unverified",reason:"Kijiji did not show the exact ad page (category, unrelated listing or access denied).",photos:[]};
+ if(!listingIdentityVerified(markup,source))return {ok:false,status:"unverified",reason:"The page was accessible, but advertiser name and phone could not be matched to this specific business.",photos:[]};
+ return {ok:true,status:"active",reason:"Exact Kijiji listing URL and business identity confirmed via "+method+".",photos:listingImages(markup)};
 }
 async function renderKijiji(ad,env){
  if(!env.NS_RY_CF_TOKEN)return null;
@@ -74,20 +107,20 @@ async function renderKijiji(ad,env){
   return typeof data?.result==="string"?data.result:null;
  }catch{return null}
 }
-async function photos(ad,env={},browserFallback=true){
+async function photos(ad,env={},browserFallback=true,source=null){
  const ctrl=new AbortController(),timer=setTimeout(()=>ctrl.abort(),8000);
  let check={ok:false,status:"unverified",reason:"Kijiji refused automatic access; the advertisement requires a browser check.",photos:[]};
  try{
   const response=await fetch(ad.url,{method:"GET",signal:ctrl.signal,headers:{"accept":"text/html,application/xhtml+xml","user-agent":"Mozilla/5.0"}});
   if(response.ok&&(response.headers.get("content-type")||"").includes("html"))
-   check=readListingMarkup(ad,await response.text(),"direct access");
+   check=readListingMarkup(ad,await response.text(),"direct access",source);
   else check.reason="Kijiji returned "+response.status+" to the automated checker. This does NOT prove that the ad has expired.";
  }catch{check.reason="Kijiji blocked or timed out automatic access; the listing may still be live."}
  finally{clearTimeout(timer)}
  if(check.ok||!browserFallback)return check;
  const page=await renderKijiji(ad,env);
  if(page){
-  const result=readListingMarkup(ad,page,"browser verification");
+  const result=readListingMarkup(ad,page,"browser verification",source);
   if(result.ok||result.status==="expired")return result;
  }
  // Inaccessible is NOT the same as expired. Never delete potentially live prospects.
@@ -1013,7 +1046,7 @@ if(path==="/verify-ad"&&req.method==="POST"){
  let data;try{const text=await req.text();if(text.length>2600)return J({error:"Too much data"},413);data=JSON.parse(text)}catch{return J({error:"Invalid request"},400)}
  const ad=adUrl(data.ad_url);
  if(!ad)return J({error:"Enter a genuine Kijiji ad URL with a listing ID."},400);
- const found=await photos(ad,env,true);
+ const found=await photos(ad,env,true,{company:data.company,phone:data.phone,owner:data.owner});
  return J({ad_url:ad.url,source_status:found.status,source_checked:found.ok,source_checked_at:new Date().toISOString(),source_note:found.reason,photo_urls:found.ok?found.photos:[]});
 }
 if(path==="/prospect-assistant"&&req.method==="POST")return prospectAssistant(req,env);
@@ -1053,7 +1086,7 @@ const checked=await Promise.all(candidates.map(async (x,i)=>{
  if(/\b(sponsored|paid placement|promoted search result|advertising network)\b/i.test(String(x.notes||"")))return {i,x,ad,reject:"sponsored",reason:"Sponsored/promoted placement not a business prospect."};
  if(!checkArea(x.area))return {i,x,ad,reject:"outside_area",reason:"Advertised service area did not clearly match the selected communities."};
  if(focus&&!strictFocusMatch(x,focus))return {i,x,ad,reject:"outside_focus",reason:"Business services did not match the saved topic search focus."};
- const media=await photos(ad,env,i<4);
+ const media=await photos(ad,env,i<4,x);
  if(media.status==="expired")return {i,x,ad,reject:"expired",reason:"Kijiji browser explicitly confirmed the listing was removed."};
  return {i,x,ad,media,score,services};
 }));
