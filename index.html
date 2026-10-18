@@ -429,9 +429,9 @@ const hero=document.querySelector('.hero'),slides=[...root.querySelectorAll('[da
 const names=['Websites & Digital','Business Acquisitions','Real Estate','AI & Technology','BAS Marketplace'];
 const nav=document.createElement('nav');nav.className='hero-navigation';nav.setAttribute('aria-label','Explore North Star ventures');
 nav.innerHTML=names.map((n,i)=>'<button type="button" data-full-hero-tab aria-label="Show '+n+'"><span class="hero-slide-number">'+String(i+1).padStart(2,'0')+'</span>'+n+'</button>').join('');
-hero.append(nav);const tabs=[...nav.querySelectorAll('button')];let current=0,timer,paused=false,startX=null;
+hero.append(nav);const tabs=[...nav.querySelectorAll('button')];let current=0,timer,paused=false,selected=false,startX=null;
 const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
-function restart(){clearInterval(timer);if(!paused&&!reduced&&!document.hidden)timer=setInterval(()=>show(current+1,false),7200)}
+function restart(){clearInterval(timer);if(!paused&&!selected&&!reduced&&!document.hidden)timer=setInterval(()=>show(current+1,false),7200)}
 function show(index,reset=true){current=(index+slides.length)%slides.length;hero.dataset.venture=String(current);
 slides.forEach((s,i)=>{const active=i===current;s.classList.toggle('is-active',active);s.setAttribute('aria-hidden',String(!active))});
 panels.forEach((p,i)=>{const active=i===current;p.classList.toggle('is-active',active);p.setAttribute('aria-hidden',String(!active));p.querySelectorAll('a').forEach(a=>a.tabIndex=active?0:-1)});
@@ -439,11 +439,9 @@ tabs.forEach((t,i)=>{t.classList.toggle('is-active',i===current);t.setAttribute(
 if(count)count.textContent=String(current+1).padStart(2,'0')+' / '+String(slides.length).padStart(2,'0');
 if(progress&&!reduced){progress.classList.remove('is-running');void progress.offsetWidth;progress.classList.add('is-running')}
 if(reset)restart()}
-tabs.forEach((b,i)=>b.addEventListener('click',()=>show(i)));
+tabs.forEach((b,i)=>b.addEventListener('click',()=>{selected=true;show(i);clearInterval(timer)}));
 hero.addEventListener('pointerdown',e=>{if(e.target.closest('a,button'))return;startX=e.clientX});
-hero.addEventListener('pointerup',e=>{if(startX==null)return;const dx=e.clientX-startX;startX=null;if(Math.abs(dx)>65)show(current+(dx<0?1:-1))});
-hero.addEventListener('mouseenter',()=>{paused=true;clearInterval(timer)});
-hero.addEventListener('mouseleave',()=>{paused=false;restart()});
+hero.addEventListener('pointerup',e=>{if(startX==null)return;const dx=e.clientX-startX;startX=null;if(Math.abs(dx)>65){selected=true;show(current+(dx<0?1:-1));clearInterval(timer)}});
 hero.addEventListener('focusin',()=>{paused=true;clearInterval(timer)});
 hero.addEventListener('focusout',e=>{if(!hero.contains(e.relatedTarget)){paused=false;restart()}});
 document.addEventListener('visibilitychange',restart);show(0);
