@@ -255,7 +255,7 @@ async function archivedRemoveDemo(e,lead){
   try{
    response=await fetch("https://aiwebstiebuilder.rwyers.workers.dev/build/cleanup",{
     method:"POST",headers:{"content-type":"application/json","x-northstar-internal":e.NS_INTERNAL_AUTH},
-    body:JSON.stringify({job,prospect_id:id,company:lead.company}),signal:AbortSignal.timeout(80000)
+    body:JSON.stringify({job:{shared_demo:job.shared_demo,repo:job.repo,github_path:job.github_path,site_slug:job.site_slug,worker_name:job.worker_name,company:job.company},prospect_id:id,company:lead.company}),signal:AbortSignal.timeout(80000)
    });value=await response.json().catch(()=>({}));
   }catch(err){throw Object.assign(Error("Cloudflare/GitHub cleanup did not finish. Please retry; the record is still here."),{status:502})}
   if(!response.ok||value.ok!==true)throw Object.assign(Error("Preview cleanup did not complete: "+String(value.error||response.status).slice(0,180)),{status:502});
