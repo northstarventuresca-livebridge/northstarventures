@@ -240,9 +240,14 @@ async function archivedRemoveDemo(e,lead){
    throw Object.assign(Error("Demo ownership could not be verified. Cleanup blocked."),{status:409});
   if(job.auto_running_until&&Date.parse(job.auto_running_until)>Date.now())
    throw Object.assign(Error("This preview is still building. Try again once the build has finished."),{status:409});
-  if(linked.some(x=>x.github_path&&x.github_path!==job.github_path||
-     x.cloudflare_project&&x.cloudflare_project!==job.worker_name))
-   throw Object.assign(Error("The website record does not match this demo. Cleanup blocked."),{status:409});
+  if(linked.some(x=>x.github_repo!=="rwyers/nsw2"||x.github_path!==job.github_path||
+     x.cloudflare_project!==job.worker_name))
+   throw Object.assign(Error("The website registry is not fully tied to this demo. Cleanup blocked."),{status:409});
+  if(job.preview_route==="studio"&&job.subdomain){
+   const reserved=await e.REGISTRY.get("preview:"+job.subdomain,"json");
+   if(reserved&&(reserved.job_id!==job.id||reserved.build_key!=="build:prospect:"+id))
+    throw Object.assign(Error("The preview address belongs to a different client. Cleanup blocked."),{status:409});
+  }
   if(!e.NS_INTERNAL_AUTH)throw Object.assign(Error("Safe website cleanup service is unavailable."),{status:503});
   const buildKey="build:prospect:"+id;
   await e.REGISTRY.put(buildKey,JSON.stringify({...job,stage:"cleanup_pending",website_ready_email_status:"cancelled",auto_run_id:"",auto_running_until:"",updated_at:new Date().toISOString()}));
@@ -262,8 +267,8 @@ async function archivedRemoveDemo(e,lead){
   }
   for(const site of linked)await e.REGISTRY.delete("site:"+site.id);
   await e.REGISTRY.delete(buildKey);
- }else if(lead.preview_url&&/^https:\/\/preview\.northstarventures\.ca\//i.test(lead.preview_url))
-  throw Object.assign(Error("This preview's ownership information is missing. Automated cleanup stopped."),{status:409});
+ }else if(lead.preview_url||lead.github_repo||lead.github_path)
+  throw Object.assign(Error("A preview exists without verified ownership information. Cleanup stopped."),{status:409});
  return {removed_sites:linked.length};
 }
 
@@ -373,7 +378,7 @@ async function prospectsApi(r,e,u){
    category,cities,focus:settings.focus,searched_at:now,archivedSkipped,
    added,duplicates,reviewed:candidates.length,
    search_queries:Array.isArray(results.search_queries)?results.search_queries.map(x=>String(x).slice(0,420)).slice(0,4):[],
-   breakdown:results.search_breakdown&&typeof results.search_breakdown==="object"?results.search_breakdown:{},
+   breakdown:{...(results.search_breakdown&&typeof results.search_breakdown==="object"?results.search_breakdown:{}),archived_matches_skipped:archivedSkipped},
    failures:Array.isArray(results.search_failures)?results.search_failures.map(x=>String(x).slice(0,250)).slice(0,3):[],
    // Never display unverified advertisements as prospect results.
    search_note:String(results.search_note||"").slice(0,400)
