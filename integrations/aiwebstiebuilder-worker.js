@@ -737,7 +737,29 @@ async function bbStep(job,p,env){
  const name="ns-client-"+repo;
  const stage=String(job.stage||"new");
  if(stage==="new"){
-  const info=await bbGit("/repos/rwyers/"+repo,"GET",env.NS_GITHUB_TOKEN);
+  let info;
+  try{info=await bbGit("/repos/rwyers/"+repo,"GET",env.NS_GITHUB_TOKEN)}
+  catch(e){
+   if(e.httpStatus!==404)throw e;
+   if(!job.create_repo)throw Error("This repository does not exist. The original manual GitHub setup is still available.");
+   let created;
+   try{
+    created=await bbGit("/user/repos","POST",env.NS_GITHUB_TOKEN,{
+     name:repo,private:true,auto_init:true,
+     description:"Private client website preview built with North Star Ventures"
+    });
+   }catch(error){
+    if([401,403].includes(error.httpStatus))throw Error("GitHub token must permit creating private repositories in rwyers to enable one-click builds.");
+    throw error;
+   }
+   if(created.full_name?.toLowerCase()!=="rwyers/"+repo)throw Error("GitHub repository owner was not rwyers; stop before deploying.");
+   info=created;
+   // Newly created private repos may need a few seconds before the initial README is committed.
+   for(let n=0;n<4;n++){
+    try{const head=await bbGit("/repos/rwyers/"+repo+"/git/ref/heads/main","GET",env.NS_GITHUB_TOKEN);if(head.object?.sha)break}catch(err){if(n===3)throw err}
+    await new Promise(resolve=>setTimeout(resolve,1800));
+   }
+  }
   if(info.full_name?.toLowerCase()!=="rwyers/"+repo)throw Error("Repository must be owned by rwyers.");
   if(info.default_branch!=="main")throw Error("This repository must use main as its default branch. Existing files are preserved.");
   // GitHub can report size=0 immediately after README creation; confirm the actual branch instead.
