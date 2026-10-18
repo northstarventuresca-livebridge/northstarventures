@@ -417,6 +417,7 @@ async function prospectsApi(r,e,u){
     updated_at:new Date().toISOString()};
    await e.REGISTRY.put("history:prospect:"+prospect.id+":"+Date.now(),JSON.stringify({operation:"site built",record:prospect}));
    await e.REGISTRY.put("prospect:"+prospect.id,JSON.stringify(newer));
+   job=nsMarkWebsiteReadyForEmail(job,prospect);
   }
   await e.REGISTRY.put(buildKey,JSON.stringify(job));
   return regJson({build:brief(job)});
@@ -461,6 +462,80 @@ async function prospectsApi(r,e,u){
 
 
 /* Server-side automatic website build pipeline. Triggered by Cloudflare Cron, never by a visitor. */
+
+/* Every new completed client website gets one durable completion email to studio owner. */
+const NS_WEBSITE_READY_RECIPIENT="ryan.wyers@gmail.com";
+const NS_WEBSITE_READY_SENDER="website-updates@northstarventures.ca";
+function nsSafeCompletedPreview(raw){
+ try{const url=new URL(raw);return url.protocol==="https:"&&url.hostname&&!url.username&&!url.password?url.href:""}catch{return ""}
+}
+function nsMarkWebsiteReadyForEmail(job,prospect){
+ const url=nsSafeCompletedPreview(job.preview_url);
+ if(job.stage!=="ready"||!url)return job;
+ // A previously sent notification must not be resent when someone revisits an existing build.
+ if(job.website_ready_email_status==="sent"||job.website_ready_email_status==="pending")return job;
+ return {...job,website_ready_email_status:"pending",
+  website_ready_email_company:String(prospect.company||job.company||"Client website").trim().slice(0,140),
+  website_ready_email_url:url,
+  website_ready_email_at:new Date().toISOString(),
+  website_ready_email_attempts:0};
+}
+function nsEmailEscape(value){
+ return String(value||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+}
+async function nsDeliverWebsiteReadyEmail(e,key,job){
+ if(!e.BUILD_EMAIL||typeof e.BUILD_EMAIL.send!=="function")return false;
+ if(job.stage!=="ready"||job.website_ready_email_status!=="pending")return false;
+ if(job.website_ready_email_next_attempt&&Date.parse(job.website_ready_email_next_attempt)>Date.now())return false;
+ if(job.website_ready_email_lease&&Date.parse(job.website_ready_email_lease)>Date.now())return false;
+ const url=nsSafeCompletedPreview(job.website_ready_email_url||job.preview_url);
+ if(!url)return false;
+ const now=new Date(),runId=crypto.randomUUID();
+ const locked={...job,website_ready_email_run_id:runId,website_ready_email_lease:new Date(now.getTime()+180000).toISOString()};
+ await e.REGISTRY.put(key,JSON.stringify(locked));
+ // Cron is serial; validate lease ownership anyway before sending.
+ const claimed=await e.REGISTRY.get(key,"json");
+ if(claimed?.website_ready_email_run_id!==runId||claimed.website_ready_email_status!=="pending")return false;
+ const company=String(claimed.website_ready_email_company||claimed.company||"Your new client website").replace(/[\r\n]/g," ").slice(0,140);
+ const subject="Website ready: "+company;
+ const text="Your website preview is ready!\n\nBusiness: "+company+"\nView your website: "+url+"\n\nThe new client website has finished building, passed the deployment checks, and is ready to review.\n\nNorth Star Ventures Website Studio";
+ const html='<div style="font:16px/1.6 system-ui,sans-serif;color:#152d3c;max-width:610px;margin:auto;padding:28px"><p style="font-size:12px;color:#688498;letter-spacing:1.5px;font-weight:700">NORTH STAR VENTURES · WEBSITE STUDIO</p><h1 style="font-size:27px;line-height:1.2;margin:15px 0">Your website is ready!</h1><p><strong>'+nsEmailEscape(company)+'</strong> has finished building and is ready to view.</p><p style="margin:30px 0"><a href="'+nsEmailEscape(url)+'" style="background:#143e57;padding:15px 25px;border-radius:9px;color:#fff;text-decoration:none;font-weight:700">View website preview →</a></p><p>Preview URL:<br><a href="'+nsEmailEscape(url)+'">'+nsEmailEscape(url)+'</a></p><p style="font-size:13px;color:#688498">North Star Ventures Website Studio</p></div>';
+ try{
+  const response=await e.BUILD_EMAIL.send({
+   to:NS_WEBSITE_READY_RECIPIENT,from:NS_WEBSITE_READY_SENDER,subject,text,html
+  });
+  const fresh=await e.REGISTRY.get(key,"json");
+  if(fresh?.website_ready_email_run_id===runId&&fresh.website_ready_email_status==="pending"){
+   await e.REGISTRY.put(key,JSON.stringify({...fresh,website_ready_email_status:"sent",
+    website_ready_email_sent_at:new Date().toISOString(),website_ready_email_message_id:String(response?.messageId||"").slice(0,150),
+    website_ready_email_lease:"",website_ready_email_run_id:"",website_ready_email_next_attempt:"",website_ready_email_error:""}));
+  }
+  return true;
+ }catch(err){
+  const fresh=await e.REGISTRY.get(key,"json");
+  if(fresh?.website_ready_email_run_id===runId&&fresh.website_ready_email_status==="pending"){
+   const attempts=(Number(fresh.website_ready_email_attempts)||0)+1;
+   await e.REGISTRY.put(key,JSON.stringify({...fresh,website_ready_email_attempts:attempts,
+    website_ready_email_lease:"",website_ready_email_run_id:"",
+    website_ready_email_next_attempt:new Date(Date.now()+Math.min(3600000,120000*Math.max(1,attempts))).toISOString(),
+    website_ready_email_error:String(err?.code||err?.message||err).slice(0,250)}));
+  }
+  return false; // An email outage must never undo a successful client website deployment.
+ }
+}
+async function nsProcessWebsiteReadyEmails(e){
+ if(!e.REGISTRY||!e.BUILD_EMAIL?.send)return;
+ const page=await e.REGISTRY.list({prefix:"build:prospect:",limit:100});
+ for(const k of page.keys){
+  const job=await e.REGISTRY.get(k.name,"json");
+  if(job?.stage==="ready"&&job.website_ready_email_status==="pending"&&
+    (!job.website_ready_email_next_attempt||Date.parse(job.website_ready_email_next_attempt)<=Date.now())&&
+    (!job.website_ready_email_lease||Date.parse(job.website_ready_email_lease)<=Date.now())){
+   await nsDeliverWebsiteReadyEmail(e,k.name,job);return;
+  }
+ }
+}
+
 async function nsAutoFinalizeBuild(job,prospect,e){
    const sites=await regList(e);
    const reference="rwyers/"+job.repo;
@@ -542,7 +617,10 @@ async function nsAutoAdvanceOne(e,key){
   if(!fresh||fresh.id!==job.id||fresh.stage!==stage||fresh.auto_run_id!==runId)return;
   job={...fresh,...data,stage:data.stage,error:false,updated_at:new Date().toISOString(),next_auto_retry_at:"",auto_run_id:"",auto_running_until:""};
   delete job.ok;
-  if(job.stage==="ready")await nsAutoFinalizeBuild(job,prospect,e);
+  if(job.stage==="ready"){
+   await nsAutoFinalizeBuild(job,prospect,e);
+   job=nsMarkWebsiteReadyForEmail(job,prospect);
+  }
   await e.REGISTRY.put(key,JSON.stringify(job));
  }catch(err){
   const fresh=await e.REGISTRY.get(key,"json");
@@ -575,7 +653,7 @@ async function nsProcessPendingWebsiteBuilds(e){
  for(const x of jobs.slice(0,1))await nsAutoAdvanceOne(e,x.name);
 }
 
-export default{async scheduled(event,e,ctx){ctx.waitUntil(nsProcessPendingWebsiteBuilds(e))},async fetch(r,e){const u=new URL(r.url);
+export default{async scheduled(event,e,ctx){ctx.waitUntil((async()=>{await nsProcessWebsiteReadyEmails(e);await nsProcessPendingWebsiteBuilds(e)})())},async fetch(r,e){const u=new URL(r.url);
 if(u.pathname==="/admin/potential-websites"||u.pathname==="/admin/potential-websites/"){if(r.method!=="GET"&&r.method!=="HEAD")return new Response("Method not allowed",{status:405});return new Response(r.method==="HEAD"?null:NS_PROSPECT_HTML,{headers:{"content-type":"text/html; charset=utf-8","cache-control":"private,no-store","x-robots-tag":"noindex,nofollow","x-frame-options":"DENY","x-content-type-options":"nosniff"}})}
 if(u.pathname==="/admin/websites"||u.pathname==="/admin/websites/"){
  if(r.method!=="GET"&&r.method!=="HEAD")return new Response("Method not allowed",{status:405});
