@@ -768,8 +768,8 @@ async function bbStep(job,p,env){
   catch(err){if(err.httpStatus===404||err.httpStatus===409)throw Error("Initialize this repository with a README on main and retry.");throw err}
   if(!head?.object?.sha)throw Error("The repository has no initialized main commit. Add a README and retry.");
   const branded=bbCandidates(company)[0]||repo;
-  const suffix="-"+repo.slice(0,9);
-  const slug=(branded.slice(0,54-suffix.length)+suffix).replace(/-+/g,"-");
+  const suffix="-"+repo.slice(-10).replace(/^-+/,"");
+  const slug=(branded.slice(0,54-suffix.length)+suffix).replace(/-+/g,"-").replace(/-+$/,"");
   const domains={subdomain:slug,preview_url:"https://preview.northstarventures.ca/"+slug+"/",preview_route:"studio"};
   const scripts=(await bbCF(BB_RY,"/workers/scripts","GET",env.NS_RY_CF_TOKEN)).result||[];
   if(scripts.some(x=>x.id===name))throw Error("A Cloudflare Worker with this client name already exists; a safe unused repo name is required.");
