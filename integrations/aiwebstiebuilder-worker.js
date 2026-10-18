@@ -608,8 +608,10 @@ function bbVisualServiceError(review){
  return review.score===0&&/(Unable to complete actual|visual rendering|OpenAI visual image inspection failed|authorized browser|Invalid.*screenshot)/i.test((review.problems||[]).join(" "));
 }
 async function bbGenerate(job,p,env){
- const incoming=(Array.isArray(p.photo_urls)?p.photo_urls:[]).map(bbUrl).filter(Boolean).slice(0,12);
- const media=await bbInspectVisuals(env,bbUrl(p.logo_url),incoming);
+ const verified=Number(p.source_verified_version)>=2&&p.source_status==="active"&&p.source_checked===true;
+ const incoming=verified?(Array.isArray(p.photo_urls)?p.photo_urls:[]).map(bbUrl).filter(Boolean).slice(0,12):[];
+ const logo=verified||!String(p.logo_url||"").includes("kijiji.ca/")?bbUrl(p.logo_url):"";
+ const media=await bbInspectVisuals(env,logo,incoming);
  const contact=await bbDiscoverPublicContact(p,env);
  const facts=bbDraftFacts(p,media,contact);
  const referenceResearch=await bbResearchReferencePages(p,env);
