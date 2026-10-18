@@ -195,6 +195,78 @@ async function regProspectBuildSummaries(e){
  return builds;
 }
 
+
+async function archivedProspectList(e){
+ let cursor,records=[],pages=0;
+ do{
+  const row=await e.REGISTRY.list({prefix:"archived:prospect:",limit:1000,...(cursor?{cursor}:{})});
+  const values=await Promise.all(row.keys.map(x=>e.REGISTRY.get(x.name,"json")));
+  records.push(...values.filter(x=>x&&typeof x==="object"));
+  cursor=row.list_complete?null:row.cursor;
+  if(++pages>30)throw Error("Too many archived leads");
+ }while(cursor);
+ return records;
+}
+function archivedProspectMatch(a,b){
+ const phone=x=>String(x||"").replace(/\D/g,"").slice(-10);
+ const clean=x=>String(x||"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
+ const ap=phone(a.phone),bp=phone(b.phone),an=clean(a.company),bn=clean(b.company);
+ return ap.length===10&&bp.length===10&&ap===bp||
+  !!a.ad_url&&a.ad_url===b.ad_url||
+  an.length>5&&an===bn&&(!a.area||!b.area||clean(a.area)===clean(b.area));
+}
+async function archivedCleanupHistory(e,id){
+ for(const prefix of ["history:prospect:"+id+":","history:build:prospect:"+id+":"]){
+  let cursor,rounds=0;
+  do{
+   const page=await e.REGISTRY.list({prefix,limit:1000,...(cursor?{cursor}:{})});
+   await Promise.all(page.keys.map(k=>e.REGISTRY.delete(k.name)));
+   cursor=page.list_complete?null:page.cursor;
+   if(++rounds>20)throw Error("Historical cleanup incomplete");
+  }while(cursor);
+ }
+}
+async function archivedRemoveDemo(e,lead){
+ const id=lead.id,job=await e.REGISTRY.get("build:prospect:"+id,"json");
+ const linked=(await regList(e)).filter(x=>!!job&&
+  (x.preview_url===job.preview_url||x.github_repo==="rwyers/nsw2"&&x.github_path===job.github_path));
+ if(lead.stage==="won"||linked.some(x=>x.status==="approved"||x.status==="live"))
+  throw Object.assign(Error("This website is an active client, not a disposable demo. Cleanup blocked."),{status:409});
+ if(job){
+  if(job.shared_demo!==true||job.repo!=="nsw2"||
+    !/^[a-z0-9][a-z0-9-]{1,45}$/.test(job.site_slug||"")||
+    job.worker_name!=="ns-client-"+job.site_slug||
+    job.github_path!=="sites/"+job.site_slug+"/")
+   throw Object.assign(Error("Demo ownership could not be verified. Cleanup blocked."),{status:409});
+  if(job.auto_running_until&&Date.parse(job.auto_running_until)>Date.now())
+   throw Object.assign(Error("This preview is still building. Try again once the build has finished."),{status:409});
+  if(linked.some(x=>x.github_path&&x.github_path!==job.github_path||
+     x.cloudflare_project&&x.cloudflare_project!==job.worker_name))
+   throw Object.assign(Error("The website record does not match this demo. Cleanup blocked."),{status:409});
+  if(!e.NS_INTERNAL_AUTH)throw Object.assign(Error("Safe website cleanup service is unavailable."),{status:503});
+  const buildKey="build:prospect:"+id;
+  await e.REGISTRY.put(buildKey,JSON.stringify({...job,stage:"cleanup_pending",website_ready_email_status:"cancelled",auto_run_id:"",auto_running_until:"",updated_at:new Date().toISOString()}));
+  let response,value;
+  try{
+   response=await fetch("https://aiwebstiebuilder.rwyers.workers.dev/build/cleanup",{
+    method:"POST",headers:{"content-type":"application/json","x-northstar-internal":e.NS_INTERNAL_AUTH},
+    body:JSON.stringify({job,prospect_id:id,company:lead.company}),signal:AbortSignal.timeout(80000)
+   });value=await response.json().catch(()=>({}));
+  }catch(err){throw Object.assign(Error("Cloudflare/GitHub cleanup did not finish. Please retry; the record is still here."),{status:502})}
+  if(!response.ok||value.ok!==true)throw Object.assign(Error("Preview cleanup did not complete: "+String(value.error||response.status).slice(0,180)),{status:502});
+  if(job.preview_route==="studio"&&job.subdomain){
+   const k="preview:"+job.subdomain,record=await e.REGISTRY.get(k,"json");
+   if(record&&(record.job_id!==job.id||record.build_key!==buildKey))
+    throw Object.assign(Error("The preview URL belongs to another build. Nothing else was deleted."),{status:409});
+   if(record)await e.REGISTRY.delete(k);
+  }
+  for(const site of linked)await e.REGISTRY.delete("site:"+site.id);
+  await e.REGISTRY.delete(buildKey);
+ }else if(lead.preview_url&&/^https:\/\/preview\.northstarventures\.ca\//i.test(lead.preview_url))
+  throw Object.assign(Error("This preview's ownership information is missing. Automated cleanup stopped."),{status:409});
+ return {removed_sites:linked.length};
+}
+
 async function prospectsApi(r,e,u){
  if(!e.REGISTRY)return regJson({error:"Registry unavailable."},503);
  const path=u.pathname,m=r.method;
@@ -222,6 +294,23 @@ async function prospectsApi(r,e,u){
   return regJson({topics,saved:true});
  }
 
+
+ if(path==="/api/registry/prospects/archived"&&m==="GET")return regJson({prospects:await archivedProspectList(e)});
+ const archiveRecord=path.match(/^\/api\/registry\/prospects\/archived\/([a-zA-Z0-9_-]{1,100})$/);
+ if(archiveRecord){
+  const key="archived:prospect:"+archiveRecord[1],old=await e.REGISTRY.get(key,"json");
+  if(!old)return regJson({error:"Archived prospect not found."},404);
+  if(m==="PUT"){
+   const data=await r.json(),value={...old,...prospectInput(data,(await prospectTopics(e)).map(x=>x.name)),id:old.id,stage:"archived",archived_at:old.archived_at,updated_at:new Date().toISOString()};
+   await e.REGISTRY.put(key,JSON.stringify(value));return regJson({ok:true,prospect:value});
+  }
+  if(m==="DELETE"){
+   const payload=await r.json().catch(()=>({}));
+   if(payload.confirm!==old.company)return regJson({error:"Type the business name exactly to permanently delete it."},400);
+   await archivedCleanupHistory(e,old.id);
+   await e.REGISTRY.delete(key);return regJson({ok:true,deleted:true});
+  }
+ }
  if(path==="/api/registry/prospects/build-status"&&m==="GET")return regJson({builds:await regProspectBuildSummaries(e)});
  if(path==="/api/registry/prospects"&&m==="GET"){
   let cursor=undefined,list=[],n=0;
@@ -257,10 +346,10 @@ async function prospectsApi(r,e,u){
   const results=await response.json().catch(()=>({}));
   if(!response.ok)return regJson({error:String(results.error||"Search failed").slice(0,280)},502);
   const candidates=Array.isArray(results.leads)?results.leads.slice(0,20):[];
-  const saved=await regProspectList(e);
+  const saved=await regProspectList(e),archived=await archivedProspectList(e);
   const now=new Date().toISOString(),dt=new Intl.DateTimeFormat("en-CA",{timeZone:"America/Edmonton",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date()),part=t=>dt.find(v=>v.type===t)?.value||"00",date=part("year")+"-"+part("month")+"-"+part("day");
   const normalize=x=>String(x||"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim(),phone=x=>String(x||"").replace(/\D/g,"").slice(-10);
-  let duplicates=0,added=0;
+  let duplicates=0,added=0,archivedSkipped=0;
   for(const lead of candidates){
    let url;try{url=new URL(lead.ad_url)}catch{continue}
    const m=url.pathname.match(/\/(\d{9,12})(?:\/|$)/);
@@ -268,7 +357,8 @@ async function prospectsApi(r,e,u){
    if(!lead.company||String(lead.services||"").length<60||Number(lead.suitability_score||0)<75)continue;
    if(!["active","unverified"].includes(lead.source_status)||!Array.isArray(lead.photo_urls))continue;
    const id="kijiji-"+m[1],name=normalize(lead.company),area=normalize(lead.area),owner=normalize(lead.owner),tel=phone(lead.phone);
-   const duplicate=saved.some(x=>x.id===id||x.ad_url===lead.ad_url||
+   if(archived.some(x=>x.id===id||archivedProspectMatch(x,lead))){duplicates++;archivedSkipped++;continue}
+    const duplicate=saved.some(x=>x.id===id||x.ad_url===lead.ad_url||
     (tel.length===10&&tel===phone(x.phone))||
     (name.length>11&&name===normalize(x.company)&&area===normalize(x.area)&&
       (owner&&owner===normalize(x.owner)||!/^(lawn care|landscaping services|cleaning services|painting services)$/.test(name))));
@@ -280,7 +370,7 @@ async function prospectsApi(r,e,u){
   }
 
   const report={
-   category,cities,focus:settings.focus,searched_at:now,
+   category,cities,focus:settings.focus,searched_at:now,archivedSkipped,
    added,duplicates,reviewed:candidates.length,
    search_queries:Array.isArray(results.search_queries)?results.search_queries.map(x=>String(x).slice(0,420)).slice(0,4):[],
    breakdown:results.search_breakdown&&typeof results.search_breakdown==="object"?results.search_breakdown:{},
@@ -460,6 +550,20 @@ async function prospectsApi(r,e,u){
   await e.REGISTRY.put(key,JSON.stringify(record));
   return regJson({ok:true,source_status:record.source_status,source_note:record.source_note,source_checked_at:record.source_checked_at,photo_count:record.photo_urls?.length||0});
  }
+ const archiveAction=path.match(/^\/api\/registry\/prospects\/([a-zA-Z0-9_-]{1,100})\/archive$/);
+ if(archiveAction&&m==="POST"){
+  const id=archiveAction[1],key="prospect:"+id,lead=await e.REGISTRY.get(key,"json");
+  if(!lead)return regJson({error:"Prospect not found."},404);
+  const input=await r.json().catch(()=>({}));
+  if(input.confirm!==lead.company)return regJson({error:"Confirm the business name to archive this prospect."},400);
+  const cleanup=await archivedRemoveDemo(e,lead);
+  const record={...lead,previous_stage:lead.stage,stage:"archived",archived_at:new Date().toISOString(),archive_reason:String(input.reason||"").slice(0,500),
+    preview_url:"",website_url:lead.website_status==="has_website"&&lead.website_url!==lead.preview_url?lead.website_url:"",
+    github_path:"",github_repo:"",updated_at:new Date().toISOString()};
+  await e.REGISTRY.put("archived:prospect:"+id,JSON.stringify(record));
+  await e.REGISTRY.delete(key);
+  return regJson({ok:true,prospect:record,cleanup});
+ }
  const found=path.match(/^\/api\/registry\/prospects\/([a-zA-Z0-9_-]{1,100})$/);
  if(found){const key="prospect:"+found[1],existing=await e.REGISTRY.get(key,"json");
   if(!existing)return regJson({error:"Prospect not found"},404);
@@ -470,7 +574,14 @@ async function prospectsApi(r,e,u){
    await e.REGISTRY.put("history:prospect:"+existing.id+":"+Date.now(),JSON.stringify({operation:"updated",record:existing}));
    await e.REGISTRY.put(key,JSON.stringify(record));return regJson({ok:true,prospect:record});
   }
-  if(m==="DELETE"){await e.REGISTRY.put("history:prospect:"+existing.id+":"+Date.now(),JSON.stringify({operation:"deleted",record:existing}));await e.REGISTRY.delete(key);return regJson({ok:true})}
+  if(m==="DELETE"){
+   const input=await r.json().catch(()=>({}));
+   if(input.confirm!==existing.company)return regJson({error:"Type the business name exactly to permanently delete it."},400);
+   const cleanup=await archivedRemoveDemo(e,existing);
+   await archivedCleanupHistory(e,existing.id);
+   await e.REGISTRY.delete(key);
+   return regJson({ok:true,deleted:true,cleanup});
+  }
  }
  return regJson({error:"Not found"},404);
 }
@@ -620,6 +731,7 @@ async function nsInternalVerifyClientSite(request,e){
 
 async function nsAutoAdvanceOne(e,key){
  let job=await e.REGISTRY.get(key,"json");
+ if(job?.stage==="cleanup_pending")return;
  if(job?.stage==="blocked")job=await nsRestoreEligibleBuild(e,key,job);
  if(!job||["ready","blocked"].includes(job.stage))return;
  const now=Date.now();
