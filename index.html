@@ -307,7 +307,34 @@ footer{background:#061727;color:#9eaeb9;padding:36px 0;border-color:rgba(255,255
 }
 @media(prefers-reduced-motion:reduce){.venture-slide{transition:none}.tech-pulse,.venture-progress span{animation:none!important}}
 </style>
-</head>
+<style id="full-venture-hero">
+.hero{transition:background 1s ease;--venture-glow:rgba(30,104,134,.3);--venture-light:rgba(202,149,85,.12)}
+.hero::before{transition:background 1s ease;background:radial-gradient(ellipse 50% 60% at 78% 43%,var(--venture-glow),transparent 76%),radial-gradient(ellipse 36% 38% at 75% 75%,var(--venture-light),transparent 80%),linear-gradient(120deg,#071321,#0a1b2d 61%,#102338)}
+.hero[data-venture="1"]{--venture-glow:rgba(184,117,71,.38);--venture-light:rgba(211,170,102,.16)}
+.hero[data-venture="2"]{--venture-glow:rgba(41,119,135,.40);--venture-light:rgba(202,157,93,.16)}
+.hero[data-venture="3"]{--venture-glow:rgba(30,139,167,.42);--venture-light:rgba(60,137,176,.15)}
+.hero[data-venture="4"]{--venture-glow:rgba(139,102,65,.4);--venture-light:rgba(211,177,108,.22)}
+.hero-grid{position:relative}.hero-panel-stack{position:relative;min-height:465px;z-index:4}
+.hero-copy-panel{position:absolute;inset:0;opacity:0;transform:translateY(36px) rotateX(-6deg);filter:blur(9px);pointer-events:none;transition:opacity .7s ease,transform .85s cubic-bezier(.2,.7,.2,1),filter .7s ease;visibility:hidden}
+.hero-copy-panel.is-active{position:relative;opacity:1;transform:translateY(0) rotateX(0);filter:none;pointer-events:auto;visibility:visible}
+.hero-copy-panel h1{max-width:720px}.hero-copy-panel .lead{max-width:545px}
+.hero-navigation{position:absolute;bottom:50px;left:50%;transform:translateX(-50%);z-index:10;width:min(1220px,calc(100% - 64px));display:flex;justify-content:center;gap:8px;align-items:center}
+.hero-navigation button{appearance:none;min-width:0;flex:1;max-width:225px;cursor:pointer;padding:13px 10px;border:1px solid rgba(225,232,239,.19);background:rgba(5,19,34,.52);color:#91a5b5;font:800 10px/1.4 'DM Sans',sans-serif;text-align:center;letter-spacing:.11em;text-transform:uppercase;transition:background .3s,color .3s,border-color .3s}
+.hero-navigation button:hover,.hero-navigation button:focus-visible{border-color:#d5ad71;color:#fff;outline-offset:3px}
+.hero-navigation button.is-active{background:rgba(213,173,113,.18);color:#f4d6a5;border-color:#d5ad71}
+.hero-navigation .hero-slide-number{display:inline-block;margin-right:8px;opacity:.65}
+.venture-window .venture-controls{display:none}.venture-window .venture-progress{height:3px}
+.venture-window{transition:transform .8s cubic-bezier(.2,.7,.2,1),box-shadow .8s ease}
+.hero[data-venture="1"] .venture-window{transform:rotateY(-4deg) rotateX(4deg) rotateZ(2deg)}
+.hero[data-venture="2"] .venture-window{transform:rotateY(-9deg) rotateX(4deg) rotateZ(-2deg)}
+.hero[data-venture="3"] .venture-window{transform:rotateY(-2deg) rotateX(3deg) rotateZ(2deg)}
+.hero[data-venture="4"] .venture-window{transform:rotateY(-12deg) rotateX(4deg) rotateZ(-3deg)}
+.hero[data-venture]:not([data-venture="0"]) .floating-tag{opacity:0;pointer-events:none}
+.hero .scroll-cue{bottom:14px;z-index:12}
+@media(max-width:900px){.hero{padding-bottom:110px}.hero-grid{gap:10px}.hero-panel-stack{min-height:390px}.hero-navigation{bottom:52px;width:calc(100% - 36px)}.hero-navigation button{font-size:9px;padding:12px 4px}.hero-navigation .hero-slide-number{display:none}.hero-copy-panel h1{font-size:clamp(47px,8vw,74px)}}
+@media(max-width:560px){.hero{padding-top:128px;padding-bottom:125px}.hero-panel-stack{min-height:380px}.hero-copy-panel h1{font-size:clamp(44px,11vw,59px)}.hero-copy-panel .lead{font-size:14px;line-height:1.65}.hero-copy-panel .hero-proof{margin-top:24px;gap:12px}.hero-copy-panel .hero-actions{margin-top:22px}.hero-copy-panel .action-primary,.hero-copy-panel .action-ghost{padding:12px;font-size:11px}.hero-navigation{bottom:68px;gap:4px;flex-wrap:wrap}.hero-navigation button{flex:1 1 30%;max-width:none;padding:9px 4px;font-size:8px}.hero .scroll-cue{bottom:18px}}
+@media(prefers-reduced-motion:reduce){.hero-copy-panel,.venture-window,.hero{transition:none!important}}
+</style></head>
 <body>
 <div id="readingProgress" aria-hidden="true"></div>
 <nav class="nav" aria-label="Main navigation"><div class="wrap nav-row">
@@ -316,11 +343,11 @@ footer{background:#061727;color:#9eaeb9;padding:36px 0;border-color:rgba(255,255
 <div class="links" id="navLinks"><a href="#studio">Websites & Digital</a><a href="#work">Our Work</a><a href="#about">Our Company</a><a href="#focus">Ventures</a><a href="#contact" class="nav-cta">Start a conversation ↗</a></div>
 </div></nav>
 <header id="top" class="hero"><div class="wrap hero-grid">
-<div class="hero-copy"><p class="eyebrow">Creative thinking. Serious execution.</p>
+<div class="hero-panel-stack"><div class="hero-copy hero-copy-panel is-active" data-hero-panel aria-hidden="false"><p class="eyebrow">Creative thinking. Serious execution.</p>
 <h1>We build<br><span class="outline">what's</span> <em>next.</em></h1>
 <p class="lead">Bold websites. Smarter technology. Stronger businesses. We build, acquire, improve and launch practical ventures across digital, technology, real estate and business—built to make an impact.</p>
 <div class="hero-actions"><a class="action-primary" href="#focus">Explore our ventures <span aria-hidden="true">↗</span></a><a class="action-ghost" href="#work">See what we build <span aria-hidden="true">→</span></a></div>
-<div class="hero-proof"><span class="proof-rule"></span><span>Independent thinking</span><span>·</span><span>Alberta, Canada</span></div></div>
+<div class="hero-proof"><span class="proof-rule"></span><span>Independent thinking</span><span>·</span><span>Alberta, Canada</span></div></div><div class="hero-copy hero-copy-panel" data-hero-panel aria-hidden="true"><p class="eyebrow">02 / Business acquisitions &amp; succession</p><h1>We see<br><span class="outline">potential</span> <em>ahead.</em></h1><p class="lead">Great businesses deserve a strong next chapter. We pursue acquisitions, thoughtful transitions, stronger operations and enduring long-term value.</p><div class="hero-actions"><a class="action-primary" href="#focus">Explore acquisitions <span aria-hidden="true">↗</span></a><a class="action-ghost" href="#contact">Start a conversation <span aria-hidden="true">→</span></a></div><div class="hero-proof"><span class="proof-rule"></span><span>Business ownership · Succession</span><span>·</span><span>Alberta, Canada</span></div></div><div class="hero-copy hero-copy-panel" data-hero-panel aria-hidden="true"><p class="eyebrow">03 / Property &amp; real estate</p><h1>We uncover<br><span class="outline">hidden</span> <em>value.</em></h1><p class="lead">From residential and commercial opportunities to value-add projects, we identify potential, improve assets and create lasting real estate value.</p><div class="hero-actions"><a class="action-primary" href="#focus">Explore real estate <span aria-hidden="true">↗</span></a><a class="action-ghost" href="#contact">Start a conversation <span aria-hidden="true">→</span></a></div><div class="hero-proof"><span class="proof-rule"></span><span>Property · Redevelopment · Rentals</span><span>·</span><span>Alberta, Canada</span></div></div><div class="hero-copy hero-copy-panel" data-hero-panel aria-hidden="true"><p class="eyebrow">04 / AI &amp; technology ventures</p><h1>We make<br><span class="outline">ideas</span> <em>real.</em></h1><p class="lead">Practical artificial intelligence, software and automation that solve meaningful problems, simplify operations and create new opportunities.</p><div class="hero-actions"><a class="action-primary" href="#focus">Explore technology <span aria-hidden="true">↗</span></a><a class="action-ghost" href="#contact">Start a conversation <span aria-hidden="true">→</span></a></div><div class="hero-proof"><span class="proof-rule"></span><span>Software · AI · Automation</span><span>·</span><span>Alberta, Canada</span></div></div><div class="hero-copy hero-copy-panel" data-hero-panel aria-hidden="true"><p class="eyebrow">05 / North Star BAS Marketplace</p><h1>We turn<br><span class="outline">opportunity</span> <em>into value.</em></h1><p class="lead">North Star BAS Marketplace finds promising buying and selling opportunities, improves what matters and moves value back into the marketplace.</p><div class="hero-actions"><a class="action-primary" href="#focus">Explore BAS Marketplace <span aria-hidden="true">↗</span></a><a class="action-ghost" href="#contact">Start a conversation <span aria-hidden="true">→</span></a></div><div class="hero-proof"><span class="proof-rule"></span><span>Buy · Improve · Sell</span><span>·</span><span>Alberta, Canada</span></div></div></div>
 <div class="visual-stage venture-stage" aria-label="Animated showcase of North Star Ventures business areas">
 <div class="stage-glow"></div><div class="orbit"></div><div class="orbit two"></div><span class="star-spark" aria-hidden="true">✦</span>
 <div class="showcase-window venture-window" data-venture-carousel>
@@ -398,17 +425,28 @@ const items=document.querySelectorAll('.reveal');if('IntersectionObserver' in wi
 </script>
 <script id="venture-carousel-script">
 (()=>{const root=document.querySelector('[data-venture-carousel]');if(!root)return;
-const slides=[...root.querySelectorAll('[data-venture-slide]')],dots=[...root.querySelectorAll('[data-venture-dot]')],count=root.querySelector('.venture-count'),progress=root.querySelector('.venture-progress');
-let current=0,timer=null,startX=null;const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
-function animateProgress(){if(!progress||reduced)return;progress.classList.remove('is-running');void progress.offsetWidth;progress.classList.add('is-running')}
-function show(index,reset=true){current=(index+slides.length)%slides.length;slides.forEach((s,i)=>{const on=i===current;s.classList.toggle('is-active',on);s.setAttribute('aria-hidden',on?'false':'true')});dots.forEach((d,i)=>{const on=i===current;d.classList.toggle('is-active',on);d.setAttribute('aria-selected',on?'true':'false')});if(count)count.textContent=String(current+1).padStart(2,'0')+' / '+String(slides.length).padStart(2,'0');animateProgress();if(reset)restart()}
-function restart(){if(timer)clearInterval(timer);if(!reduced)timer=setInterval(()=>show(current+1,false),5400)}
-dots.forEach((d,i)=>d.addEventListener('click',()=>show(i)));
-root.addEventListener('mouseenter',()=>{if(timer)clearInterval(timer)});root.addEventListener('mouseleave',restart);
-root.addEventListener('focusin',()=>{if(timer)clearInterval(timer)});root.addEventListener('focusout',e=>{if(!root.contains(e.relatedTarget))restart()});
-root.addEventListener('pointerdown',e=>{startX=e.clientX});root.addEventListener('pointerup',e=>{if(startX==null)return;const dx=e.clientX-startX;startX=null;if(Math.abs(dx)>42)show(current+(dx<0?1:-1))});
-document.addEventListener('visibilitychange',()=>document.hidden?(timer&&clearInterval(timer)):restart());
-show(0);
+const hero=document.querySelector('.hero'),slides=[...root.querySelectorAll('[data-venture-slide]')],panels=[...hero.querySelectorAll('[data-hero-panel]')],count=root.querySelector('.venture-count'),progress=root.querySelector('.venture-progress');
+const names=['Websites & Digital','Business Acquisitions','Real Estate','AI & Technology','BAS Marketplace'];
+const nav=document.createElement('nav');nav.className='hero-navigation';nav.setAttribute('aria-label','Explore North Star ventures');
+nav.innerHTML=names.map((n,i)=>'<button type="button" data-full-hero-tab aria-label="Show '+n+'"><span class="hero-slide-number">'+String(i+1).padStart(2,'0')+'</span>'+n+'</button>').join('');
+hero.append(nav);const tabs=[...nav.querySelectorAll('button')];let current=0,timer,paused=false,startX=null;
+const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+function restart(){clearInterval(timer);if(!paused&&!reduced&&!document.hidden)timer=setInterval(()=>show(current+1,false),7200)}
+function show(index,reset=true){current=(index+slides.length)%slides.length;hero.dataset.venture=String(current);
+slides.forEach((s,i)=>{const active=i===current;s.classList.toggle('is-active',active);s.setAttribute('aria-hidden',String(!active))});
+panels.forEach((p,i)=>{const active=i===current;p.classList.toggle('is-active',active);p.setAttribute('aria-hidden',String(!active));p.querySelectorAll('a').forEach(a=>a.tabIndex=active?0:-1)});
+tabs.forEach((t,i)=>{t.classList.toggle('is-active',i===current);t.setAttribute('aria-current',i===current?'true':'false')});
+if(count)count.textContent=String(current+1).padStart(2,'0')+' / '+String(slides.length).padStart(2,'0');
+if(progress&&!reduced){progress.classList.remove('is-running');void progress.offsetWidth;progress.classList.add('is-running')}
+if(reset)restart()}
+tabs.forEach((b,i)=>b.addEventListener('click',()=>show(i)));
+hero.addEventListener('pointerdown',e=>{if(e.target.closest('a,button'))return;startX=e.clientX});
+hero.addEventListener('pointerup',e=>{if(startX==null)return;const dx=e.clientX-startX;startX=null;if(Math.abs(dx)>65)show(current+(dx<0?1:-1))});
+hero.addEventListener('mouseenter',()=>{paused=true;clearInterval(timer)});
+hero.addEventListener('mouseleave',()=>{paused=false;restart()});
+hero.addEventListener('focusin',()=>{paused=true;clearInterval(timer)});
+hero.addEventListener('focusout',e=>{if(!hero.contains(e.relatedTarget)){paused=false;restart()}});
+document.addEventListener('visibilitychange',restart);show(0);
 })();
 </script>
 </body></html>
