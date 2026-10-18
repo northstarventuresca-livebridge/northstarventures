@@ -248,6 +248,65 @@ footer{background:#061727;color:#9eaeb9;padding:36px 0;border-color:rgba(255,255
 @media(max-width:400px){.project-art{min-height:260px}.project-card .art-ui{width:84%;min-height:213px;padding:20px}.project-card .art-ui strong{font-size:29px}.project-card .project-description small{letter-spacing:.1em}}
 @media(prefers-reduced-motion:reduce){.mix-bars i,.cake-sparkle,.church-glimmer,.bridge-flow i,.bridge-translation .phrase.target{animation:none}}
 </style>
+
+<style id="venture-carousel-design">
+.venture-window{min-height:404px;overflow:hidden;isolation:isolate}
+.venture-window .browser-top{position:relative;z-index:20}.venture-count{margin-left:12px;font-size:9px;letter-spacing:.18em;color:#d7b77f;font-weight:800}
+.venture-viewport{position:relative;min-height:322px;overflow:hidden;background:linear-gradient(145deg,#0b2337,#0c182a)}
+.venture-slide{position:absolute;inset:0;opacity:0;transform:translateX(7%) scale(.985);pointer-events:none;transition:opacity .65s ease,transform .8s cubic-bezier(.2,.7,.2,1);overflow:hidden}
+.venture-slide.is-active{opacity:1;transform:translateX(0) scale(1);pointer-events:auto;z-index:2}
+.venture-slide:before{content:"";position:absolute;inset:0;opacity:.8;pointer-events:none}
+.venture-digital:before{background:radial-gradient(circle at 77% 38%,#33587a,transparent 45%),linear-gradient(145deg,#0b2337,#0c182a)}
+.venture-acquire:before{background:radial-gradient(circle at 75% 45%,rgba(189,135,67,.30),transparent 40%),linear-gradient(145deg,#101f2c,#132b3b)}
+.venture-property:before{background:radial-gradient(circle at 72% 23%,rgba(221,177,107,.24),transparent 33%),linear-gradient(160deg,#0a2132,#173b50)}
+.venture-tech:before{background:radial-gradient(circle at 74% 46%,rgba(46,159,184,.24),transparent 37%),linear-gradient(145deg,#071927,#102d43)}
+.venture-market:before{background:radial-gradient(circle at 72% 40%,rgba(214,171,108,.22),transparent 42%),linear-gradient(145deg,#172535,#0b1825)}
+.venture-copy{position:absolute;z-index:3;left:28px;top:50%;transform:translateY(-54%);width:49%;max-width:285px}
+.venture-copy .mock-headline{font-size:clamp(27px,3vw,42px);margin-top:13px}.venture-copy p{margin:18px 0 0;color:#aebbc5;font-size:10px;letter-spacing:.08em;text-transform:uppercase;font-weight:700}
+.venture-corner{position:absolute;z-index:5;left:27px;right:27px;bottom:17px;display:flex;align-items:center;gap:10px;color:rgba(230,238,245,.58);font-size:9px;letter-spacing:.11em;text-transform:uppercase}
+.venture-corner b{color:#dcb878;font-size:10px}.venture-corner:after{content:"";height:1px;flex:1;background:linear-gradient(90deg,rgba(213,173,113,.45),transparent)}
+.deal-board{position:absolute;z-index:3;right:23px;top:50%;transform:translateY(-55%);width:45%;height:230px}
+.deal-card{position:absolute;width:135px;height:156px;padding:17px;border:1px solid rgba(255,255,255,.22);background:rgba(8,30,45,.76);backdrop-filter:blur(6px);box-shadow:0 20px 35px rgba(0,0,0,.22)}
+.deal-card span,.market-card span{font-size:8px;letter-spacing:.14em;color:#dcb878}.deal-card b{display:block;margin-top:26px;color:white;font:800 16px/1.08 Manrope,sans-serif;letter-spacing:-.04em}.deal-card small{position:absolute;left:17px;bottom:16px;color:#8fa2b0;font-size:8px}
+.deal-one{left:0;top:18px;transform:rotate(-5deg)}.deal-two{right:0;bottom:14px;transform:rotate(5deg);border-color:rgba(213,173,113,.55)}.deal-arrow{position:absolute;left:50%;top:48%;transform:translate(-50%,-50%);z-index:4;width:37px;height:37px;border-radius:50%;display:grid;place-items:center;background:#d5ad71;color:#0a1b2c;font-weight:900;box-shadow:0 8px 26px rgba(0,0,0,.28)}
+.property-scene{position:absolute;right:20px;bottom:36px;width:47%;height:230px;z-index:3;overflow:hidden}
+.property-sun{position:absolute;right:20px;top:9px;width:75px;height:75px;border-radius:50%;background:radial-gradient(circle,#f2cc8d 0,rgba(221,177,107,.38) 35%,transparent 72%);filter:blur(.2px)}
+.building{position:absolute;bottom:22px;border:1px solid rgba(233,241,247,.26);background:linear-gradient(180deg,rgba(39,83,105,.88),rgba(7,27,42,.96));box-shadow:0 18px 28px rgba(0,0,0,.24);display:grid;grid-template-columns:repeat(2,1fr);gap:8px;padding:13px 10px}
+.building i{display:block;width:8px;height:8px;background:rgba(231,190,124,.65);box-shadow:0 0 8px rgba(231,190,124,.18)}
+.b1{left:6px;width:82px;height:123px}.b2{left:76px;width:98px;height:180px}.b3{right:0;width:72px;height:96px}.property-line{position:absolute;left:0;right:0;bottom:20px;height:1px;background:#d5ad71}.property-chip{position:absolute;right:9px;top:18px;padding:7px 9px;border:1px solid rgba(213,173,113,.55);color:#e7c58c;font-size:8px;letter-spacing:.14em;font-weight:800}
+.tech-network{position:absolute;z-index:3;right:28px;top:41px;width:43%;height:225px}
+.node{position:absolute;display:grid;place-items:center;border-radius:50%;border:1px solid rgba(210,234,241,.35);background:rgba(9,36,52,.78);box-shadow:0 0 26px rgba(77,185,210,.09);font-size:8px;letter-spacing:.1em;color:#cfe3ea;font-weight:800}
+.node.core{width:94px;height:94px;left:50%;top:50%;transform:translate(-50%,-50%);border-color:#e0b777;color:#f1cc91;font-size:21px;box-shadow:0 0 42px rgba(213,173,113,.15)}
+.node.n1,.node.n2,.node.n3,.node.n4{width:54px;height:54px}.node.n1{left:3px;top:8px}.node.n2{right:1px;top:14px}.node.n3{left:4px;bottom:4px}.node.n4{right:0;bottom:6px}
+.link{position:absolute;height:1px;background:linear-gradient(90deg,rgba(90,180,207,.18),rgba(213,173,113,.75),rgba(90,180,207,.18));transform-origin:left center;z-index:-1}.l1{width:91px;left:42px;top:52px;transform:rotate(27deg)}.l2{width:88px;left:125px;top:80px;transform:rotate(-24deg)}.l3{width:92px;left:42px;top:168px;transform:rotate(-28deg)}.l4{width:86px;left:125px;top:145px;transform:rotate(27deg)}
+.tech-pulse{position:absolute;left:50%;top:50%;width:120px;height:120px;border:1px solid rgba(213,173,113,.24);border-radius:50%;transform:translate(-50%,-50%);animation:venturePulse 2.4s ease-out infinite}
+@keyframes venturePulse{0%{scale:.68;opacity:.7}100%{scale:1.45;opacity:0}}
+.market-stack{position:absolute;z-index:3;right:23px;top:42px;width:44%;height:215px;perspective:700px}
+.market-card{position:absolute;width:152px;height:190px;border:1px solid rgba(255,255,255,.20);padding:18px;background:linear-gradient(160deg,rgba(26,61,82,.96),rgba(7,25,39,.96));box-shadow:0 22px 42px rgba(0,0,0,.29);transition:transform .5s}
+.market-card b{position:absolute;right:17px;top:47px;font:800 50px/1 Manrope,sans-serif;color:rgba(255,255,255,.08)}.market-card small{position:absolute;left:18px;bottom:18px;color:#c3d0d8;font-size:10px}.mc-back{right:0;top:0;transform:rotate(10deg) translateX(10px);opacity:.62}.mc-mid{right:31px;top:9px;transform:rotate(3deg);opacity:.84}.mc-front{right:62px;top:20px;transform:rotate(-5deg);border-color:rgba(213,173,113,.58);background:linear-gradient(160deg,#214b61,#0a2233)}
+.venture-controls{position:absolute;z-index:30;left:20px;right:20px;bottom:10px;display:flex;gap:7px;justify-content:center}
+.venture-dot{appearance:none;border:0;background:transparent;color:#7f919e;padding:10px 4px 0;cursor:pointer;font:800 8px/1 'DM Sans',sans-serif;letter-spacing:.08em;text-transform:uppercase;position:relative;min-width:52px}
+.venture-dot:before{content:"";position:absolute;top:0;left:4px;right:4px;height:2px;background:rgba(255,255,255,.16);transition:background .25s,transform .25s}
+.venture-dot.is-active{color:#f0cf9c}.venture-dot.is-active:before{background:#d5ad71;transform:scaleY(1.7)}
+.venture-progress{position:absolute;z-index:31;left:0;right:0;bottom:0;height:2px;background:rgba(255,255,255,.07);overflow:hidden}.venture-progress span{display:block;width:0;height:100%;background:#d5ad71}
+.venture-progress.is-running span{animation:ventureProgress 5.4s linear forwards}@keyframes ventureProgress{from{width:0}to{width:100%}}
+.venture-float{bottom:22px}
+@media(max-width:900px){
+ .venture-stage{min-height:505px}.venture-window{top:36px;left:0;width:100%;min-height:420px;transform:none;animation:none}
+ .venture-viewport{min-height:338px}.venture-copy{left:22px;top:42px;transform:none;width:56%}.venture-copy .mock-headline{font-size:31px}
+ .deal-board,.property-scene,.tech-network,.market-stack{right:12px;transform:scale(.82);transform-origin:right center}.deal-board{top:66px}.property-scene{bottom:39px}.tech-network{top:62px}.market-stack{top:62px}
+ .showcase-innergrid{inset:20px}.mock-feature{height:215px}.venture-dot{min-width:38px}.venture-dot span{display:none}.venture-controls{bottom:11px}
+ .venture-float{right:8px;bottom:-2px}.venture-corner{left:22px;right:22px}
+}
+@media(max-width:560px){
+ .venture-stage{min-height:470px}.venture-window{min-height:382px}.venture-viewport{min-height:304px}
+ .venture-copy{width:62%;top:38px}.venture-copy .mock-headline{font-size:25px}.venture-copy p{font-size:8px}
+ .showcase-innergrid{grid-template-columns:1.08fr .92fr;gap:10px}.mock-headline{font-size:27px}.mock-feature{height:185px}
+ .deal-board,.property-scene,.tech-network,.market-stack{right:-8px;transform:scale(.67)}.deal-board{top:54px}.tech-network,.market-stack{top:48px}.property-scene{bottom:28px}
+ .venture-corner{font-size:7px;bottom:15px}.venture-float{display:none}.venture-count{display:none}
+}
+@media(prefers-reduced-motion:reduce){.venture-slide{transition:none}.tech-pulse,.venture-progress span{animation:none!important}}
+</style>
 </head>
 <body>
 <div id="readingProgress" aria-hidden="true"></div>
@@ -259,15 +318,53 @@ footer{background:#061727;color:#9eaeb9;padding:36px 0;border-color:rgba(255,255
 <header id="top" class="hero"><div class="wrap hero-grid">
 <div class="hero-copy"><p class="eyebrow">Creative thinking. Serious execution.</p>
 <h1>We build<br><span class="outline">what's</span> <em>next.</em></h1>
-<p class="lead">Bold websites. Smarter technology. Stronger businesses. We turn ambitious ideas into standout digital experiences and lasting ventures—built to make an impact.</p>
-<div class="hero-actions"><a class="action-primary" href="#studio">Explore our digital studio <span aria-hidden="true">↗</span></a><a class="action-ghost" href="#work">See what we build <span aria-hidden="true">→</span></a></div>
+<p class="lead">Bold websites. Smarter technology. Stronger businesses. We build, acquire, improve and launch practical ventures across digital, technology, real estate and business—built to make an impact.</p>
+<div class="hero-actions"><a class="action-primary" href="#focus">Explore our ventures <span aria-hidden="true">↗</span></a><a class="action-ghost" href="#work">See what we build <span aria-hidden="true">→</span></a></div>
 <div class="hero-proof"><span class="proof-rule"></span><span>Independent thinking</span><span>·</span><span>Alberta, Canada</span></div></div>
-<div class="visual-stage" aria-label="Illustrative digital website design showcase">
+<div class="visual-stage venture-stage" aria-label="Animated showcase of North Star Ventures business areas">
 <div class="stage-glow"></div><div class="orbit"></div><div class="orbit two"></div><span class="star-spark" aria-hidden="true">✦</span>
-<div class="showcase-window"><div class="browser-top"><i></i><i></i><i></i><span class="browser-url">crafted to stand apart</span></div><div class="showcase-inside">
-<div class="showcase-innergrid"><div><div class="mock-kicker">Imagine different.</div><div class="mock-headline">Built to<br>be remembered.</div><div class="mock-line"></div><div class="mock-line short"></div><span class="mock-button">EXPLORE THE EXPERIENCE ↗</span></div><div class="mock-feature"></div></div></div></div>
-<div class="floating-tag"><strong>Not another template.</strong><span>Distinctive by design.</span></div></div>
-</div><div class="scroll-cue">Scroll to explore</div></header><div class="ticker-wrap" aria-hidden="true"><div class="ticker-track"><span>Designed to stand out</span><span>Built to perform</span><span>Made for real people</span><span>Websites with personality</span><span>Purpose-driven ventures</span><span>Designed to stand out</span><span>Built to perform</span><span>Made for real people</span><span>Websites with personality</span><span>Purpose-driven ventures</span></div></div>
+<div class="showcase-window venture-window" data-venture-carousel>
+  <div class="browser-top"><i></i><i></i><i></i><span class="browser-url">north star venture portfolio</span><span class="venture-count" aria-hidden="true">01 / 05</span></div>
+  <div class="venture-viewport">
+    <article class="venture-slide venture-digital is-active" data-venture-slide aria-hidden="false">
+      <div class="showcase-innergrid">
+        <div><div class="mock-kicker">Websites &amp; digital</div><div class="mock-headline">Built to<br>be remembered.</div><div class="mock-line"></div><div class="mock-line short"></div><span class="mock-button">DISTINCTIVE DIGITAL EXPERIENCES ↗</span></div>
+        <div class="mock-feature"></div>
+      </div>
+      <div class="venture-corner"><b>01</b><span>Design · Build · Grow</span></div>
+    </article>
+    <article class="venture-slide venture-acquire" data-venture-slide aria-hidden="true">
+      <div class="venture-copy"><div class="mock-kicker">Business acquisitions &amp; succession</div><div class="mock-headline">Good businesses.<br>Strong next chapters.</div><p>Acquire · modernize · steward</p></div>
+      <div class="deal-board" aria-hidden="true"><div class="deal-card deal-one"><span>ESTABLISHED</span><b>OPERATING<br>BUSINESS</b><small>People · systems · value</small></div><div class="deal-arrow">→</div><div class="deal-card deal-two"><span>NEXT CHAPTER</span><b>STRONGER<br>OWNERSHIP</b><small>Improve · grow · endure</small></div></div>
+      <div class="venture-corner"><b>02</b><span>Acquire · Improve · Operate</span></div>
+    </article>
+    <article class="venture-slide venture-property" data-venture-slide aria-hidden="true">
+      <div class="venture-copy"><div class="mock-kicker">Property &amp; real estate ventures</div><div class="mock-headline">See the value<br>others miss.</div><p>Acquire · add value · hold or reposition</p></div>
+      <div class="property-scene" aria-hidden="true"><div class="property-sun"></div><div class="building b1"><i></i><i></i><i></i></div><div class="building b2"><i></i><i></i><i></i><i></i></div><div class="building b3"><i></i><i></i></div><div class="property-line"></div><span class="property-chip">VALUE-ADD</span></div>
+      <div class="venture-corner"><b>03</b><span>Acquire · Reposition · Build value</span></div>
+    </article>
+    <article class="venture-slide venture-tech" data-venture-slide aria-hidden="true">
+      <div class="venture-copy"><div class="mock-kicker">AI &amp; technology ventures</div><div class="mock-headline">Technology that<br>solves real problems.</div><p>Practical AI · software · automation</p></div>
+      <div class="tech-network" aria-hidden="true"><span class="node core">AI</span><span class="node n1">DATA</span><span class="node n2">OPS</span><span class="node n3">LIVE</span><span class="node n4">AUTO</span><i class="link l1"></i><i class="link l2"></i><i class="link l3"></i><i class="link l4"></i><div class="tech-pulse"></div></div>
+      <div class="venture-corner"><b>04</b><span>Invent · Automate · Scale</span></div>
+    </article>
+    <article class="venture-slide venture-market" data-venture-slide aria-hidden="true">
+      <div class="venture-copy"><div class="mock-kicker">North Star BAS Marketplace</div><div class="mock-headline">Find value.<br>Create momentum.</div><p>Buy · improve · sell · repeat</p></div>
+      <div class="market-stack" aria-hidden="true"><div class="market-card mc-back"><span>OPPORTUNITY</span><b>01</b><small>Source</small></div><div class="market-card mc-mid"><span>VALUE</span><b>02</b><small>Improve</small></div><div class="market-card mc-front"><span>MARKETPLACE</span><b>03</b><small>Move forward ↗</small></div></div>
+      <div class="venture-corner"><b>05</b><span>Source · Improve · Sell</span></div>
+    </article>
+  </div>
+  <div class="venture-controls" role="tablist" aria-label="Venture areas">
+    <button class="venture-dot is-active" type="button" data-venture-dot aria-label="Show Websites & Digital" aria-selected="true"><span>Digital</span></button>
+    <button class="venture-dot" type="button" data-venture-dot aria-label="Show Business Acquisitions & Succession" aria-selected="false"><span>Acquire</span></button>
+    <button class="venture-dot" type="button" data-venture-dot aria-label="Show Property & Real Estate Ventures" aria-selected="false"><span>Property</span></button>
+    <button class="venture-dot" type="button" data-venture-dot aria-label="Show AI & Technology Ventures" aria-selected="false"><span>Technology</span></button>
+    <button class="venture-dot" type="button" data-venture-dot aria-label="Show North Star BAS Marketplace" aria-selected="false"><span>BAS</span></button>
+  </div>
+  <div class="venture-progress" aria-hidden="true"><span></span></div>
+</div>
+<div class="floating-tag venture-float"><strong>More than websites.</strong><span>Built across ventures.</span></div></div>
+</div><div class="scroll-cue">Scroll to explore</div></header><div class="ticker-wrap" aria-hidden="true"><div class="ticker-track"><span>Designed to stand out</span><span>Businesses built to last</span><span>Property with potential</span><span>Technology that solves problems</span><span>Purpose-driven ventures</span><span>North Star BAS Marketplace</span><span>Designed to stand out</span><span>Businesses built to last</span><span>Property with potential</span><span>Technology that solves problems</span><span>Purpose-driven ventures</span><span>North Star BAS Marketplace</span></div></div>
 <section id="studio" class="section"><div class="wrap">
 <div class="section-intro reveal"><div><p class="kicker">01 / North Star digital studio</p><h2>Your business deserves<br>a website people <em style="font-style:normal;color:#a37f4b">remember.</em></h2></div><p>We create custom digital experiences that make a real first impression—beautifully designed, thoughtfully built, and easy to use.</p></div>
 <div class="service-grid">
@@ -298,4 +395,20 @@ footer{background:#061727;color:#9eaeb9;padding:36px 0;border-color:rgba(255,255
 if(menu){menu.addEventListener('click',()=>{const opened=links.classList.toggle('open');menu.setAttribute('aria-expanded',String(opened));menu.setAttribute('aria-label',opened?'Close navigation':'Open navigation');menu.textContent=opened?'×':'☰'});links.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>{links.classList.remove('open');menu.setAttribute('aria-expanded','false');menu.textContent='☰'}));}
 const items=document.querySelectorAll('.reveal');if('IntersectionObserver' in window&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches){const io=new IntersectionObserver(entries=>{entries.forEach(entry=>{if(entry.isIntersecting){entry.target.classList.add('visible');io.unobserve(entry.target)}})},{threshold:.08,rootMargin:'0px 0px -20px 0px'});items.forEach(el=>io.observe(el));}else items.forEach(el=>el.classList.add('visible'));
 })();
-</script></body></html>
+</script>
+<script id="venture-carousel-script">
+(()=>{const root=document.querySelector('[data-venture-carousel]');if(!root)return;
+const slides=[...root.querySelectorAll('[data-venture-slide]')],dots=[...root.querySelectorAll('[data-venture-dot]')],count=root.querySelector('.venture-count'),progress=root.querySelector('.venture-progress');
+let current=0,timer=null,startX=null;const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+function animateProgress(){if(!progress||reduced)return;progress.classList.remove('is-running');void progress.offsetWidth;progress.classList.add('is-running')}
+function show(index,reset=true){current=(index+slides.length)%slides.length;slides.forEach((s,i)=>{const on=i===current;s.classList.toggle('is-active',on);s.setAttribute('aria-hidden',on?'false':'true')});dots.forEach((d,i)=>{const on=i===current;d.classList.toggle('is-active',on);d.setAttribute('aria-selected',on?'true':'false')});if(count)count.textContent=String(current+1).padStart(2,'0')+' / '+String(slides.length).padStart(2,'0');animateProgress();if(reset)restart()}
+function restart(){if(timer)clearInterval(timer);if(!reduced)timer=setInterval(()=>show(current+1,false),5400)}
+dots.forEach((d,i)=>d.addEventListener('click',()=>show(i)));
+root.addEventListener('mouseenter',()=>{if(timer)clearInterval(timer)});root.addEventListener('mouseleave',restart);
+root.addEventListener('focusin',()=>{if(timer)clearInterval(timer)});root.addEventListener('focusout',e=>{if(!root.contains(e.relatedTarget))restart()});
+root.addEventListener('pointerdown',e=>{startX=e.clientX});root.addEventListener('pointerup',e=>{if(startX==null)return;const dx=e.clientX-startX;startX=null;if(Math.abs(dx)>42)show(current+(dx<0?1:-1))});
+document.addEventListener('visibilitychange',()=>document.hidden?(timer&&clearInterval(timer)):restart());
+show(0);
+})();
+</script>
+</body></html>
