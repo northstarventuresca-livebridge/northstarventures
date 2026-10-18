@@ -587,6 +587,21 @@ async function nsRestoreEligibleBuild(e,key,job){
  return recovery;
 }
 
+async function nsInternalVerifyClientSite(request,e){
+ if(request.headers.get("x-northstar-internal")!==e.NS_INTERNAL_AUTH||!e.NS_INTERNAL_AUTH)return new Response("Unauthorized",{status:401});
+ let details;try{details=await request.json()}catch{return Response.json({ok:false,error:"Invalid verification request"},{status:400})}
+ const value=String(details.url||""),company=String(details.company||"").trim();
+ let u;try{u=new URL(value)}catch{return Response.json({ok:false,error:"Invalid URL"},{status:400})}
+ if(u.protocol!=="https:"||!/^ns-(?:redesign|client)-[a-z0-9-]+\.rwyers\.workers\.dev$/i.test(u.hostname)||!company||company.length>160||u.username||u.password)return Response.json({ok:false,error:"Non-client origin denied"},{status:403});
+ try{
+  const r=await fetch(u.origin+"/",{headers:{"accept":"text/html"},redirect:"follow",signal:AbortSignal.timeout(19000)});
+  if(!r.ok)return Response.json({ok:false,status:r.status,error:"Client preview did not load"},{status:502});
+  const html=(await r.text()).slice(0,180000);
+  const valid=/<html\b/i.test(html)&&html.toLowerCase().includes(company.toLowerCase());
+  return Response.json({ok:valid,status:r.status,match:valid,contentBytes:html.length},{status:valid?200:422,headers:{"cache-control":"no-store"}});
+ }catch(err){return Response.json({ok:false,error:String(err?.message||err).slice(0,180)},{status:502})}
+}
+
 async function nsAutoAdvanceOne(e,key){
  let job=await e.REGISTRY.get(key,"json");
  if(job?.stage==="blocked")job=await nsRestoreEligibleBuild(e,key,job);
@@ -617,6 +632,13 @@ async function nsAutoAdvanceOne(e,key){
   if(!fresh||fresh.id!==job.id||fresh.stage!==stage||fresh.auto_run_id!==runId)return;
   job={...fresh,...data,stage:data.stage,error:false,updated_at:new Date().toISOString(),next_auto_retry_at:"",auto_run_id:"",auto_running_until:""};
   delete job.ok;
+  if(job.stage==="branded"&&job.preview_route==="studio"){
+   const slug=String(job.subdomain||"");
+   if(!/^[a-z0-9][a-z0-9-]{0,54}$/.test(slug))throw Error("Invalid public preview slug");
+   const indexKey="preview:"+slug,existing=await e.REGISTRY.get(indexKey,"json");
+   if(existing&&(existing.job_id!==job.id||existing.build_key!==key))throw Error("Preview slug is reserved by a different client; no existing preview changed");
+   await e.REGISTRY.put(indexKey,JSON.stringify({job_id:job.id,build_key:key,created_at:new Date().toISOString()}));
+  }
   if(job.stage==="ready"){
    await nsAutoFinalizeBuild(job,prospect,e);
    job=nsMarkWebsiteReadyForEmail(job,prospect);
@@ -654,6 +676,7 @@ async function nsProcessPendingWebsiteBuilds(e){
 }
 
 export default{async scheduled(event,e,ctx){ctx.waitUntil((async()=>{try{await nsProcessWebsiteReadyEmails(e)}catch{}await nsProcessPendingWebsiteBuilds(e)})())},async fetch(r,e){const u=new URL(r.url);
+if(u.pathname==="/api/internal/client-site-check"&&r.method==="POST")return nsInternalVerifyClientSite(r,e);
 if(u.pathname==="/admin/potential-websites"||u.pathname==="/admin/potential-websites/"){if(r.method!=="GET"&&r.method!=="HEAD")return new Response("Method not allowed",{status:405});return new Response(r.method==="HEAD"?null:NS_PROSPECT_HTML,{headers:{"content-type":"text/html; charset=utf-8","cache-control":"private,no-store","x-robots-tag":"noindex,nofollow","x-frame-options":"DENY","x-content-type-options":"nosniff"}})}
 if(u.pathname==="/admin/websites"||u.pathname==="/admin/websites/"){
  if(r.method!=="GET"&&r.method!=="HEAD")return new Response("Method not allowed",{status:405});
