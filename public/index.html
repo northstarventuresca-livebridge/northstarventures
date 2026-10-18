@@ -338,8 +338,8 @@ footer{background:#061727;color:#9eaeb9;padding:36px 0;border-color:rgba(255,255
 .hero-navigation{overflow:visible}
 .hero-timer-track{position:absolute;left:0;right:0;bottom:-13px;height:5px;background:rgba(220,184,126,.2);border:1px solid rgba(220,184,126,.32);border-radius:10px;overflow:hidden;box-shadow:0 0 15px rgba(227,180,104,.18)}
 .hero-timer-track span{display:block;width:0;height:100%;background:linear-gradient(90deg,#c39452,#f4d6a5);box-shadow:0 0 15px rgba(244,214,165,.75)}
-.hero-timer-track.is-running:not(.is-locked) span{animation:heroNavProgress 7.2s linear forwards}
-.hero-timer-track.is-locked span{width:100%;animation:none;opacity:.55}
+.hero-timer-track.is-running:not(.is-locked) span{will-change:width}
+.hero-timer-track.is-locked span{width:100%;opacity:.55}
 @keyframes heroNavProgress{from{width:0}to{width:100%}}
 @media(max-width:560px){.hero-timer-track{bottom:-11px;height:4px}}
 @media(prefers-reduced-motion:reduce){.hero-timer-track span{animation:none!important}}
@@ -446,7 +446,7 @@ slides.forEach((s,i)=>{const active=i===current;s.classList.toggle('is-active',a
 panels.forEach((p,i)=>{const active=i===current;p.classList.toggle('is-active',active);p.setAttribute('aria-hidden',String(!active));p.querySelectorAll('a').forEach(a=>a.tabIndex=active?0:-1)});
 tabs.forEach((t,i)=>{t.classList.toggle('is-active',i===current);t.setAttribute('aria-current',i===current?'true':'false')});
 if(count)count.textContent=String(current+1).padStart(2,'0')+' / '+String(slides.length).padStart(2,'0');
-if(progress&&!reduced){progress.classList.remove('is-running');void progress.offsetWidth;progress.classList.add('is-running')}timerTrack.classList.toggle('is-locked',selected);if(!selected){timerTrack.classList.remove('is-running');void timerTrack.offsetWidth;timerTrack.classList.add('is-running')}
+if(progress&&!reduced){progress.classList.remove('is-running');void progress.offsetWidth;progress.classList.add('is-running')}timerTrack.classList.toggle('is-locked',selected);const fill=timerTrack.querySelector('span');if(selected){fill.style.transition='none';fill.style.width='100%'}else{fill.style.transition='none';fill.style.width='0%';void fill.offsetWidth;fill.style.transition='width 7.2s linear';fill.style.width='100%'}
 if(reset)restart()}
 tabs.forEach((b,i)=>b.addEventListener('click',()=>{selected=true;show(i);clearInterval(timer)}));
 hero.addEventListener('pointerdown',e=>{if(e.target.closest('a,button'))return;startX=e.clientX});
