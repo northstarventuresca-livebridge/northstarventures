@@ -1,0 +1,14 @@
+export default {async fetch(request,env){const url=new URL(request.url),path=url.pathname;
+if(path==='/health')return Response.json({ok:true,service:'North Star client preview'});
+if(request.method!=='GET'&&request.method!=='HEAD')return new Response('Method not allowed',{status:405});
+const match=path.match(/^\/([a-z0-9][a-z0-9-]{0,54})\/?(?:index\.html)?$/);
+if(!match)return new Response('Preview not found',{status:404});
+const slug=match[1];
+const access=await env.REGISTRY.get('access:preview:'+slug,'json');
+if(access&&access.disabled===true)return new Response(request.method==='HEAD'?null:'This website is currently unavailable.',{status:404,headers:{'cache-control':'no-store','x-robots-tag':'noindex,nofollow','content-type':'text/plain; charset=utf-8'}});
+const mapping=await env.REGISTRY.get('preview:'+slug,'json');
+if(!mapping||!/^build:prospect:[a-z0-9_-]+$/i.test(mapping.build_key||''))return new Response('Preview not ready',{status:404});
+const job=await env.REGISTRY.get(mapping.build_key,'json');
+if(!job||job.id!==mapping.job_id||job.subdomain!==slug||job.preview_route!=='studio'||!['branded','verified','ready'].includes(job.stage)||typeof job.html!=='string'||job.html.length<4000)return new Response('Preview not ready',{status:404});
+return new Response(request.method==='HEAD'?null:job.html,{headers:{'content-type':'text/html; charset=utf-8','x-robots-tag':'noindex,nofollow','x-content-type-options':'nosniff','referrer-policy':'no-referrer','content-security-policy':"frame-ancestors 'none'",'cache-control':'no-store'}});
+}};
