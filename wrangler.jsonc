@@ -26,6 +26,10 @@
     {
       "name": "BUILD_EMAIL",
       "destination_address": "ryan.wyers@gmail.com"
+    },
+    {
+      "name": "ADMIN_RESET_EMAIL",
+      "destination_address": "northstarventures.ca@gmail.com"
     }
   ]
 }
