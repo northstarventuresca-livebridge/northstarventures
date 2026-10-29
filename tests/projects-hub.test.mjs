@@ -53,3 +53,12 @@ test('write access prevents cross-site requests and javascript links',async()=>{
  r=await route(request('/api/admin/projects','POST',{name:'Abc'}),store,false);
  assert.equal(r.status,401);
 });
+
+test('project dashboard client script is parseable JavaScript and has real project controls',async()=>{
+ const {PROJECT_HUB_WIDGET}=await import('../projects-hub-ui.js');
+ const {Script}=await import('node:vm');
+ const match=PROJECT_HUB_WIDGET.match(/<script[^>]*>([\s\S]*?)<\/script>/);
+ assert.ok(match,'Dashboard script missing');
+ assert.doesNotThrow(()=>new Script(match[1]));
+ for(const id of ['ph-search','ph-category','ph-status','ph-create','ph-form','ph-grid','ph-archive'])assert.ok(PROJECT_HUB_WIDGET.includes(id));
+});
