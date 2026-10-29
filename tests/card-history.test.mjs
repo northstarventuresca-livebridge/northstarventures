@@ -1,0 +1,31 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {writeCardAudit,cardAuditList} from '../card-audit.js';
+const card={id:'f'.repeat(32),tapbin_email:'customer@example.com',owner:'Example Customer',label:'Customer Card'};
+const createEnv=()=>{const values=new Map();return{values,REGISTRY:{async put(key,val,options){values.set(key,{data:JSON.parse(val),options})},async list({prefix}){return {keys:[...values.keys()].filter(k=>k.startsWith(prefix)).map(name=>({name})),list_complete:true}},async get(key){return values.get(key)?.data}}}};
+test('tracks a public card page visit without IP or GPS and expires logs after 180 days',async()=>{
+ const env=createEnv();
+ const req=new Request('https://northstarventures.ca/access/'+card.id,{headers:{'user-agent':'Mozilla/5.0 (Linux; Android 14) Chrome/136.0'}});
+ Object.defineProperty(req,'cf',{value:{city:'Edmonton',region:'Alberta',country:'CA'}});
+ await writeCardAudit(env,req,card,'card_opened');
+ assert.equal(env.values.size,1);
+ const item=[...env.values.values()][0];
+ assert.equal(item.data.type,'card_opened');
+ assert.equal(item.data.account,'customer@example.com');
+ assert.equal(item.data.city,'Edmonton');
+ assert.equal(item.data.device,'Android');
+ assert.equal(item.options.expirationTtl,180*86400);
+ assert.ok(!('ip' in item.data));assert.ok(!('latitude' in item.data));assert.ok(!('longitude' in item.data));
+});
+test('history is admin-only and card-filterable',async()=>{
+ const env=createEnv();const req=new Request('https://northstarventures.ca/access/'+card.id);
+ await writeCardAudit(env,req,card,'card_opened');
+ const url=new URL('https://northstarventures.ca/api/admin/access-card-events?card_id='+card.id);
+ let r=await cardAuditList(new Request(url),env,url,async()=>false);
+ assert.equal(r.status,401);
+ r=await cardAuditList(new Request(url),env,url,async()=>true);
+ assert.equal(r.status,200);
+ assert.equal((await r.json()).events.length,1);
+ const bad=new URL('https://northstarventures.ca/api/admin/access-card-events?card_id=bad');
+ assert.equal((await cardAuditList(new Request(bad),env,bad,async()=>true)).status,400);
+});
