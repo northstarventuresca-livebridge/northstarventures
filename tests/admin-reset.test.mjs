@@ -48,3 +48,15 @@ test('recovery cannot run when email binding is missing',async()=>{
  const response=await route(env,req('/api/admin/password/forgot','POST',{}));
  assert.equal(response.status,503);
 });
+
+test('reset verifier stays within the Worker CPU budget and is versioned',async()=>{
+ const env=mock();
+ const begin=Date.now();
+ assert.equal((await route(env,req('/api/admin/password/forgot','POST',{}))).status,200);
+ const token=env.emails[0].text.match(/#token=([a-f0-9]{64})/)[1];
+ assert.equal((await route(env,req('/api/admin/password/reset','POST',{token,password:'a-secure-test-password'}))).status,200);
+ const credential=await env.INBOX.get('nsv:admin:credentials:v2','json');
+ assert.equal(credential.iterations,12000);
+ assert.equal(await adminPasswordMatches(env,'a-secure-test-password',async()=>false),true);
+ assert.ok(Date.now()-begin<30000,'Reset should complete promptly');
+});
