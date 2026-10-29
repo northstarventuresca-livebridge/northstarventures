@@ -3,7 +3,7 @@
 const CARD_PREFIX = "nsv-access-card:v1:";
 const CARD_ID_RE = /^[a-f0-9]{32}$/;
 const APPS = Object.freeze({
-  tapbin: { name: "TapBin", url: "https://tapbin.ca/welcome?signin=1" }
+  tapbin: { name: "TapBin", url: "https://tapbin.ca/?signin=1" }
 });
 function json(body, status=200) {
   return new Response(JSON.stringify(body), {status, headers: {
