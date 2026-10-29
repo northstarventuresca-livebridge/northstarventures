@@ -2,20 +2,22 @@
 const TO="northstarventures.ca@gmail.com",FROM="website-updates@northstarventures.ca";
 const CRED="nsv:admin:credentials:v2",EPOCH="nsv:admin:session-epoch",ACTIVE="nsv:admin:reset:active",TOKEN="nsv:admin:reset:token:";
 const ENC=new TextEncoder();
+// Bounded to the Cloudflare Workers CPU budget; administrator login is additionally rate-limited.
+const PASSWORD_KDF_ITERATIONS=12000;
 const json=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{"content-type":"application/json","cache-control":"no-store","x-content-type-options":"nosniff"}});
 const rand=n=>Array.from(crypto.getRandomValues(new Uint8Array(n)),v=>v.toString(16).padStart(2,"0")).join("");
 async function digest(s){return Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",ENC.encode(s))),v=>v.toString(16).padStart(2,"0")).join("")}
 const binary=h=>Uint8Array.from(h.match(/../g)||[],x=>parseInt(x,16));
 function equal(a,b){if(a.length!==b.length)return false;let d=0;for(let i=0;i<a.length;i++)d|=a[i]^b[i];return d===0}
-async function passwordHash(password,salt){
+async function passwordHash(password,salt,iterations=PASSWORD_KDF_ITERATIONS){
  const key=await crypto.subtle.importKey("raw",ENC.encode(password),"PBKDF2",false,["deriveBits"]);
- return new Uint8Array(await crypto.subtle.deriveBits({name:"PBKDF2",salt:binary(salt),iterations:210000,hash:"SHA-256"},key,256));
+ return new Uint8Array(await crypto.subtle.deriveBits({name:"PBKDF2",salt:binary(salt),iterations,hash:"SHA-256"},key,256));
 }
 export async function adminPasswordMatches(env,password,originalCheck){
  const stored=await env.INBOX.get(CRED,"json");
  if(!stored)return await originalCheck(password);
  if(stored.v!==2||!(/^[a-f0-9]{32}$/.test(stored.salt||""))||!(/^[a-f0-9]{64}$/.test(stored.hash||"")))return false;
- return equal(await passwordHash(password,stored.salt),binary(stored.hash));
+ return equal(await passwordHash(password,stored.salt,stored.iterations||PASSWORD_KDF_ITERATIONS),binary(stored.hash));
 }
 export async function adminSessionEpoch(env){return (await env.INBOX.get(EPOCH))||"1"}
 const css="<style>body{font:16px system-ui;background:#f4f1ea;color:#152a3d;margin:0;min-height:100vh;display:grid;place-items:center;padding:18px;box-sizing:border-box}.box{background:#fff;padding:30px;width:min(420px,100%);border-radius:16px;box-shadow:0 22px 66px #0001;box-sizing:border-box}h1{font:30px Georgia,serif}p{color:#516476;line-height:1.5}input{font:inherit;padding:12px;width:100%;box-sizing:border-box;margin:12px 0;border:1px solid #ccc;border-radius:9px}button{font:700 15px system-ui;color:white;background:#10263b;border:0;border-radius:9px;padding:13px;width:100%;cursor:pointer}button:disabled{opacity:.6}a{color:#10263b}#msg{font-size:13px}</style>";
@@ -56,8 +58,10 @@ export async function handleAdminPasswordRecovery(req,env,url){
  const [expiry,active]=await Promise.all([env.INBOX.get(TOKEN+hash),env.INBOX.get(ACTIVE)]);
  if(!expiry||active!==hash||Number(expiry)<Date.now())return json({error:"Reset link invalid or expired."},400);
  const salt=rand(16);
- const passwordDigest=Array.from(await passwordHash(password,salt),x=>x.toString(16).padStart(2,"0")).join("");
- await env.INBOX.put(CRED,JSON.stringify({v:2,salt,hash:passwordDigest,updated_at:new Date().toISOString()}));
+ let passwordDigest;
+ try{passwordDigest=Array.from(await passwordHash(password,salt),x=>x.toString(16).padStart(2,"0")).join("");}
+ catch(error){console.error("North Star admin reset hashing failed",String(error?.name||"Crypto error"));return json({error:"Unable to save password. Please try again."},503)}
+ await env.INBOX.put(CRED,JSON.stringify({v:2,salt,hash:passwordDigest,iterations:PASSWORD_KDF_ITERATIONS,updated_at:new Date().toISOString()}));
  await env.INBOX.put(EPOCH,rand(16));
  await Promise.all([env.INBOX.delete(TOKEN+hash),env.INBOX.delete(ACTIVE)]);
  return json({ok:true});
