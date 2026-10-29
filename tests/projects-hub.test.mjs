@@ -21,7 +21,7 @@ test('private catalog seeds user-listed portfolio without exposing it to public 
  const names=data.projects.map(p=>p.name);
  for(const name of ['Great Church Website','Healing the Heart Website','Home of Hope — HOH Platform','Home of Hope — HOHS Website','TapBin','LiveBridge','Website Studio & Client Builder',"Monica's House — Renovation Tracker",'X32 AI Audio Engineer (Auto AI)','Spectra Sensing Lab','MTI Database Project','ProPresenter Files Project','BrainDump'])assert.ok(names.includes(name),name);
  assert.ok(data.projects.length>=26);
- assert.equal(data.projects.find(p=>p.name==='TapBin').website,'https://tapbin.ca/');
+ assert.equal(data.projects.find(p=>p.name==='TapBin').website,'https://tapbin.ca');
  assert.equal(data.projects.find(p=>p.name==='Spectra Sensing Lab').website,'');
  const repeat=await route(request('/api/admin/projects'),store);
  assert.equal((await repeat.json()).projects.length,data.projects.length);
