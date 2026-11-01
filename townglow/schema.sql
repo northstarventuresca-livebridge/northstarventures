@@ -17,3 +17,4 @@ CREATE INDEX idx_tg_auth_attempts ON auth_attempts(client_key,action,created_at)
 CREATE TABLE area_experiences (id TEXT PRIMARY KEY,user_sub TEXT NOT NULL,event TEXT NOT NULL,cell_lat REAL NOT NULL,cell_lng REAL NOT NULL,location_key TEXT NOT NULL,rating INTEGER NOT NULL CHECK(rating BETWEEN 1 AND 5),private_comment TEXT NOT NULL DEFAULT '',review_flag TEXT NOT NULL DEFAULT '',status TEXT NOT NULL DEFAULT 'pending',created_at TEXT NOT NULL DEFAULT (datetime('now')),UNIQUE(user_sub,event,cell_lat,cell_lng));
 CREATE INDEX idx_tg_area_public ON area_experiences(event,status,cell_lat,cell_lng);
 CREATE INDEX idx_tg_area_moderate ON area_experiences(status,created_at);
+CREATE TABLE admin_credentials (id INTEGER PRIMARY KEY CHECK(id=1),salt TEXT NOT NULL,password_hash TEXT NOT NULL,version TEXT NOT NULL,updated_at TEXT NOT NULL DEFAULT (datetime('now')));
