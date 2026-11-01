@@ -1,3 +1,4 @@
+import { handleLiveBridgeLaunch } from "./livebridge-sso.js";
 import { handleCardAccessRequest, CARD_ADMIN_WIDGET } from "./card-access.js";
 import { handleProjects } from "./projects-hub.js";
 import { PROJECT_HUB_WIDGET } from "./projects-hub-ui.js";
@@ -846,7 +847,7 @@ async function nsProcessPendingWebsiteBuilds(e){
  for(const x of jobs.slice(0,1))await nsAutoAdvanceOne(e,x.name);
 }
 
-export default{async scheduled(event,e,ctx){ctx.waitUntil((async()=>{try{await nsProcessWebsiteReadyEmails(e)}catch{}await nsProcessPendingWebsiteBuilds(e)})())},async fetch(r,e){const u=new URL(r.url);const projectsResponse=await handleProjects(r,e,u,auth);if(projectsResponse)return projectsResponse;const recoveryResponse=await handleAdminPasswordRecovery(r,e,u);if(recoveryResponse)return recoveryResponse;const cardResponse=await handleCardAccessRequest(r,e,u,auth);if(cardResponse)return cardResponse;
+export default{async scheduled(event,e,ctx){ctx.waitUntil((async()=>{try{await nsProcessWebsiteReadyEmails(e)}catch{}await nsProcessPendingWebsiteBuilds(e)})())},async fetch(r,e){const u=new URL(r.url);const liveBridgeLaunch=await handleLiveBridgeLaunch(r,e,u,auth);if(liveBridgeLaunch)return liveBridgeLaunch;const projectsResponse=await handleProjects(r,e,u,auth);if(projectsResponse)return projectsResponse;const recoveryResponse=await handleAdminPasswordRecovery(r,e,u);if(recoveryResponse)return recoveryResponse;const cardResponse=await handleCardAccessRequest(r,e,u,auth);if(cardResponse)return cardResponse;
 if(u.pathname==="/api/internal/client-site-check"&&r.method==="POST")return nsInternalVerifyClientSite(r,e);
 if(u.pathname==="/admin/potential-websites"||u.pathname==="/admin/potential-websites/"){if(r.method!=="GET"&&r.method!=="HEAD")return new Response("Method not allowed",{status:405});return new Response(r.method==="HEAD"?null:NS_PROSPECT_HTML,{headers:{"content-type":"text/html; charset=utf-8","cache-control":"private,no-store","x-robots-tag":"noindex,nofollow","x-frame-options":"DENY","x-content-type-options":"nosniff"}})}
 if(u.pathname==="/admin/websites"||u.pathname==="/admin/websites/"){
