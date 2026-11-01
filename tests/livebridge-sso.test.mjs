@@ -6,18 +6,21 @@ const ORIGIN = "https://northstarventures.ca";
 const PATH = "/api/admin/launch/livebridge";
 function env(configured = true) {
   const store = new Map();
+  let calls = 0;
   return {
-    NSV_LIVEBRIDGE_CLERK_USER_ID: configured ? "user_TEST123" : "",
-    NSV_LIVEBRIDGE_CLERK_SECRET_KEY: configured ? "sk_TEST" : "",
     INBOX: {
       async get(key) { return store.get(key); },
       async put(key, value) { store.set(key, value); }
-    }
+    },
+    LIVEBRIDGE_CLERK_RPC: configured ? {
+      async issueOwnerTicket() { calls++; return {token:"sample-once"}; }
+    } : undefined,
+    get rpcCalls() { return calls; },
   };
 }
-function request(origin = ORIGIN) {
+function request(origin = ORIGIN, method = "POST") {
   return new Request(ORIGIN + PATH, {
-    method: "POST",
+    method,
     headers: {origin, authorization: "Bearer authenticated-session"}
   });
 }
@@ -29,49 +32,37 @@ test("only the exact configured route is handled", async () => {
   const req = new Request(ORIGIN + "/api/admin/launch/unknown", {method: "POST"});
   assert.equal(await launch(req, env()), null);
 });
-
+test("only POST accepted", async () => {
+  assert.equal((await launch(request(ORIGIN, "GET"),env())).status, 405);
+});
 test("refuses unauthenticated requests", async () => {
-  const response = await launch(request(), env(), async () => false);
-  assert.equal(response.status, 401);
+  assert.equal((await launch(request(), env(), async () => false)).status, 401);
 });
-
-test("refuses requests without matching Origin", async () => {
-  const response = await launch(request("https://untrusted.example"), env());
-  assert.equal(response.status, 403);
+test("refuses mismatched Origin requests", async () => {
+  assert.equal((await launch(request("https://untrusted.example"),env())).status,403);
 });
-
-test("fails closed until Clerk account mapping and secret are provisioned", async () => {
-  const response = await launch(request(), env(false));
-  assert.equal(response.status, 503);
+test("fails closed without RPC binding", async () => {
+  assert.equal((await launch(request(),env(false))).status,503);
 });
-
-test("issues short-lived Clerk sign-in ticket with fixed destination", async () => {
-  const original = globalThis.fetch;
-  let observed;
-  globalThis.fetch = async (url, options) => {
-    observed = {url, options};
-    return Response.json({token: "sample-once"});
-  };
-  try {
-    const response = await launch(request(), env());
-    assert.equal(response.status, 200);
-    assert.equal(response.headers.get("cache-control"), "private, no-store");
-    const data = await response.json();
-    assert.equal(data.launch_url, "https://livebridge.ca/admin/index.html#nsv_sso=sample-once");
-    assert.equal(observed.url, "https://api.clerk.com/v1/sign_in_tokens");
-    const payload = JSON.parse(observed.options.body);
-    assert.deepEqual(payload, {user_id:"user_TEST123",expires_in_seconds:60});
-    assert.equal(observed.options.headers.authorization, "Bearer sk_TEST");
-  } finally { globalThis.fetch = original; }
+test("issues short-lived private RPC launch ticket with fixed destination", async () => {
+  const e=env();
+  const response=await launch(request(),e);
+  assert.equal(response.status,200);
+  assert.equal(response.headers.get("cache-control"), "private, no-store");
+  assert.equal((await response.json()).launch_url,
+    "https://livebridge.ca/admin/index.html#nsv_sso=sample-once");
+  assert.equal(e.rpcCalls,1);
 });
-
-test("repeated launches are rate limited", async () => {
-  const original = globalThis.fetch;
-  globalThis.fetch = async () => Response.json({token:"sample-once"});
-  try {
-    const e = env();
-    let response;
-    for (let i=0; i<7; i++) response = await launch(request(), e);
-    assert.equal(response.status, 429);
-  } finally { globalThis.fetch = original; }
+test("limits repeated launches by admin session",async()=>{
+  const e=env();let response;
+  for(let i=0;i<7;i++)response=await launch(request(),e);
+  assert.equal(response.status,429);
+  assert.equal(e.rpcCalls,6);
+});
+test("remote failure is closed and details hidden",async()=>{
+  const e=env();
+  e.LIVEBRIDGE_CLERK_RPC.issueOwnerTicket=async()=>{throw Error("private secret information")};
+  const response=await launch(request(),e);
+  assert.equal(response.status,503);
+  assert.doesNotMatch(JSON.stringify(await response.json()),/private secret information/);
 });
