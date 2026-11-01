@@ -1,5 +1,16 @@
-CREATE TABLE spots (id TEXT PRIMARY KEY, lat REAL NOT NULL, lng REAL NOT NULL, address TEXT NOT NULL, label TEXT NOT NULL DEFAULT 'Community spot', neighborhood TEXT NOT NULL DEFAULT '', consent_status TEXT NOT NULL DEFAULT 'pending', submitter_sub TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (datetime('now')));
-CREATE TABLE reviews (id TEXT PRIMARY KEY, spot_id TEXT NOT NULL, event TEXT NOT NULL, user_sub TEXT NOT NULL, rating INTEGER NOT NULL CHECK(rating BETWEEN 1 AND 5), comment TEXT NOT NULL CHECK(length(comment) <= 250), status TEXT NOT NULL DEFAULT 'pending', created_at TEXT NOT NULL DEFAULT (datetime('now')), FOREIGN KEY (spot_id) REFERENCES spots(id));
+CREATE TABLE spots (id TEXT PRIMARY KEY,lat REAL NOT NULL,lng REAL NOT NULL,address TEXT NOT NULL,label TEXT NOT NULL DEFAULT 'Community spot',neighborhood TEXT NOT NULL DEFAULT '',consent_status TEXT NOT NULL DEFAULT 'pending',submitter_sub TEXT NOT NULL,created_at TEXT NOT NULL DEFAULT (datetime('now')),location_type TEXT NOT NULL DEFAULT 'residence');
+CREATE TABLE reviews (id TEXT PRIMARY KEY,spot_id TEXT NOT NULL,event TEXT NOT NULL,user_sub TEXT NOT NULL,rating INTEGER NOT NULL CHECK(rating BETWEEN 1 AND 5),comment TEXT NOT NULL CHECK(length(comment) <= 250),status TEXT NOT NULL DEFAULT 'pending',created_at TEXT NOT NULL DEFAULT (datetime('now')),FOREIGN KEY(spot_id) REFERENCES spots(id));
+CREATE TABLE community_users(sub TEXT PRIMARY KEY,profile_id TEXT NOT NULL UNIQUE,display_name TEXT NOT NULL,created_at TEXT NOT NULL DEFAULT (datetime('now')));
+CREATE TABLE topic_suggestions(id TEXT PRIMARY KEY,user_sub TEXT NOT NULL,title TEXT NOT NULL,description TEXT NOT NULL,slug TEXT UNIQUE,status TEXT NOT NULL DEFAULT 'pending',created_at TEXT NOT NULL DEFAULT (datetime('now')),reviewed_at TEXT);
+CREATE TABLE content_reports(id TEXT PRIMARY KEY,target_type TEXT NOT NULL CHECK(target_type IN ('review','spot')),target_id TEXT NOT NULL,reporter_sub TEXT NOT NULL,reason TEXT NOT NULL,details TEXT NOT NULL DEFAULT '',status TEXT NOT NULL DEFAULT 'pending',created_at TEXT NOT NULL DEFAULT (datetime('now')),UNIQUE(target_type,target_id,reporter_sub));
+CREATE TABLE community_logins(username TEXT PRIMARY KEY COLLATE NOCASE,sub TEXT NOT NULL UNIQUE,salt TEXT NOT NULL,password_hash TEXT NOT NULL,disabled INTEGER NOT NULL DEFAULT 0,created_at TEXT NOT NULL DEFAULT (datetime('now')));
+CREATE TABLE auth_attempts(id TEXT PRIMARY KEY,client_key TEXT NOT NULL,action TEXT NOT NULL,created_at TEXT NOT NULL DEFAULT (datetime('now')));
 CREATE INDEX idx_spots_status ON spots(consent_status);
+CREATE INDEX idx_spots_visible_bbox ON spots(consent_status,lat,lng);
 CREATE INDEX idx_reviews_approved ON reviews(spot_id,event,status);
 CREATE INDEX idx_reviews_submitter ON reviews(user_sub);
+CREATE INDEX idx_tg_review_unique ON reviews(user_sub,spot_id,event);
+CREATE INDEX idx_tg_reviews_user ON reviews(user_sub,status,created_at);
+CREATE INDEX idx_tg_topics_status ON topic_suggestions(status,created_at);
+CREATE INDEX idx_tg_reports_pending ON content_reports(status,created_at);
+CREATE INDEX idx_tg_auth_attempts ON auth_attempts(client_key,action,created_at);
