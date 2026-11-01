@@ -1,22 +1,42 @@
-# TownGlow — Canada-wide community event map
+# TownGlow community experience map
 
-Live preview: https://townglow-community-map.northstarventures-ca.workers.dev/
+Website: https://townglow-community-map.northstarventures-ca.workers.dev/
+Admin: https://townglow-community-map.northstarventures-ca.workers.dev/admin
 
 ## Features
-- MapLibre + OpenFreeMap interactive map (Leaflet fallback)
-- Works throughout Canada, with map browsing beyond Canada
-- Search **any Canadian city, town, neighbourhood, or address** using Natural Resources Canada's current **GeoLocator API** (https://geolocator.api.geo.ca), with optional search suggestions and selected-location labels
-- Automatic browser geolocation on load, *with browser permission*, and a manual "Use my current location" button; GPS location isn't saved or sent to TownGlow's backend
-- Quick-jump links for cities across provinces
-- Independent Halloween, Christmas, Spring, and Community themes
-- 1–5 stars, 250-character comments and timestamped *private browser drafts*
-- Per-event and map-viewport public spot query in a dedicated Cloudflare D1 database
-- Owner-consent and moderator-approval gates for community reviews
+- Canada-wide city, neighbourhood and address search (Natural Resources Canada GeoLocator)
+- GPS location with browser permission; location isn't stored on the server
+- MapLibre/OpenFreeMap interactive base map
+- Halloween, Christmas, spring, community and admin-approved custom themes
+- Ratings: 1–5 stars, up to 250-character comments, browser-local private drafts
+- TownGlow community accounts with unique usernames and PBKDF2-hashed passwords
+- Google OAuth support ready to configure later (requires separate Google client ID/secret)
+- New location submissions and reviews routed to admin review queue
+- All residences require verified homeowner consent before listings become public
+- Public area/event submissions still require admin approval
+- Review and location reports, administrator removal, review approvals/rejections
+- Suggested themes moderated and added dynamically after approval
+- Public profile page/modals showing only *approved* reviews and timestamps; emails/private account IDs are not shown
+- Private IP-derived, HMAC-hashed throttling keys for auth attempt limits
 
-## Deployment
-Cloudflare Worker `townglow-community-map` in the Northstar Ventures account, D1 binding `DB` points to `townglow-community-map-db`. Deployments are stored on the `townglow-community-map` GitHub branch, separate from the existing Northstar main site.
+## Cloudflare deployment
+Isolated Northstar Worker `townglow-community-map` and D1 `townglow-community-map-db`.
+Worker secrets: `SESSION_SECRET`, `ADMIN_PASSWORD` and `ADMIN_EMAIL`. Do not commit their values.
+Admin uses password sign-in option on the site's sign-in dialog; keep the password secure. Google OAuth admin sign-in also supported when configured and the verified Google email equals `ADMIN_EMAIL`.
 
-## Community publishing is not yet enabled
-Google OAuth still needs **GOOGLE_CLIENT_ID**, **GOOGLE_CLIENT_SECRET**, **SESSION_SECRET**, and **ADMIN_EMAIL** set in TownGlow only (not reused from other projects). OAuth callback: `https://townglow-community-map.northstarventures-ca.workers.dev/auth/callback`. Moderation workflows and owner consent verification must be completed before publishing private-home listings.
+## Google OAuth when ready
+1. Create a Google Cloud OAuth client for web application.
+2. Authorized redirect URI: `https://townglow-community-map.northstarventures-ca.workers.dev/auth/callback`
+3. Set new Worker secrets `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`, then test consent-screen production availability.
 
-The government Canadian GeoLocator service is keyless for typical public usage, with caching in the Worker. Public map rendering uses OpenFreeMap and OpenStreetMap data. A map tap selects geographic coordinates, not an independently confirmed civic address or specific house polygon. Do not advertise comprehensive house-by-house coverage until reliable building/address data and consent processes are added. The backend's coarse Canada bounding box is not a legal border-validation service.
+## Limitations / public launch checklist
+- Username/password community accounts are **not verified identities**. No account recovery, email verification or MFA currently exists. Moderator review and server-side rate limits are in place, but do not treat usernames as real-world identity proof.
+- Google/Facebook one-click sign-in is not active until provider credentials are configured.
+- Private residential reviews and locations cannot be published without admin approval and homeowner consent.
+- Confirm public-space classifications before approving locations.
+- The map click selects coordinates, not necessarily a civic address/building polygon.
+- Review accessibility, privacy policy, terms, consent handling, age limits, spam-abuse controls, license/traffic capacity and account deletion before broad public marketing.
+- No other Northstar app or database was altered.
+
+## Schema
+The complete schema is in `schema.sql` (deployed via D1 API).
