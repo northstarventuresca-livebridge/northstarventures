@@ -158,7 +158,12 @@ if(pathname==='/api/heat'&&req.method==='GET'){
  const event=u.searchParams.get('event');if(!(await validEvent(event,env)))return json({cells:[]});
  const b=(u.searchParams.get('bounds')||'').split(',').map(Number);
  if(b.length!==4||!b.every(Number.isFinite)||b[0]<-90||b[2]>90||b[1]<-180||b[3]>180||b[0]>b[2]||b[1]>b[3])return json({cells:[]});
- const res=await env.DB.prepare("SELECT cell_lat AS lat,cell_lng AS lng,COUNT(DISTINCT user_sub) AS participants,COUNT(DISTINCT location_key) AS places,SUM(CASE WHEN rating>=4 THEN 1 ELSE 0 END) AS positive,SUM(CASE WHEN rating<=2 THEN 1 ELSE 0 END) AS negative,COUNT(*) AS total FROM area_experiences WHERE event=? AND status='approved' AND cell_lat BETWEEN ? AND ? AND cell_lng BETWEEN ? AND ? GROUP BY cell_lat,cell_lng HAVING COUNT(DISTINCT user_sub)>=5 AND COUNT(DISTINCT location_key)>=3 LIMIT 350").bind(event,b[0]-.02,b[2]+.02,b[1]-.025,b[3]+.025).all();
+ const sql="WITH samples AS ("+
+"SELECT cell_lat AS lat,cell_lng AS lng,user_sub,location_key,rating FROM area_experiences WHERE event=? AND status='approved' AND cell_lat BETWEEN ? AND ? AND cell_lng BETWEEN ? AND ? "+
+"UNION ALL SELECT ROUND(s.lat/0.02,0)*0.02 AS lat,ROUND(s.lng/0.025,0)*0.025 AS lng,r.user_sub,s.id AS location_key,r.rating FROM reviews r JOIN spots s ON s.id=r.spot_id WHERE r.event=? AND r.status='approved' AND s.consent_status='approved' AND (s.location_type!='residence' OR r.rating>=3) AND s.lat BETWEEN ? AND ? AND s.lng BETWEEN ? AND ? "+
+"),person_votes AS (SELECT lat,lng,user_sub,MIN(location_key) AS location_key,AVG(rating) AS rating FROM samples GROUP BY lat,lng,user_sub) "+
+"SELECT lat,lng,COUNT(DISTINCT user_sub) AS participants,COUNT(DISTINCT location_key) AS places,SUM(CASE WHEN rating>=4 THEN 1 ELSE 0 END) AS positive,SUM(CASE WHEN rating<=2 THEN 1 ELSE 0 END) AS negative,COUNT(*) AS total FROM person_votes GROUP BY lat,lng HAVING COUNT(DISTINCT user_sub)>=5 AND COUNT(DISTINCT location_key)>=3 LIMIT 350";
+ const res=await env.DB.prepare(sql).bind(event,b[0]-.02,b[2]+.02,b[1]-.025,b[3]+.025,event,b[0]-.02,b[2]+.02,b[1]-.025,b[3]+.025).all();
  return json({cells:(res.results||[]).map(x=>({lat:x.lat,lng:x.lng,participants:x.participants,positive:x.positive,negative:x.negative,total:x.total})),minimumParticipants:5,minimumLocations:3,areaSize:'approximately 1.5–2 km'})
 }
 if(pathname==='/api/area'&&req.method==='POST'){
@@ -176,8 +181,8 @@ return json({error:'Not found'},404)
 }
 
 async function api(req,env,pathname,u,ctx){
-if(['/api/area','/api/heat'].includes(pathname))return areaRoutes(req,env,pathname,u);
 if(req.method==='POST'&&!sameOrigin(req))return json({error:'Invalid request origin'},403);
+if(['/api/area','/api/heat'].includes(pathname))return areaRoutes(req,env,pathname,u);
 if(['/api/auth/register','/api/auth/login','/api/auth/admin'].includes(pathname)&&req.method==='POST')return localAuth(req,env,pathname).catch(e=>{console.error('TownGlow authentication:',e);return json({error:'Sign-in temporarily unavailable; try again shortly'},500)});
 if(['/api/topics','/api/suggest','/api/report','/api/profile','/api/admin'].includes(pathname))return communityRoutes(req,env,pathname,u);
 if(pathname==='/api/places'&&req.method==='GET')return placesSearch(env,u,ctx);
