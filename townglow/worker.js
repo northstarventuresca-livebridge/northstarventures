@@ -13,7 +13,7 @@ const EVENTS=['halloween','christmas','spring','community'];
 async function placesSearch(env,u,ctx){
 const q=String(u.searchParams.get('q')||'').trim().replace(/\s+/g,' ').slice(0,121);
 if(q.length<2||q.length>120)return json({error:'Enter a Canadian city, neighbourhood or address (2–120 characters)'},400);
-const key=new Request(u.origin+'/api/places?q='+encodeURIComponent(q.toLocaleLowerCase('en-CA')));
+const key=new Request(u.origin+'/api/places?v=2&q='+encodeURIComponent(q.toLocaleLowerCase('en-CA')));
 const cache=caches.default,hit=await cache.match(key);if(hit)return hit;
 const url='https://geolocator.api.geo.ca/?'+new URLSearchParams({q,lang:'en',keys:'geonames,nominatim,locate'});
 let raw;try{const res=await fetch(url,{headers:{accept:'application/json','user-agent':'TownGlow Northstar Ventures contact northstarventures.ca@gmail.com'},signal:AbortSignal.timeout(8500)});if(!res.ok)throw Error('geo '+res.status);raw=await res.json()}catch(e){return json({error:'Canadian location search is temporarily unavailable. Try again.'},503)}
