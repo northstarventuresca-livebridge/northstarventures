@@ -25,12 +25,12 @@ export async function handleLiveBridgeLaunch(request, env, url, authorize) {
   }
   if (!(await authorize(request, env))) return reply({error: "Sign in to North Star first"}, 401);
 
-  // This initial integration is strictly for the current single-admin account.
-  // Future partner accounts MUST resolve a per-person, per-app permission and Clerk user ID.
-  const userId = String(env.NSV_LIVEBRIDGE_CLERK_USER_ID || "").trim();
-  const clerkSecret = String(env.NSV_LIVEBRIDGE_CLERK_SECRET_KEY || "").trim();
-  if (!/^user_[A-Za-z0-9]+$/.test(userId) || !clerkSecret) {
-    return reply({error: "LiveBridge one-click sign-in is not configured yet"}, 503);
+  // This pilot uses the existing single-administrator login. Partner access
+  // must NOT be enabled until individual identity and permissions are enforced.
+  // The service binding invokes a named, non-HTTP RPC entrypoint on LiveBridge,
+  // so its Clerk secret never leaves the LiveBridge Worker.
+  if (!env.LIVEBRIDGE_CLERK_RPC) {
+    return reply({error: "LiveBridge private sign-in connection not configured"}, 503);
   }
   if (!env.INBOX) return reply({error: "Session storage unavailable"}, 503);
 
@@ -47,22 +47,12 @@ export async function handleLiveBridgeLaunch(request, env, url, authorize) {
   if (count >= 6) return reply({error: "Too many launch attempts. Try again shortly"}, 429);
   await env.INBOX.put(key, String(count + 1), {expirationTtl: 120});
 
-  let response;
-  try {
-    response = await fetch("https://api.clerk.com/v1/sign_in_tokens", {
-      method: "POST",
-      headers: {
-        "authorization": "Bearer " + clerkSecret,
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({user_id: userId, expires_in_seconds: 60}),
-    });
-  } catch {
-    return reply({error: "LiveBridge sign-in service unavailable"}, 502);
-  }
-  if (!response.ok) return reply({error: "LiveBridge sign-in service rejected the request"}, 502);
   let data;
-  try { data = await response.json(); } catch { return reply({error: "Invalid LiveBridge sign-in response"}, 502); }
+  try {
+    data = await env.LIVEBRIDGE_CLERK_RPC.issueOwnerTicket();
+  } catch {
+    return reply({error: "LiveBridge sign-in is unavailable or not configured"}, 503);
+  }
   if (!data || typeof data.token !== "string" || !data.token) {
     return reply({error: "LiveBridge sign-in ticket missing"}, 502);
   }
