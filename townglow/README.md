@@ -26,7 +26,8 @@ Admin: https://townglow-community-map.northstarventures-ca.workers.dev/admin
 ## Cloudflare deployment
 Isolated Northstar Worker `townglow-community-map` and D1 `townglow-community-map-db`.
 Worker secrets: `SESSION_SECRET`, `ADMIN_PASSWORD` and `ADMIN_EMAIL`. Do not commit their values.
-Admin uses password sign-in option on the site's sign-in dialog; keep the password secure. Google OAuth admin sign-in also supported when configured and the verified Google email equals `ADMIN_EMAIL`.
+Admin uses password sign-in option on the site's sign-in dialog; keep the password secure.
+- **Change Admin Password:** In `/admin`, choose **🔑 Change Admin Password**, confirm the current password and enter/confirm a new one (10+ characters including a letter and a number). The new password is salted and hashed in the dedicated D1 `admin_credentials` table. After the first change, its credential takes precedence over the original Cloudflare bootstrap password. All other admin password sessions are invalidated; the changing session receives a fresh cookie. Google admin OAuth is separate and does not manage this password. Google OAuth admin sign-in also supported when configured and the verified Google email equals `ADMIN_EMAIL`.
 
 ## Google OAuth when ready
 1. Create a Google Cloud OAuth client for web application.
