@@ -22,7 +22,7 @@
       "id": "fc06a487aa0547fd93f14e4ac30de556"
     }
   ],
-  "send_email": [
+  "services": [\n    {\n      "binding": "HOH_SSO_RPC",\n      "service": "home-of-hope-microloans-preview",\n      "entrypoint": "NorthStarHOHLogin"\n    }\n  ],\n  "send_email": [
     {
       "name": "BUILD_EMAIL",
       "destination_address": "ryan.wyers@gmail.com"
