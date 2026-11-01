@@ -141,7 +141,7 @@ return json({error:'Unknown sign-in action'},404)
 
 async function api(req,env,pathname,u,ctx){
 if(req.method==='POST'&&!sameOrigin(req))return json({error:'Invalid request origin'},403);
-if(['/api/auth/register','/api/auth/login','/api/auth/admin'].includes(pathname)&&req.method==='POST')return localAuth(req,env,pathname);
+if(['/api/auth/register','/api/auth/login','/api/auth/admin'].includes(pathname)&&req.method==='POST')return localAuth(req,env,pathname).catch(e=>{console.error('TownGlow authentication:',e);return json({error:'Authentication request failed',debug:String(e?.message||e).slice(0,150)},500)});
 if(['/api/topics','/api/suggest','/api/report','/api/profile','/api/admin'].includes(pathname))return communityRoutes(req,env,pathname,u);
 if(pathname==='/api/places'&&req.method==='GET')return placesSearch(env,u,ctx);
 if(pathname==='/api/config')return json({googleEnabled:!!(env.GOOGLE_CLIENT_ID&&env.GOOGLE_CLIENT_SECRET&&env.SESSION_SECRET),communityEnabled:!!env.SESSION_SECRET,authProvider:'Community or Google'});
