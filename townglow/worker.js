@@ -211,7 +211,7 @@ if(pathname==='/api/heat'&&req.method==='GET'){
 "SELECT cell_lat AS lat,cell_lng AS lng,user_sub,location_key,rating FROM area_experiences WHERE event=? AND status='approved' AND cell_lat BETWEEN ? AND ? AND cell_lng BETWEEN ? AND ? "+
 "UNION ALL SELECT ROUND(s.lat/0.02,0)*0.02 AS lat,ROUND(s.lng/0.025,0)*0.025 AS lng,r.user_sub,s.id AS location_key,r.rating FROM reviews r JOIN spots s ON s.id=r.spot_id WHERE r.event=? AND r.status='approved' AND s.consent_status='approved' AND (s.location_type!='residence' OR r.rating>=3) AND s.lat BETWEEN ? AND ? AND s.lng BETWEEN ? AND ? "+
 "),person_votes AS (SELECT lat,lng,user_sub,MIN(location_key) AS location_key,AVG(rating) AS rating FROM samples GROUP BY lat,lng,user_sub) "+
-"SELECT lat,lng,COUNT(DISTINCT user_sub) AS participants,COUNT(DISTINCT location_key) AS places,SUM(CASE WHEN rating>=4 THEN 1 ELSE 0 END) AS positive,SUM(CASE WHEN rating<=2 THEN 1 ELSE 0 END) AS negative,COUNT(*) AS total FROM person_votes GROUP BY lat,lng HAVING COUNT(DISTINCT user_sub)>=5 AND COUNT(DISTINCT location_key)>=3 LIMIT 350";
+"SELECT lat,lng,COUNT(DISTINCT user_sub) AS participants,COUNT(DISTINCT location_key) AS places,SUM(CASE WHEN rating>=4 THEN 1 ELSE 0 END) AS positive,SUM(CASE WHEN rating<=2 THEN 1 ELSE 0 END) AS negative,COUNT(*) AS total FROM person_votes GROUP BY lat,lng HAVING COUNT(DISTINCT user_sub)>=1 LIMIT 350";
  const res=await env.DB.prepare(sql).bind(event,b[0]-.02,b[2]+.02,b[1]-.025,b[3]+.025,event,b[0]-.02,b[2]+.02,b[1]-.025,b[3]+.025).all();
  return json({cells:(res.results||[]).map(x=>({lat:x.lat,lng:x.lng,participants:x.participants,positive:x.positive,negative:x.negative,total:x.total})),minimumParticipants:5,minimumLocations:3,areaSize:'approximately 1.5–2 km'})
 }
