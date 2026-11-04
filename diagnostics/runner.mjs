@@ -19,7 +19,16 @@ export function validateProject(project) {
     if (!/^[a-z0-9][a-z0-9-]{1,60}$/.test(test.id) || ids.has(test.id)) throw new Error("Duplicate or invalid test ID");
     ids.add(test.id);
     if (!["targeted", "regression", "full"].includes(test.group)) throw new Error("Invalid test group");
-    if (test.type !== "http-get") throw new Error("Unsupported test type");
+    if (!["http-get", "browser-page", "browser-click"].includes(test.type)) throw new Error("Unsupported test type");
+    if (test.type === "browser-click") {
+      if (project.environment !== "test" || test.safeInteraction !== true ||
+          typeof test.selector !== "string" || !test.selector.startsWith("[data-diagnostic-safe="))
+        throw new Error("Browser clicks require approved safe test-only controls");
+    }
+    if (test.type !== "http-get") {
+      if (test.expectedSelector !== undefined && (!test.expectedSelector || typeof test.expectedSelector !== "string"))
+        throw new Error("Invalid expected selector");
+    }
     // Explicit HTTPS allowlist prevents accidental probes into internal resources.
     const url = new URL(test.url);
     if (url.protocol !== "https:" || url.username || url.password || url.port || url.search || url.hash ||
@@ -32,7 +41,7 @@ export async function runProject(project, { level = "change", fetchImpl = fetch,
   validateProject(project);
   const report = { schema: 1, runId: randomUUID(), projectId: project.id, level,
     startedAt: now(), tests: [], status: "passed" };
-  for (const test of chooseTests(project, level)) {
+  for (const test of chooseTests(project, level).filter(test => test.type === "http-get")) {
     const started = Date.now();
     let status = "passed", detail = "HTTP 200-399";
     try {
