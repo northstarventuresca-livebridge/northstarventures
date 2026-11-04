@@ -1,0 +1,29 @@
+[
+  {
+    "id": "northstar-command-center",
+    "allowedHosts": ["northstarventures.ca"],
+    "tests": [
+      { "id": "homepage-loads", "group": "regression", "type": "http-get", "url": "https://northstarventures.ca/" },
+      { "id": "admin-page-responds", "group": "targeted", "type": "http-get", "url": "https://northstarventures.ca/admin" }
+    ]
+  },
+  {
+    "id": "home-of-hope",
+    "allowedHosts": ["hoh.northstarventures.ca"],
+    "tests": [
+      { "id": "admin-page-responds", "group": "regression", "type": "http-get", "url": "https://hoh.northstarventures.ca/" }
+    ]
+  },
+  {
+    "id": "livebridge",
+    "allowedHosts": ["livebridge.ca"],
+    "tests": [
+      { "id": "homepage-loads", "group": "regression", "type": "http-get", "url": "https://livebridge.ca/" }
+    ]
+  },
+  {
+    "id": "x32-ai-engineer",
+    "allowedHosts": [],
+    "tests": []
+  }
+]
