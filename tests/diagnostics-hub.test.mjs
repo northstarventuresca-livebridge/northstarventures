@@ -21,8 +21,8 @@ async function setup(){
 function request(path,method="GET",from=origin){
  return new Request(origin+path,{method,headers:method==="POST"?{origin:from}:{}});
 }
-const handler=(req,env,authorized=true,fetchImpl=async()=>({status:200}))=>
- handleDiagnostics(req,env,new URL(req.url),async()=>authorized,{fetchImpl});
+const handler=(req,env,authorized=true,fetchImpl=async()=>({status:200}),selfCheck=async()=>({status:"passed"}))=>
+ handleDiagnostics(req,env,new URL(req.url),async()=>authorized,{fetchImpl,selfCheck});
 
 test("unauthorized access denied even for read-only report list",async()=>{
  const env=await setup();
@@ -49,7 +49,7 @@ test("run writes only its own report namespace and preserves separate history",a
  const two=await handler(request("/api/admin/diagnostics/seed-06"),env);
  assert.equal((await one.json()).latest.status,"passed");
  assert.equal((await two.json()).latest.status,"failed");
- assert.equal(urls.length,3);
+ assert.equal(urls.length,1); // North Star checks render routes internally and do not self-fetch
 });
 test("unsafe origins and unconfigured tests cannot run",async()=>{
  const env=await setup();
@@ -115,4 +115,39 @@ test("embedded browser error collector is valid JavaScript",async()=>{
  assert.doesNotThrow(()=>new Script(script[1]));
  assert.ok(DIAGNOSTICS_CLIENT.includes("unhandledrejection"));
  assert.ok(DIAGNOSTICS_CLIENT.includes("nativeFetch"));
+});
+
+test("North Star internal diagnostics avoid Worker self-fetch and label what was tested",async()=>{
+ const env=await setup();
+ let publicFetchCalls=0,checks=[];
+ const r=await handler(request("/api/admin/diagnostics/seed-07/run","POST"),env,true,
+   async()=>{publicFetchCalls++;throw Error("Same-zone self-fetch is not allowed")},
+   async id=>{checks.push(id);return {status:"passed"}});
+ assert.equal(r.status,200);
+ const report=(await r.json()).report;
+ assert.equal(report.status,"passed");
+ assert.equal(report.type,"internal-route-render");
+ assert.equal(publicFetchCalls,0);
+ assert.deepEqual(checks,["public-home","admin-route"]);
+ assert.equal(report.checks.every(c=>c.kind==="internal-route"),true);
+ assert.equal(report.checks.every(c=>c.detail==="Internal route rendered"),true);
+});
+test("internal route failure is not silently converted to a pass",async()=>{
+ const env=await setup();
+ const r=await handler(request("/api/admin/diagnostics/seed-07/run","POST"),env,true,
+   async()=>({status:200}),
+   async id=>({status:id==="admin-route"?"failed":"passed"}));
+ const report=(await r.json()).report;
+ assert.equal(report.status,"failed");
+ assert.equal(report.checks.find(x=>x.id==="admin-route").detail,"Internal route render failed");
+});
+test("missing internal check does not make a false pass",async()=>{
+ const env=await setup();
+ const r=await handleDiagnostics(request("/api/admin/diagnostics/seed-07/run","POST"),env,
+   new URL(origin+"/api/admin/diagnostics/seed-07/run"),async()=>true,{
+     fetchImpl:async()=>({status:200})
+   });
+ const report=(await r.json()).report;
+ assert.equal(report.status,"failed");
+ assert.ok(report.checks.every(c=>c.detail==="Internal route check unavailable"));
 });
