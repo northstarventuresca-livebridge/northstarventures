@@ -83,7 +83,7 @@ export async function handleDiagnostics(req,env,url,authorize,{fetchImpl=fetch}=
    try{data=JSON.parse(text)}catch{return reply({error:"Invalid JSON"},400)}
    const kind=data?.kind,code=data?.code,route=data?.route;
    if(!["javascript","promise","api"].includes(kind)||typeof route!=="string"||
-      !/^\/[a-z0-9_./-]{0,150}$/i.test(route)||typeof code!=="string"||code.length>80)
+      !/^\/[a-z0-9_./-]{0,150}$/i.test(route)||route.startsWith("//")||route.includes("..")||typeof code!=="string"||code.length>80)
      return reply({error:"Invalid event"},400);
    if(data.message!==undefined&&typeof data.message!=="string")
      return reply({error:"Invalid event message"},400);
