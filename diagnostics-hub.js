@@ -14,6 +14,28 @@ const CATALOG={
 const reply=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{"content-type":"application/json; charset=utf-8","cache-control":"private, no-store","x-content-type-options":"nosniff"}});
 const validId=id=>/^seed-\d{2}$|^[0-9a-f]{32}$/.test(id);
 const base=id=>PREFIX+id+":";
+const EVENT_TTL=30*24*60*60;
+const supportedEventProjects=new Set(["seed-07"]); // Other apps need individually secured adapters.
+function safeText(value,max=180){
+ return String(value??"")
+   .replace(/https?:\/\/[^\s<>"']+/gi,"[url]")
+   .replace(/(?:authorization|bearer|token|secret|api[_-]?key|password|passwd|cookie|session|credential)\s*[:=]\s*[^\s&,;]+/gi,"[credential redacted]")
+   .replace(/[A-Za-z0-9_-]{28,}/g,"[value]")
+   .replace(/(?:[?&#][a-z0-9_-]+=[^\s&,;]+)/gi,"[parameter]")
+   .replace(/[<>]/g,"").slice(0,max);
+}
+async function errorEvents(env,id){
+ const entries=[];let cursor;
+ for(let page=0;page<10;page++){
+   const list=await env.REGISTRY.list({prefix:base(id)+"event:",limit:100,...(cursor?{cursor}:{})});
+   entries.push(...list.keys);
+   if(list.list_complete||!list.cursor)break;
+   cursor=list.cursor;
+ }
+ const latest=entries.sort((a,b)=>b.name.localeCompare(a.name)).slice(0,20);
+ return (await Promise.all(latest.map(k=>env.REGISTRY.get(k.name,"json")))).filter(Boolean);
+}
+
 async function readHistory(env,id){
  const latest=await env.REGISTRY.get(base(id)+"latest","json");
  return latest||null;
@@ -23,7 +45,8 @@ export async function handleDiagnostics(req,env,url,authorize,{fetchImpl=fetch}=
  const list="/api/admin/diagnostics";
  const detail=/^\/api\/admin\/diagnostics\/(seed-\d{2}|[0-9a-f]{32})$/.exec(path);
  const run=/^\/api\/admin\/diagnostics\/(seed-\d{2}|[0-9a-f]{32})\/run$/.exec(path);
- if(path!==list&&!detail&&!run)return null;
+ const event=/^\/api\/admin\/diagnostics\/(seed-\d{2}|[0-9a-f]{32})\/events$/.exec(path);
+ if(path!==list&&!detail&&!run&&!event)return null;
  if(!await authorize(req,env))return reply({error:"Not authorized"},401);
  if(!env.REGISTRY)return reply({error:"Diagnostics storage unavailable"},503);
  if(req.method==="GET"&&path===list){
@@ -34,7 +57,7 @@ export async function handleDiagnostics(req,env,url,authorize,{fetchImpl=fetch}=
      latest:await readHistory(env,p.id)
    }))),note:"HTTP checks only. Buttons, authentication and X32 audio are not tested."});
  }
- const id=detail?.[1]||run?.[1];
+ const id=detail?.[1]||run?.[1]||event?.[1];
  if(!id||!validId(id))return reply({error:"Invalid project"},400);
  const project=(await getProjects(env)).find(p=>p.id===id);
  if(!project)return reply({error:"Project not found"},404);
@@ -44,7 +67,36 @@ export async function handleDiagnostics(req,env,url,authorize,{fetchImpl=fetch}=
      .sort((a,b)=>b.startedAt.localeCompare(a.startedAt)).slice(0,10);
    return reply({project:{id:project.id,name:project.name},configured:!!CATALOG[id],
      checks:(CATALOG[id]?.checks||[]).map(([id,group])=>({id,group,kind:"HTTP response"})),
-     latest:await readHistory(env,id),history:reports});
+     latest:await readHistory(env,id),history:reports,
+     browserErrors:await errorEvents(env,id),automaticErrorCollection:supportedEventProjects.has(id)});
+ }
+ if(event&&req.method==="POST"){
+   if(req.headers.get("origin")!==url.origin)return reply({error:"Invalid request origin"},403);
+   if(!supportedEventProjects.has(id))return reply({error:"Project browser collector not configured"},409);
+   if(!env.INBOX)return reply({error:"Event throttling unavailable"},503);
+   if(!(req.headers.get("content-type")||"").startsWith("application/json"))
+     return reply({error:"JSON required"},415);
+   if(Number(req.headers.get("content-length")||0)>1500)return reply({error:"Event too large"},413);
+   const text=await req.text();
+   if(text.length>1500)return reply({error:"Event too large"},413);
+   let data;
+   try{data=JSON.parse(text)}catch{return reply({error:"Invalid JSON"},400)}
+   const kind=data?.kind,code=data?.code,route=data?.route;
+   if(!["javascript","promise","api"].includes(kind)||typeof route!=="string"||
+      !/^\/[a-z0-9_./-]{0,150}$/i.test(route)||route.startsWith("//")||route.includes("..")||typeof code!=="string"||code.length>80)
+     return reply({error:"Invalid event"},400);
+   if(data.message!==undefined&&typeof data.message!=="string")
+     return reply({error:"Invalid event message"},400);
+   const rate=PREFIX+"error-rate:"+id+":"+Math.floor(Date.now()/60000);
+   const count=Number(await env.INBOX.get(rate)||0);
+   if(count>=30)return reply({error:"Too many diagnostic events"},429);
+   await env.INBOX.put(rate,String(count+1),{expirationTtl:120});
+   const entry={id:crypto.randomUUID(),projectId:id,createdAt:new Date().toISOString(),
+     kind,route:safeText(route,150),code:safeText(code,80),
+     message:safeText(data.message||"",180)};
+   await env.REGISTRY.put(base(id)+"event:"+entry.createdAt+":"+entry.id,
+     JSON.stringify(entry),{expirationTtl:EVENT_TTL});
+   return reply({ok:true},201);
  }
  if(run&&req.method==="POST"){
    if(req.headers.get("origin")!==url.origin)return reply({error:"Invalid request origin"},403);
