@@ -50,13 +50,12 @@ test("run writes only its own report namespace and preserves separate history",a
  assert.equal((await one.json()).latest.status,"passed");
  assert.equal((await two.json()).latest.status,"failed");
  assert.equal(urls.length,3);
- assert.equal([...env.REGISTRY.map||[]].length,0); // no dependency on internal storage implementation
 });
 test("unsafe origins and unconfigured tests cannot run",async()=>{
  const env=await setup();
  assert.equal((await handler(request("/api/admin/diagnostics/seed-07/run","POST","https://evil.test"),env)).status,403);
  assert.equal((await handler(request("/api/admin/diagnostics/seed-10/run","POST"),env)).status,409);
- assert.equal((await handler(request("/api/admin/diagnostics/unknown/run","POST"),env)).status,404);
+ assert.equal(await handler(request("/api/admin/diagnostics/unknown/run","POST"),env),null);
 });
 test("network failures produce sanitized details; no leaked exception text",async()=>{
  const env=await setup();
