@@ -851,7 +851,7 @@ async function nsProcessPendingWebsiteBuilds(e){
 
 async function validateNorthStarInternalRoute(checkId){
  if(checkId==="public-home"){
-   const ok=/<!doctype html/i.test(NS_HOME_HTML)&&/<html[\\s>]/i.test(NS_HOME_HTML);
+   const ok=/<!doctype html/i.test(NS_HOME_HTML)&&/<html/i.test(NS_HOME_HTML);
    return {status:ok?"passed":"failed"};
  }
  if(checkId==="admin-route"){
