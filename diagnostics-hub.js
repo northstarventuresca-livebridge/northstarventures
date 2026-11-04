@@ -40,7 +40,7 @@ async function readHistory(env,id){
  const latest=await env.REGISTRY.get(base(id)+"latest","json");
  return latest||null;
 }
-export async function handleDiagnostics(req,env,url,authorize,{fetchImpl=fetch}={}){
+export async function handleDiagnostics(req,env,url,authorize,{fetchImpl=fetch,selfCheck=null}={}){
  const path=url.pathname;
  const list="/api/admin/diagnostics";
  const detail=/^\/api\/admin\/diagnostics\/(seed-\d{2}|[0-9a-f]{32})$/.exec(path);
@@ -55,7 +55,7 @@ export async function handleDiagnostics(req,env,url,authorize,{fetchImpl=fetch}=
      id:p.id,name:p.name,category:p.category,other:!!p.other,configured:!!CATALOG[p.id],
      checkCount:CATALOG[p.id]?.checks.length||0,
      latest:await readHistory(env,p.id)
-   }))),note:"HTTP checks only. Buttons, authentication and X32 audio are not tested."});
+   }))),note:"North Star checks render routes inside the Worker; other configured checks test public HTTP response. Browser buttons, logins and X32 hardware require separate tests."});
  }
  const id=detail?.[1]||run?.[1]||event?.[1];
  if(!id||!validId(id))return reply({error:"Invalid project"},400);
@@ -66,7 +66,7 @@ export async function handleDiagnostics(req,env,url,authorize,{fetchImpl=fetch}=
    const reports=(await Promise.all(history.keys.map(k=>env.REGISTRY.get(k.name,"json")))).filter(Boolean)
      .sort((a,b)=>b.startedAt.localeCompare(a.startedAt)).slice(0,10);
    return reply({project:{id:project.id,name:project.name},configured:!!CATALOG[id],
-     checks:(CATALOG[id]?.checks||[]).map(([id,group])=>({id,group,kind:"HTTP response"})),
+     checks:(CATALOG[id]?.checks||[]).map(([checkId,group])=>({id:checkId,group,kind:id==="seed-07"?"Internal route render":"HTTP response"})),
      latest:await readHistory(env,id),history:reports,
      browserErrors:await errorEvents(env,id),automaticErrorCollection:supportedEventProjects.has(id)});
  }
@@ -108,20 +108,31 @@ export async function handleDiagnostics(req,env,url,authorize,{fetchImpl=fetch}=
    await env.INBOX.put(rateKey,String(recent+1),{expirationTtl:90});
    const startedAt=new Date().toISOString(),checks=[];
    for(const [checkId,group,address] of CATALOG[id].checks){
-     let result="failed",detail="Request failed",durationMs=0;
+     let result="failed",detail="Request failed",durationMs=0,kind=id==="seed-07"?"internal-route":"external-http";
      const started=Date.now();
      try{
-       const res=await fetchImpl(address,{method:"GET",redirect:"manual",
-         signal:AbortSignal.timeout(8000),headers:{"accept":"text/html, */*"}});
-       detail="HTTP "+res.status;
-       result=res.status>=200&&res.status<400?"passed":"failed";
-       // A 3xx is a reachable route, not confirmation of an authenticated page.
-     }catch{detail="Network error or timeout";}
+       if(id==="seed-07"){
+         // Fetching a Worker from inside its own zone may fail at Cloudflare's edge
+         // (error 1042). Instead validate the current HTML route render directly.
+         // External availability and real clicks are covered by the GitHub Chromium suite.
+         if(typeof selfCheck!=="function")throw Error("Self-check unavailable");
+         const checked=await selfCheck(checkId);
+         if(!checked||!["passed","failed"].includes(checked.status))throw Error("Invalid self-check result");
+         result=checked.status;
+         detail=checked.status==="passed"?"Internal route rendered":"Internal route render failed";
+       }else{
+         const res=await fetchImpl(address,{method:"GET",redirect:"manual",
+           signal:AbortSignal.timeout(8000),headers:{"accept":"text/html, */*"}});
+         detail="HTTP "+res.status;
+         result=res.status>=200&&res.status<400?"passed":"failed";
+         // A 3xx is a reachable route, not confirmation of an authenticated page.
+       }
+     }catch{detail=id==="seed-07"?"Internal route check unavailable":"Network error or timeout";}
      durationMs=Date.now()-started;
-     checks.push({id:checkId,group,status:result,detail,durationMs});
+     checks.push({id:checkId,group,kind,status:result,detail,durationMs});
    }
    const report={id:crypto.randomUUID(),projectId:id,startedAt,finishedAt:new Date().toISOString(),
-     type:"read-only-http",status:checks.every(x=>x.status==="passed")?"passed":"failed",checks};
+     type:id==="seed-07"?"internal-route-render":"read-only-http",status:checks.every(x=>x.status==="passed")?"passed":"failed",checks};
    await env.REGISTRY.put(base(id)+"run:"+startedAt+":"+report.id,JSON.stringify(report));
    await env.REGISTRY.put(base(id)+"latest",JSON.stringify(report));
    return reply({report});
