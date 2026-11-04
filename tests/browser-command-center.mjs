@@ -67,7 +67,7 @@ try{
  await page.locator('button[data-project="seed-07"]').click();
  await page.locator("#nd-detail").getByText("Captured browser errors").waitFor();
  await page.locator("#nd-run").click();
- await page.locator("#nd-message").getByText("Finished North Star Ventures Website checks.",{exact:false}).waitFor();
+ await page.locator("#nd-message").getByText("Passed North Star Ventures Website",{exact:false}).waitFor();
  assert.equal(runCount,1,"Run button did not invoke diagnostics endpoint exactly once");
  await page.evaluate(()=>window.dispatchEvent(new ErrorEvent("error",{
    message:"Synthetic UI test error",error:new TypeError("Synthetic UI test error")
