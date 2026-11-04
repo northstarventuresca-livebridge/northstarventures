@@ -59,7 +59,7 @@ test("unsafe origins and unconfigured tests cannot run",async()=>{
 });
 test("network failures produce sanitized details; no leaked exception text",async()=>{
  const env=await setup();
- const r=await handler(request("/api/admin/diagnostics/seed-07/run","POST"),env,true,async()=>{throw Error("secret=abc")});
+ const r=await handler(request("/api/admin/diagnostics/seed-06/run","POST"),env,true,async()=>{throw Error("secret=abc")});
  const data=await r.json();
  assert.equal(data.report.status,"failed");
  assert.doesNotMatch(JSON.stringify(data),/secret=abc/);
