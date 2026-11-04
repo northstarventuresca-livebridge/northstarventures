@@ -1,25 +1,82 @@
 [
   {
     "id": "northstar-command-center",
-    "allowedHosts": ["northstarventures.ca"],
+    "allowedHosts": [
+      "northstarventures.ca"
+    ],
     "tests": [
-      { "id": "homepage-loads", "group": "regression", "type": "http-get", "url": "https://northstarventures.ca/" },
-      { "id": "admin-page-responds", "group": "targeted", "type": "http-get", "url": "https://northstarventures.ca/admin" }
-    ]
+      {
+        "id": "homepage-loads",
+        "group": "regression",
+        "type": "http-get",
+        "url": "https://northstarventures.ca/"
+      },
+      {
+        "id": "admin-page-responds",
+        "group": "targeted",
+        "type": "http-get",
+        "url": "https://northstarventures.ca/admin"
+      },
+      {
+        "id": "homepage-renders",
+        "group": "regression",
+        "type": "browser-page",
+        "url": "https://northstarventures.ca/",
+        "expectedSelector": "body"
+      },
+      {
+        "id": "admin-page-renders",
+        "group": "targeted",
+        "type": "browser-page",
+        "url": "https://northstarventures.ca/admin",
+        "expectedSelector": "body"
+      }
+    ],
+    "environment": "production"
   },
   {
     "id": "home-of-hope",
-    "allowedHosts": ["hoh.northstarventures.ca"],
+    "allowedHosts": [
+      "hoh.northstarventures.ca"
+    ],
     "tests": [
-      { "id": "admin-page-responds", "group": "regression", "type": "http-get", "url": "https://hoh.northstarventures.ca/" }
-    ]
+      {
+        "id": "admin-page-responds",
+        "group": "regression",
+        "type": "http-get",
+        "url": "https://hoh.northstarventures.ca/"
+      },
+      {
+        "id": "hoh-admin-renders",
+        "group": "regression",
+        "type": "browser-page",
+        "url": "https://hoh.northstarventures.ca/",
+        "expectedSelector": "body"
+      }
+    ],
+    "environment": "production"
   },
   {
     "id": "livebridge",
-    "allowedHosts": ["livebridge.ca"],
+    "allowedHosts": [
+      "livebridge.ca"
+    ],
     "tests": [
-      { "id": "homepage-loads", "group": "regression", "type": "http-get", "url": "https://livebridge.ca/" }
-    ]
+      {
+        "id": "homepage-loads",
+        "group": "regression",
+        "type": "http-get",
+        "url": "https://livebridge.ca/"
+      },
+      {
+        "id": "livebridge-home-renders",
+        "group": "regression",
+        "type": "browser-page",
+        "url": "https://livebridge.ca/",
+        "expectedSelector": "body"
+      }
+    ],
+    "environment": "production"
   },
   {
     "id": "x32-ai-engineer",
