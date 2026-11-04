@@ -71,3 +71,48 @@ test("diagnostic UI is valid script with project actions and no invented outcome
  for(const word of ["Testing & Diagnostics","nd-run","Not configured","Run Read-only Tests"])
  assert.ok(DIAGNOSTICS_WIDGET.includes(word));
 });
+
+test("browser events are admin-only, redacted, and isolated to the correct project", async()=>{
+ const env=await setup();
+ const url=origin+"/api/admin/diagnostics/seed-07/events";
+ const data={kind:"javascript",code:"TypeError",route:"/admin",message:"crashed token=super-secret-bearer"};
+ const make=(input=data,from=origin)=>new Request(url,{method:"POST",
+  headers:{"origin":from,"content-type":"application/json"},body:JSON.stringify(input)});
+ let r=await handler(make(),env,false);
+ assert.equal(r.status,401);
+ r=await handler(make(data,"https://evil.example"),env);
+ assert.equal(r.status,403);
+ r=await handler(make(),env);
+ assert.equal(r.status,201);
+ const saved=await handler(request("/api/admin/diagnostics/seed-07"),env);
+ const errors=(await saved.json()).browserErrors;
+ assert.equal(errors.length,1);
+ assert.equal(errors[0].projectId,"seed-07");
+ assert.equal(errors[0].kind,"javascript");
+ assert.doesNotMatch(JSON.stringify(errors),/super-secret-bearer/);
+ const other=await handler(request("/api/admin/diagnostics/seed-06"),env);
+ assert.deepEqual((await other.json()).browserErrors,[]);
+});
+test("unconfigured projects refuse event ingestion",async()=>{
+ const env=await setup();
+ const r=await handler(new Request(origin+"/api/admin/diagnostics/seed-06/events",{
+   method:"POST",headers:{origin,"content-type":"application/json"},
+   body:JSON.stringify({kind:"api",code:"HTTP503",route:"/admin"})}),env);
+ assert.equal(r.status,409);
+});
+test("browser event validation refuses payloads with routes containing query strings",async()=>{
+ const env=await setup();
+ const mk=(route)=>new Request(origin+"/api/admin/diagnostics/seed-07/events",{
+   method:"POST",headers:{origin,"content-type":"application/json"},
+   body:JSON.stringify({kind:"javascript",code:"Error",route})});
+ assert.equal((await handler(mk("/admin?token=abc"),env)).status,400);
+ assert.equal((await handler(mk("//other-host/path"),env)).status,400);
+});
+test("embedded browser error collector is valid JavaScript",async()=>{
+ const {DIAGNOSTICS_CLIENT}=await import("../diagnostics-client.js");
+ const script=DIAGNOSTICS_CLIENT.match(/<script[^>]*>([\s\S]*?)<\/script>/);
+ assert.ok(script);
+ assert.doesNotThrow(()=>new Script(script[1]));
+ assert.ok(DIAGNOSTICS_CLIENT.includes("unhandledrejection"));
+ assert.ok(DIAGNOSTICS_CLIENT.includes("nativeFetch"));
+});
