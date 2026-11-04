@@ -62,3 +62,39 @@ test('project dashboard client script is parseable JavaScript and has real proje
  assert.doesNotThrow(()=>new Script(match[1]));
  for(const id of ['ph-search','ph-category','ph-status','ph-create','ph-form','ph-grid','ph-archive'])assert.ok(PROJECT_HUB_WIDGET.includes(id));
 });
+
+test('specified client websites default to Others and can move back and forth without data loss', async () => {
+ const store=kv();
+ let r=await route(request('/api/admin/projects'),store);
+ const projects=(await r.json()).projects;
+ for(const name of ['Sun & Patio','Say It With Flours',"Brad's Property Solutions",'Legal Website Concept']){
+   assert.equal(projects.find(p=>p.name===name)?.other,true,name);
+ }
+ assert.equal(projects.find(p=>p.name==='Craftopia Customs').other,false);
+ const chosen=projects.find(p=>p.name==='Say It With Flours');
+ const before={name:chosen.name,category:chosen.category,status:chosen.status,description:chosen.description,website:chosen.website,repo:chosen.repo};
+ r=await route(request('/api/admin/projects/'+chosen.id,'PATCH',{other:false}),store);
+ assert.equal(r.status,200);
+ let moved=(await r.json()).project;
+ assert.equal(moved.other,false);
+ for(const [key,value] of Object.entries(before))assert.equal(moved[key],value);
+ r=await route(request('/api/admin/projects'),store);
+ assert.equal((await r.json()).projects.find(p=>p.id===chosen.id).other,false);
+ r=await route(request('/api/admin/projects/'+chosen.id,'PATCH',{other:true}),store);
+ assert.equal(r.status,200);
+ assert.equal((await r.json()).project.other,true);
+});
+test('Others flag requires a boolean and defaults new projects to Main',async()=>{
+ const store=kv();
+ let r=await route(request('/api/admin/projects','POST',{name:'Newest test project'}),store);
+ assert.equal(r.status,201);
+ const project=(await r.json()).project;
+ assert.equal(project.other,false);
+ r=await route(request('/api/admin/projects/'+project.id,'PATCH',{other:'true'}),store);
+ assert.equal(r.status,400);
+});
+test('project UI includes Main and Others tabs and both move actions',async()=>{
+ const {PROJECT_HUB_WIDGET}=await import('../projects-hub-ui.js');
+ for(const marker of ['ph-tab-main','ph-tab-others','data-other=','Move to Main','Move to Others'])
+   assert.ok(PROJECT_HUB_WIDGET.includes(marker),marker);
+});
