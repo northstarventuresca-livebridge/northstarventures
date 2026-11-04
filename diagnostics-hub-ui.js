@@ -34,7 +34,7 @@ export const DIAGNOSTICS_WIDGET=String.raw`
  tab.setAttribute('aria-selected','false');tab.textContent='Testing & Diagnostics';
  tabs.appendChild(tab);
  const panel=document.createElement('section');panel.id='ns-diagnostics';
- panel.innerHTML='<h2>Testing & Diagnostics</h2><p class="nd-info">Run safe, read-only website response checks for individual projects. These are NOT full browser, login, button, or X32 hardware tests. Projects without configured checks show Not configured.</p><div class="nd-toolbar"><input id="nd-search" type="search" placeholder="Find a project..." aria-label="Search diagnostic projects"><button id="nd-refresh" type="button">Refresh</button></div><p class="nd-info" id="nd-message" role="status"></p><div class="nd-grid" id="nd-list"></div><div id="nd-detail"></div>';
+ panel.innerHTML='<h2>Testing & Diagnostics</h2><p class="nd-info">Run safe, read-only website response checks for individual projects. The Run button performs read-only website checks. Separate automated browser button tests run in GitHub; authenticated staging login tests need a dedicated test account. X32 hardware checks are not connected.</p><div class="nd-toolbar"><input id="nd-search" type="search" placeholder="Find a project..." aria-label="Search diagnostic projects"><button id="nd-refresh" type="button">Refresh</button></div><p class="nd-info" id="nd-message" role="status"></p><div class="nd-grid" id="nd-list"></div><div id="nd-detail"></div>';
  parent.appendChild(panel);
  const get=id=>document.getElementById(id);
  const esc=x=>String(x==null?'':x).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
