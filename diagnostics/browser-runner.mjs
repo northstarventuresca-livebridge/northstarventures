@@ -49,7 +49,7 @@ export async function runBrowserProject(project, {
       const page = await context.newPage();
       page.on("pageerror", error => issues.push("JavaScript: " + sanitize(error.message)));
       page.on("console", message => {
-        if (message.type() === "error") issues.push("Console: " + sanitize(message.text()));
+        if (message.type() === "error" && !message.text().includes("net::ERR_BLOCKED_BY_CLIENT.Inspector"))\n          issues.push("Console: " + sanitize(message.text()));
       });
       page.on("response", response => {
         if (response.status() >= 500) issues.push("HTTP " + response.status() + " " + visibleAddress(response.url()));
