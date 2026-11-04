@@ -1,6 +1,6 @@
 // Adds a real Diagnostics tab to the existing Projects & Apps dashboard.
 // Does not alter other project pages, authentication, or front-end routing.
-export const DIAGNOSTICS_WIDGET=String.raw\`
+export const DIAGNOSTICS_WIDGET=String.raw`
 <style>
 #ns-diagnostics{display:none;color:#193448}
 #ns-diagnostics .nd-info{font-size:13px;color:#627588;margin:8px 0 15px;line-height:1.6}
@@ -90,4 +90,4 @@ export const DIAGNOSTICS_WIDGET=String.raw\`
  get('nd-list').onclick=e=>{const b=e.target.closest('button[data-project]');if(b)details(b.dataset.project).catch(e=>get('nd-message').textContent=e.message)};
 })();
 </script>
-\`;
+`;
