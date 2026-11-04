@@ -27,17 +27,21 @@ function normalize(raw,existing){
  if(!obj.name||obj.name.length<2)return{error:"Enter a project name (2 characters or more)"};
  return {project:obj};
 }
-let started;
+const seedTasks=new WeakMap();
 async function seedProjects(env){
  if(!env.REGISTRY)throw Error("Project registry missing");
- if(!started)started=(async()=>{
-  if(await env.REGISTRY.get(HUB_SEED))return;
-  for(const project of INITIAL_PROJECTS){
-   const key=HUB_PREFIX+project.id;
-   if(!(await env.REGISTRY.get(key)))await env.REGISTRY.put(key,JSON.stringify(project));
-  }
-  await env.REGISTRY.put(HUB_SEED,new Date().toISOString());
- })().catch(err=>{started=null;throw err});
+ let started=seedTasks.get(env.REGISTRY);
+ if(!started){
+  started=(async()=>{
+   if(await env.REGISTRY.get(HUB_SEED))return;
+   for(const project of INITIAL_PROJECTS){
+    const key=HUB_PREFIX+project.id;
+    if(!(await env.REGISTRY.get(key)))await env.REGISTRY.put(key,JSON.stringify(project));
+   }
+   await env.REGISTRY.put(HUB_SEED,new Date().toISOString());
+  })().catch(err=>{seedTasks.delete(env.REGISTRY);throw err});
+  seedTasks.set(env.REGISTRY,started);
+ }
  return started;
 }
 async function allProjects(env){
