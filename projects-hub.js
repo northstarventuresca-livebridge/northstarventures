@@ -2,6 +2,9 @@
 // Each card is editable and persisted to the existing REGISTRY KV. Never changes other apps.
 export const HUB_PREFIX="nsv:project-hub:v1:";
 const HUB_SEED=HUB_PREFIX+"_seeded";
+// Existing KV records are preserved; these four seed projects default to Others until explicitly moved back.
+export const DEFAULT_OTHER_PROJECT_IDS=new Set(["seed-18","seed-19","seed-20","seed-23"]);
+export const isOtherProject=p=>p?.other===true||(p?.other===undefined&&DEFAULT_OTHER_PROJECT_IDS.has(p?.id));
 const CATEGORIES=["Software Products","Church & Ministry","Client Websites","Internal Tools","Research & Experiments","Property & Operations"];
 const STATUSES=["Live","Building","Planning","Needs review","Paused","Complete","Archived"];
 const PRIORITIES=["Focus","Normal","Later"];
@@ -19,6 +22,7 @@ function normalize(raw,existing){
  for(const f of ["name","description","next_action","notes","owner"])if(Object.hasOwn(raw,f))obj[f]=clean(raw[f],f==="name"?100:f==="description"?450:f==="notes"?2000:f==="next_action"?250:80);
  for(const f of ["category","status","priority"]){if(Object.hasOwn(raw,f)){const allowed=f==="category"?CATEGORIES:f==="status"?STATUSES:PRIORITIES;if(!allowed.includes(raw[f]))return {error:"Invalid "+f};obj[f]=raw[f]}}
  if(Object.hasOwn(raw,"pinned")){if(typeof raw.pinned!=="boolean")return{error:"Invalid pin value"};obj.pinned=raw.pinned}
+ if(Object.hasOwn(raw,"other")){if(typeof raw.other!=="boolean")return{error:"Invalid Others value"};obj.other=raw.other}
  for(const f of ["website","admin","repo","reference"])if(Object.hasOwn(raw,f)){const link=validUrl(raw[f]);if(link===null)return{error:"Use valid HTTPS links only"};obj[f]=link}
  if(!obj.name||obj.name.length<2)return{error:"Enter a project name (2 characters or more)"};
  return {project:obj};
@@ -46,7 +50,7 @@ async function allProjects(env){
   if(list.list_complete||!list.cursor)break;
   cursor=list.cursor;
  }
- return out.sort((a,b)=>(Number(!!b.pinned)-Number(!!a.pinned))||String(a.name).localeCompare(String(b.name)));
+ return out.map(p=>({...p,other:isOtherProject(p)})).sort((a,b)=>(Number(!!b.pinned)-Number(!!a.pinned))||String(a.name).localeCompare(String(b.name)));
 }
 export async function handleProjects(request,env,url,authorize){
  const path=url.pathname,method=request.method;
@@ -65,7 +69,7 @@ export async function handleProjects(request,env,url,authorize){
   if(count>=200)return invalid("Project limit reached",409);
   const normalized=normalize(body);if(normalized.error)return invalid(normalized.error);
   const now=new Date().toISOString();
-  const project={id:crypto.randomUUID().replace(/-/g,""),category:"Internal Tools",status:"Needs review",priority:"Normal",description:"",website:"",admin:"",repo:"",reference:"",next_action:"",notes:"",owner:"",pinned:false,...normalized.project,created_at:now,updated_at:now};
+  const project={id:crypto.randomUUID().replace(/-/g,""),category:"Internal Tools",status:"Needs review",priority:"Normal",description:"",website:"",admin:"",repo:"",reference:"",next_action:"",notes:"",owner:"",pinned:false,other:false,...normalized.project,created_at:now,updated_at:now};
   await env.REGISTRY.put(HUB_PREFIX+project.id,JSON.stringify(project));
   return json({ok:true,project},201);
  }
