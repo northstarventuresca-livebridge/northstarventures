@@ -1,0 +1,51 @@
+name: North Star browser interaction and login diagnostics
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'worker.js'
+      - 'projects-hub-ui.js'
+      - 'diagnostics*.js'
+      - 'tests/browser-*.mjs'
+      - '.github/workflows/diagnostics-browser.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'worker.js'
+      - 'projects-hub-ui.js'
+      - 'diagnostics*.js'
+      - 'tests/browser-*.mjs'
+      - '.github/workflows/diagnostics-browser.yml'
+  workflow_dispatch:
+    inputs:
+      test_staging_login:
+        description: 'Test login using a dedicated staging test account (requires secrets)'
+        type: boolean
+        default: false
+permissions:
+  contents: read
+jobs:
+  browser-ui:
+    name: Test Command Center tabs, buttons and error capture
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - run: npm install --no-save --ignore-scripts playwright@1.56.1
+      - run: npx --no-install playwright install --with-deps chromium
+      - run: node tests/browser-command-center.mjs
+  staging-login:
+    name: Staging-only real login
+    if: github.event_name == 'workflow_dispatch' && inputs.test_staging_login == true
+    runs-on: ubuntu-latest
+    env:
+      NSV_DIAG_STAGING_URL: ${{ vars.NSV_DIAG_STAGING_URL }}
+      NSV_DIAG_STAGING_TEST_PASSWORD: ${{ secrets.NSV_DIAG_STAGING_TEST_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - run: npm install --no-save --ignore-scripts playwright@1.56.1
+      - run: npx --no-install playwright install --with-deps chromium
+      - run: node tests/browser-staging-login.mjs
