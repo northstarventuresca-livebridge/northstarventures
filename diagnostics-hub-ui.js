@@ -68,19 +68,23 @@ export const DIAGNOSTICS_WIDGET=String.raw`
  function reportHtml(report){
    if(!report)return '<p class="nd-muted">No previous results for this project.</p>';
    const items=report.checks||[];
-   return '<div class="nd-panel"><div class="nd-actions"><h3>Latest result</h3>'+badge(report.status)+'</div><p class="nd-muted">Read-only HTTP checks · '+esc(time(report.startedAt))+'</p>'+items.map(c=>'<div class="nd-result"><span>'+esc(c.id)+' <span class="nd-muted">('+esc(c.group)+')</span></span><span>'+esc(c.detail)+' · '+esc(c.status)+'</span></div>').join('')+'</div>';
+   return '<div class="nd-panel"><div class="nd-actions"><h3>Latest result</h3>'+badge(report.status)+'</div><p class="nd-muted">'+(report.type==='internal-route-render'?'Internal route render checks':'Read-only HTTP checks')+' · '+esc(time(report.startedAt))+'</p>'+items.map(c=>'<div class="nd-result"><span>'+esc(c.id)+' <span class="nd-muted">('+esc(c.group)+')</span></span><span>'+esc(c.detail)+' · '+esc(c.status)+'</span></div>').join('')+'</div>';
  }
  async function details(id){
    selected=id;const data=await api('/api/admin/diagnostics/'+id);
    const browserLink=id==='seed-07'?'<p class="nd-info"><a href="https://github.com/northstarventuresca-livebridge/northstarventures/actions/workflows/diagnostics-browser.yml" target="_blank" rel="noopener noreferrer">View automated button-test runs in GitHub</a></p>':'';
-   get('nd-detail').innerHTML='<div class="nd-panel"><div class="nd-actions"><h3>'+esc(data.project.name)+'</h3><button id="nd-run" type="button" '+(!data.configured?'disabled':'')+'>Run Read-only Tests</button></div><p class="nd-info">'+(data.configured?'Checks only whether approved website pages respond. Does not verify buttons, sign-in, or application functionality.':'No safe tests configured for this project yet. No result will be claimed.')+'</p>'+browserLink+'</div>'+reportHtml(data.latest)+'<div class="nd-panel"><h3>Captured browser errors</h3><p class="nd-muted">'+(data.automaticErrorCollection?'Automatic collection enabled for North Star admin sessions. No passwords, request bodies or query strings are stored.':'Automatic browser collection is not connected to this project yet.')+'</p>'+(data.browserErrors.length?data.browserErrors.slice(0,12).map(e=>'<div class="nd-result"><span>'+esc(e.kind)+' · '+esc(e.route)+'<span class="nd-muted"> · '+esc(e.code)+' · '+esc(e.message)+'</span></span><span class="nd-muted">'+esc(time(e.createdAt))+'</span></div>').join(''):'<p class="nd-muted">No captured browser errors.</p>')+'</div><div class="nd-panel"><h3>Recent runs</h3>'+(data.history.length?data.history.map(r=>'<div class="nd-result"><span>'+esc(time(r.startedAt))+'</span>'+badge(r.status)+'</div>').join(''):'<p class="nd-muted">No test runs yet.</p>')+'</div>';
+   get('nd-detail').innerHTML='<div class="nd-panel"><div class="nd-actions"><h3>'+esc(data.project.name)+'</h3><button id="nd-run" type="button" '+(!data.configured?'disabled':'')+'>Run Read-only Tests</button></div><p class="nd-info">'+(data.configured?(id==='seed-07'?'Checks homepage and admin route generation inside North Star. These do not confirm external availability, clicks or login.':'Checks whether approved website pages respond. This does not verify buttons, sign-in or app functionality.'):'No safe tests configured for this project yet. No result will be claimed.')+'</p>'+browserLink+'</div>'+reportHtml(data.latest)+'<div class="nd-panel"><h3>Captured browser errors</h3><p class="nd-muted">'+(data.automaticErrorCollection?'Automatic collection enabled for North Star admin sessions. No passwords, request bodies or query strings are stored.':'Automatic browser collection is not connected to this project yet.')+'</p>'+(data.browserErrors.length?data.browserErrors.slice(0,12).map(e=>'<div class="nd-result"><span>'+esc(e.kind)+' · '+esc(e.route)+'<span class="nd-muted"> · '+esc(e.code)+' · '+esc(e.message)+'</span></span><span class="nd-muted">'+esc(time(e.createdAt))+'</span></div>').join(''):'<p class="nd-muted">No captured browser errors.</p>')+'</div><div class="nd-panel"><h3>Recent runs</h3>'+(data.history.length?data.history.map(r=>'<div class="nd-result"><span>'+esc(time(r.startedAt))+'</span>'+badge(r.status)+'</div>').join(''):'<p class="nd-muted">No test runs yet.</p>')+'</div>';
    get('nd-run').onclick=async()=>{
      const btn=get('nd-run');btn.disabled=true;btn.textContent='Running...';
      get('nd-message').textContent='Running safe checks for '+data.project.name+'...';
      try{
-       await api('/api/admin/diagnostics/'+id+'/run',{method:'POST'});
+       const result=await api('/api/admin/diagnostics/'+id+'/run',{method:'POST'});
        await reload();await details(id);
-       get('nd-message').textContent='Finished '+data.project.name+' checks. See the results below.';
+       const report=result.report||{};
+       const failed=(report.checks||[]).filter(c=>c.status!=='passed');
+       get('nd-message').textContent=report.status==='passed'
+         ?'Passed '+data.project.name+' '+(report.type==='internal-route-render'?'internal route checks':'read-only website checks')+'. Separate browser tests are still required.'
+         :'Failed '+data.project.name+': '+(failed.map(c=>c.id+' ('+c.detail+')').join(', ')||'check unsuccessful')+'. Failure saved in project history.';
      }catch(e){get('nd-message').textContent=e.message;btn.disabled=false;btn.textContent='Run Read-only Tests';}
    };
  }
