@@ -3,8 +3,7 @@ import { chromium } from "playwright";
 const address = process.env.NSV_LB_STAGING_LOGIN_URL || "";
 let target;
 try { target = new URL(address); } catch { throw Error("Missing or invalid preview URL"); }
-if (!/^livebridge[a-z0-9-]*\.northstarventures-ca\.workers\.dev$/.test(target.hostname) ||
-    !/preview/.test(target.hostname) || target.pathname !== "/login/" || target.protocol !== "https:") {
+if (target.hostname !== "password-preview.livebridge.ca" || target.pathname !== "/login/" || target.protocol !== "https:") {
   throw Error("REFUSED: browser API probe only permitted on LiveBridge isolated preview");
 }
 const browser = await chromium.launch({ headless: true });
