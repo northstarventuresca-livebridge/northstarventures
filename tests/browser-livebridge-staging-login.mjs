@@ -23,14 +23,9 @@ try { target = new URL(endpoint); } catch { throw Error("Invalid staging URL"); 
 const host = target.hostname.toLowerCase();
 if (
   target.protocol !== "https:" || target.username || target.password || target.search || target.hash ||
-  !(/^(?:livebridge[a-z0-9-]*\.(?:northstarventures-ca|northstarventuresca)\.workers\.dev|(?:staging|preview|qa)\.livebridge\.ca)$/.test(host)) || !/(staging|stage|preview|qa)/.test(host) ||
-  host === "livebridge.ca" || host === "www.livebridge.ca" ||
-  !["/login/", "/login", "/account/", "/account"].includes(target.pathname)
+  host !== "password-preview.livebridge.ca" || target.pathname !== "/login/"
 ) {
-  throw Error("REFUSED: tests require a dedicated LiveBridge staging/preview host with /login/ or /account/ path");
-}
-if (/livebridge\.ca$/.test(host) && !host.startsWith("staging.") && !host.startsWith("preview.") && !host.startsWith("qa.")) {
-  throw Error("REFUSED: production-domain login is not permitted");
+  throw Error("REFUSED: authentication tests require the dedicated first-party LiveBridge password preview");
 }
 
 const browser = await chromium.launch({ headless: true });
