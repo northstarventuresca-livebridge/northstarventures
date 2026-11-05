@@ -33,7 +33,17 @@ try {
   const context = await browser.newContext();
   const page = await context.newPage();
   let javascriptErrors = 0;
-  page.on("pageerror", () => { javascriptErrors++; });
+  let loginSubmitted = false;
+  const javascriptErrorKinds = [];
+  page.on("pageerror", error => {
+    javascriptErrors++;
+    const kind = ["TypeError","ReferenceError","SyntaxError","RangeError","SecurityError"].includes(error?.name) ? error.name : "OtherError";
+    const stack = String(error?.stack || "");
+    const source = stack.includes("clerk.livebridge.ca") ? "clerk" : stack.includes("password-preview.livebridge.ca") ? "preview" : "unknown";
+    const message = String(error?.message || "");
+    const category = /cannot read propert|undefined|null/i.test(message) ? "NULL_PROPERTY" : /not a function/i.test(message) ? "FUNCTION_UNAVAILABLE" : /fetch|network/i.test(message) ? "NETWORK" : /Clerk|session/i.test(message) ? "AUTH" : "OTHER";
+    if (javascriptErrorKinds.length < 5) javascriptErrorKinds.push({ kind, source, category, phase: loginSubmitted ? "after_submit" : "before_submit" });
+  });
   // Record only safe outcome codes/statuses. Never log request bodies, response text,
   // identifiers, passwords, sessions, full URLs or raw Clerk messages.
   const clerkSignals = { authStatus: null, signInStatus: null, errorCode: null, policyStatus: null, authRequestSent: false, authNetworkFailed: false, policyEnabled: null, identityMatch: null };
@@ -163,6 +173,7 @@ try {
     if (!sdkApiAvailable) throw Error("CLERK_BROWSER_API_UNAVAILABLE");
     await previewEmail.fill(email);
     await page.locator("#pass").fill(password);
+    loginSubmitted = true;
     await page.locator("#submit").click();
     try {
       await page.waitForFunction(() => Boolean(document.querySelector("#message")?.textContent?.trim()), null, { timeout: 25000 });
@@ -192,6 +203,7 @@ try {
     await appToggle.click();
     await page.locator("#lb-pw-email").fill(email);
     await page.locator("#lb-pw-secret").fill(password);
+    loginSubmitted = true;
     await page.locator("#lb-pw-form button[type='submit']").click();
     try {
       await page.waitForFunction(() => {
@@ -204,7 +216,7 @@ try {
       throw Error(cause === "AUTH_REJECTED_OR_UNEXPECTED" ? "PASSWORD_DID_NOT_OPEN_DASHBOARD" : cause);
     }
   }
-  if (javascriptErrors) throw Error("BROWSER_JAVASCRIPT_ERRORS");
+  if (javascriptErrors) { report.jsErrors = javascriptErrorKinds; throw Error("BROWSER_JAVASCRIPT_ERRORS"); }
   report.status = "PASS";
   report.reason = isPreview
     ? "Password login completed in isolated preview, without email code; live dashboard not verified"
@@ -233,7 +245,7 @@ try {
   ];
   report.reason = allowed.includes(error.message) ? error.message : "STAGING_BROWSER_TEST_FAILED";
   save();
-  console.error("FAIL: " + report.reason + (report.stage ? " stage=" + JSON.stringify(report.stage) : ""));
+  console.error("FAIL: " + report.reason + (report.stage ? " stage=" + JSON.stringify(report.stage) : "") + (report.jsErrors ? " js=" + JSON.stringify(report.jsErrors) : ""));
   process.exitCode = 1;
 } finally {
   await browser.close();
