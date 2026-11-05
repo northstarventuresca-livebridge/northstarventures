@@ -61,7 +61,7 @@ try {
       clerkSignals.policyStatus = response.status();
       return;
     }
-    if (url.hostname !== "clerk.livebridge.ca" || !/\\/client\\/sign_ins(?:\\/|$)/.test(url.pathname)) return;
+    if (url.hostname !== "clerk.livebridge.ca" || !url.pathname.includes("/client/sign_ins")) return;
     // Only authentication HTTP status and whitelisted Clerk error code are kept.
     if (response.request().method() !== "POST") return;
     clerkSignals.authStatus = response.status();
