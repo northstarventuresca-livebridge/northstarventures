@@ -42,7 +42,12 @@ try {
     const source = stack.includes("clerk.livebridge.ca") ? "clerk" : stack.includes("password-preview.livebridge.ca") ? "preview" : "unknown";
     const message = String(error?.message || "");
     const category = /cannot read propert|undefined|null/i.test(message) ? "NULL_PROPERTY" : /not a function/i.test(message) ? "FUNCTION_UNAVAILABLE" : /fetch|network/i.test(message) ? "NETWORK" : /Clerk|session/i.test(message) ? "AUTH" : "OTHER";
-    if (javascriptErrorKinds.length < 5) javascriptErrorKinds.push({ kind, source, category, phase: loginSubmitted ? "after_submit" : "before_submit" });
+    const lineMatch = stack.match(/password-preview\\.livebridge\\.ca\\/login\\/:(\\d+):(\\d+)/);
+    const where = lineMatch ? { line: Number(lineMatch[1]), column: Number(lineMatch[2]) } : null;
+    const propertyMatch = message.match(/(?:reading|setting) ['"]([a-zA-Z][a-zA-Z0-9_]*)['"]/);
+    const safeNames = ["getToken","session","user","status","length","innerHTML","textContent","onclick","createdSessionId","isSignedIn","primaryEmailAddress","emailAddress","errors","longMessage","message","then","get","id","className","enabled","value","signIn","setActive"];
+    const property = propertyMatch && safeNames.includes(propertyMatch[1]) ? propertyMatch[1] : "unknown";
+    if (javascriptErrorKinds.length < 5) javascriptErrorKinds.push({ kind, source, category, phase: loginSubmitted ? "after_submit" : "before_submit", property, where });
   });
   // Record only safe outcome codes/statuses. Never log request bodies, response text,
   // identifiers, passwords, sessions, full URLs or raw Clerk messages.
