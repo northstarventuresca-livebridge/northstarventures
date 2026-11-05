@@ -106,6 +106,10 @@ try {
     if (clerkSignals.signInStatus === "needs_first_factor") return "CLERK_FIRST_FACTOR_INCOMPLETE";
     if (clerkSignals.signInStatus === "needs_identifier") return "CLERK_IDENTIFIER_REQUIRED";
     if (clerkSignals.signInStatus === "needs_new_password") return "CLERK_PASSWORD_RESET_REQUIRED";
+    if (/password sign-in is not enabled|test settings/i.test(message)) return "TEST_ACCOUNT_PASSWORD_POLICY_DISABLED";
+    if (/valid livebridge account required|administrator access required/i.test(message)) return "LIVEBRIDGE_ACCOUNT_ACCESS_MISSING";
+    if (/sign in required|authorization|token/i.test(message)) return "PREVIEW_AUTH_TOKEN_MISSING";
+    if (/password sign-in did not complete/i.test(message)) return "CLERK_SIGN_IN_INCOMPLETE";
     if (clerkSignals.signInStatus === "complete") return "CLERK_SESSION_ACTIVATION_FAILED";
     if (/verif|code|additional step|second factor/i.test(message)) return "CLERK_SECOND_FACTOR_REQUIRED";
     if (clerkSignals.authStatus && clerkSignals.authStatus < 400) return "CLERK_SIGN_IN_RESPONDED_BUT_UI_FAILED";
@@ -146,6 +150,12 @@ try {
     }
     const status = await page.locator("#message").innerText();
     if (!/Password sign-in successful/i.test(status)) {
+      const stage = await page.evaluate(() => {
+        const allowed = ["complete", "needs_second_factor", "needs_first_factor", "needs_identifier"];
+        const current = window.Clerk?.client?.signIn?.status;
+        return { signedIn: !!window.Clerk?.isSignedIn, sessionPresent: !!window.Clerk?.session, signInStatus: allowed.includes(current) ? current : "other" };
+      });
+      report.stage = { ...stage, policyHttp: clerkSignals.policyStatus };
       throw Error(await resolveAuthFailure(status));
     }
     const panel = page.locator("#content");
@@ -191,6 +201,7 @@ try {
     "CLERK_SECOND_FACTOR_REQUIRED", "CLERK_FIRST_FACTOR_INCOMPLETE",
     "CLERK_IDENTIFIER_REQUIRED", "CLERK_PASSWORD_RESET_REQUIRED",
     "CLERK_SESSION_ACTIVATION_FAILED",
+    "LIVEBRIDGE_ACCOUNT_ACCESS_MISSING", "PREVIEW_AUTH_TOKEN_MISSING", "CLERK_SIGN_IN_INCOMPLETE",
     "CLERK_PASSWORD_INCORRECT", "CLERK_PASSWORD_OR_IDENTIFIER_INCORRECT",
     "CLERK_IDENTIFIER_NOT_FOUND", "CLERK_PASSWORD_VALIDATION_FAILED",
     "CLERK_PASSWORD_STRATEGY_UNAVAILABLE", "CLERK_RATE_LIMITED",
@@ -198,7 +209,7 @@ try {
   ];
   report.reason = allowed.includes(error.message) ? error.message : "STAGING_BROWSER_TEST_FAILED";
   save();
-  console.error("FAIL: " + report.reason);
+  console.error("FAIL: " + report.reason + (report.stage ? " stage=" + JSON.stringify(report.stage) : ""));
   process.exitCode = 1;
 } finally {
   await browser.close();
