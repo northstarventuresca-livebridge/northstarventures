@@ -18,7 +18,7 @@ jobs:
       NSV_LB_STAGING_LOGIN_URL: ${{ vars.NSV_LB_STAGING_LOGIN_URL }}
       NSV_LB_TEST_EMAIL: ${{ secrets.NSV_LB_TEST_EMAIL }}
       NSV_LB_TEST_PASSWORD: ${{ secrets.NSV_LB_TEST_PASSWORD }}
-      NSV_LB_DEDICATED_TEST_ACCOUNT: ${{ vars.NSV_LB_DEDICATED_TEST_ACCOUNT }}
+      NSV_LB_DEDICATED_TEST_ACCOUNT: ${{ vars.NSV_LB_DEDICATED_TEST_ACCOUNT == 'true' || vars.NSV_LB_DEDICATED_TEST_ACCOUNT == 'True' }}
     steps:
       - name: Check dedicated staging configuration
         id: configuration
