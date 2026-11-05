@@ -6,14 +6,15 @@ import { chromium } from "playwright";
 const endpoint = process.env.NSV_LB_STAGING_LOGIN_URL || "";
 const email = process.env.NSV_LB_TEST_EMAIL || "";
 const password = process.env.NSV_LB_TEST_PASSWORD || "";
+const dedicatedTestAccountConfirmed = process.env.NSV_LB_DEDICATED_TEST_ACCOUNT === "true";
 const reportPath = "livebridge-staging-login-result.json";
 const report = { project: "LiveBridge", check: "password-only-login", timestamp: new Date().toISOString(), status: "NOT_RUN", scope: null, reason: null };
 const save = () => fs.writeFileSync(reportPath, JSON.stringify(report, null, 2) + "\n");
 
-if (!endpoint || !email || !password) {
-  report.reason = "Dedicated staging login URL and test credentials have not been configured";
+if (!endpoint || !email || !password || !dedicatedTestAccountConfirmed) {
+  report.reason = dedicatedTestAccountConfirmed ? "Dedicated staging login URL and test credentials have not been configured" : "Dedicated test-only identity not confirmed; no sign-in attempted";
   save();
-  console.log("NOT RUN: LiveBridge staging credentials and URL must be configured in GitHub Actions");
+  console.log("NOT RUN: Dedicated LiveBridge test-only identity must be confirmed before automated sign-in");
   process.exit(0);
 }
 
@@ -55,13 +56,18 @@ try {
     await previewEmail.fill(email);
     await page.locator("#pass").fill(password);
     await page.locator("#submit").click();
-    await page.waitForFunction(() => {
-      const status = document.querySelector("#message")?.textContent || "";
-      return /Password sign-in successful/i.test(status) || /verification|error|not enabled|invalid|incorrect/i.test(status);
-    }, null, { timeout: 25000 });
+    try {
+      await page.waitForFunction(() => Boolean(document.querySelector("#message")?.textContent?.trim()), null, { timeout: 25000 });
+    } catch {
+      throw Error("AUTH_REQUEST_TIMED_OUT");
+    }
     const status = await page.locator("#message").innerText();
     if (!/Password sign-in successful/i.test(status)) {
-      throw Error(/verif|code/i.test(status) ? "EMAIL_CODE_REQUIRED" : "PASSWORD_PREVIEW_LOGIN_FAILED");
+      throw Error(/verif|code|additional step|second factor/i.test(status)
+        ? "EMAIL_CODE_REQUIRED"
+        : /not enabled|policy/i.test(status)
+        ? "TEST_ACCOUNT_PASSWORD_POLICY_DISABLED"
+        : "AUTH_REJECTED_OR_UNEXPECTED");
     }
     const panel = page.locator("#content");
     await panel.waitFor({ state: "visible", timeout: 12000 });
@@ -84,7 +90,7 @@ try {
       throw Error(/verification|email.code|additional/i.test(alert || "") ? "EMAIL_CODE_REQUIRED" : "PASSWORD_DID_NOT_OPEN_DASHBOARD");
     }
   }
-  if (javascriptErrors) throw Error("BROWSER_JAVASCRIPT_ERRORS");
+  if (javascriptErrors) throw Error("BROWSER_JAVASCRIPT_ERRORS", "AUTH_REQUEST_TIMED_OUT", "AUTH_REJECTED_OR_UNEXPECTED");
   report.status = "PASS";
   report.reason = isPreview
     ? "Password login completed in isolated preview, without email code; live dashboard not verified"
