@@ -41,7 +41,7 @@ try {
   page.on("pageerror", () => { javascriptErrors++; });
   // Record only safe outcome codes/statuses. Never log request bodies, response text,
   // identifiers, passwords, sessions, full URLs or raw Clerk messages.
-  const clerkSignals = { authStatus: null, errorCode: null, policyStatus: null };
+  const clerkSignals = { authStatus: null, errorCode: null, policyStatus: null, authRequestSent: false, authNetworkFailed: false };
   const pendingChecks = [];
   const permittedCodes = new Set([
     "form_password_incorrect",
@@ -54,6 +54,19 @@ try {
     "session_exists",
     "strategy_for_user_invalid"
   ]);
+  function isSignInCall(request) {
+    try {
+      const url = new URL(request.url());
+      return url.hostname === "clerk.livebridge.ca" &&
+        url.pathname.includes("/client/sign_ins") && request.method() === "POST";
+    } catch { return false; }
+  }
+  page.on("request", request => {
+    if (isSignInCall(request)) clerkSignals.authRequestSent = true;
+  });
+  page.on("requestfailed", request => {
+    if (isSignInCall(request)) clerkSignals.authNetworkFailed = true;
+  });
   page.on("response", response => {
     let url;
     try { url = new URL(response.url()); } catch { return; }
@@ -87,6 +100,10 @@ try {
     if (clerkSignals.authStatus === 401 || clerkSignals.authStatus === 403) return "CLERK_AUTH_DENIED";
     if (clerkSignals.authStatus === 422) return "CLERK_AUTH_VALIDATION_FAILED";
     if (clerkSignals.policyStatus && clerkSignals.policyStatus >= 400) return "PREVIEW_POLICY_API_REJECTED";
+    if (clerkSignals.authNetworkFailed) return "CLERK_SIGN_IN_NETWORK_FAILURE";
+    if (!clerkSignals.authRequestSent && clerkSignals.authStatus === null) return "CLERK_SIGN_IN_NOT_SUBMITTED";
+    if (clerkSignals.authRequestSent && clerkSignals.authStatus === null) return "CLERK_SIGN_IN_NO_RESPONSE";
+    if (clerkSignals.authStatus && clerkSignals.authStatus < 400) return "CLERK_SIGN_IN_RESPONDED_BUT_UI_FAILED";
     if (/verif|code|additional step|second factor/i.test(message)) return "EMAIL_CODE_REQUIRED";
     if (/not enabled|policy/i.test(message)) return "TEST_ACCOUNT_PASSWORD_POLICY_DISABLED";
     if (/incorrect password|password is incorrect/i.test(message)) return "CLERK_PASSWORD_INCORRECT";
@@ -111,6 +128,9 @@ try {
   if (isPreview) {
     // Older isolated password preview: tests Clerk password completion and isolated account policy,
     // but does NOT claim the real LiveBridge dashboard was opened.
+    // A valid form does not guarantee the loaded Clerk SDK exposes the legacy API.
+    const sdkApiAvailable = await page.evaluate(() => typeof window.Clerk?.client?.signIn?.create === "function");
+    if (!sdkApiAvailable) throw Error("CLERK_BROWSER_API_UNAVAILABLE");
     await previewEmail.fill(email);
     await page.locator("#pass").fill(password);
     await page.locator("#submit").click();
@@ -160,6 +180,9 @@ try {
     "TEST_ACCOUNT_PASSWORD_POLICY_DISABLED", "PASSWORD_DID_NOT_OPEN_DASHBOARD",
     "BROWSER_JAVASCRIPT_ERRORS", "AUTH_REQUEST_TIMED_OUT", "AUTH_REJECTED_OR_UNEXPECTED",
     "PREVIEW_PAGE_NOT_REACHABLE", "PASSWORD_FORM_NOT_AVAILABLE",
+    "CLERK_BROWSER_API_UNAVAILABLE", "CLERK_SIGN_IN_NOT_SUBMITTED",
+    "CLERK_SIGN_IN_NO_RESPONSE", "CLERK_SIGN_IN_NETWORK_FAILURE",
+    "CLERK_SIGN_IN_RESPONDED_BUT_UI_FAILED",
     "CLERK_PASSWORD_INCORRECT", "CLERK_PASSWORD_OR_IDENTIFIER_INCORRECT",
     "CLERK_IDENTIFIER_NOT_FOUND", "CLERK_PASSWORD_VALIDATION_FAILED",
     "CLERK_PASSWORD_STRATEGY_UNAVAILABLE", "CLERK_RATE_LIMITED",
