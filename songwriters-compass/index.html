@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#101b2b">
+<meta name="description" content="Songwriter's Compass is a faith-first creative home for worship songwriters. Capture ideas, develop your lyrics, and let the Holy Spirit lead. A NorthStar Ventures project.">
+<meta property="og:title" content="Songwriter's Compass | Your inspiration. His direction. Your song.">
+<meta property="og:description" content="A creative home for Christian songwriters. Led by the Spirit, supported by thoughtful tools.">
+<meta property="og:type" content="website">
+<title>Songwriter's Compass — Find your North Star</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<style>
+:root{--night:#101b2b;--night2:#192b40;--gold:#d7b477;--gold2:#f4dfac;--cream:#f8f5ee;--paper:#fffdfa;--muted:#64707a;--ink:#192739;--line:#e7e0d4}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:82px}
+body{margin:0;background:var(--cream);color:var(--ink);font:16px/1.6 "DM Sans",system-ui,sans-serif}
+a{color:inherit}
+button{font:inherit}
+button,a{-webkit-tap-highlight-color:transparent}
+.wrap{width:min(1150px,calc(100% - 44px));margin:auto}
+.top{position:relative;background:var(--night);overflow:hidden;color:#fff}
+.top:before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 74% 36%,rgba(167,142,99,.16),transparent 32%),radial-gradient(circle at 92% 86%,rgba(88,112,142,.14),transparent 40%);pointer-events:none}
+.top:after{content:"";pointer-events:none;position:absolute;inset:0;opacity:.35;background-image:radial-gradient(#fff 0.7px,transparent .7px),radial-gradient(#f1d9a0 .8px,transparent .8px);background-size:90px 90px,146px 146px;background-position:24px 17px,65px 32px}
+header{height:82px;position:relative;z-index:5;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,.09)}
+.brand{display:flex;align-items:center;gap:11px;text-decoration:none}
+.brand-symbol{width:45px;height:45px;display:grid;place-items:center}
+.brand-symbol svg{width:45px;height:45px}
+.brand-name{display:flex;flex-direction:column;line-height:1.08}
+.brand-name b{font:24px "DM Serif Display",serif;letter-spacing:-.35px}
+.brand-name small{font-size:9px;letter-spacing:2.4px;text-transform:uppercase;color:#c9b187;margin-top:5px;font-weight:800}
+nav{display:flex;align-items:center;gap:30px}
+nav a{text-decoration:none;color:#e5e8ed;font-size:13px;font-weight:700}
+nav a:hover{color:var(--gold2)}
+.nav-cta{border:1px solid rgba(215,180,119,.65);border-radius:99px;padding:11px 18px;color:var(--gold2)}
+.hero{position:relative;z-index:1;padding:78px 0 105px;display:grid;grid-template-columns:1fr 1fr;gap:38px;align-items:center}
+.eyebrow{display:flex;align-items:center;gap:12px;color:var(--gold2);text-transform:uppercase;font-size:11px;font-weight:800;letter-spacing:2.6px}
+.eyebrow:before{content:"";width:26px;height:1px;background:var(--gold)}
+h1,h2,h3,p{margin-top:0}
+h1,h2,h3{font-family:"DM Serif Display",Georgia,serif;font-weight:400}
+h1{font-size:clamp(56px,6vw,90px);line-height:1.02;letter-spacing:-1.8px;margin:20px 0 25px}
+h1 em{font-style:italic;color:var(--gold2)}
+.hero .lead{font-size:17px;line-height:1.85;color:#c7cdd4;max-width:500px;margin-bottom:30px}
+.actions{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.btn{display:inline-flex;gap:10px;align-items:center;justify-content:center;padding:15px 24px;background:var(--gold);border:1px solid var(--gold);border-radius:5px;color:#142236;text-decoration:none;font-size:13px;font-weight:800;transition:transform .2s,background .2s}
+.btn:hover{transform:translateY(-2px);background:#e7c58c}
+.btn.ghost{color:#fff;border-color:rgba(255,255,255,.26);background:transparent}
+.btn.ghost:hover{background:rgba(255,255,255,.08)}
+.hero-foot{margin-top:29px;display:flex;align-items:center;gap:10px;color:#aeb7c1;font-size:12px}
+.hero-foot i{width:7px;height:7px;border-radius:50%;background:#e2bf81;box-shadow:0 0 0 5px rgba(215,180,119,.12)}
+.compass-scene{display:grid;place-items:center;min-height:480px;position:relative}
+.compass-ring{position:absolute;width:min(100%,480px);aspect-ratio:1;border-radius:50%;border:1px solid rgba(229,204,161,.20);box-shadow:0 0 0 38px rgba(255,255,255,.012),0 0 0 80px rgba(255,255,255,.014);display:grid;place-items:center}
+.compass-ring:before,.compass-ring:after{content:"";position:absolute;inset:17px;border-radius:50%;border:1px dashed rgba(218,187,133,.2)}
+.compass-ring:after{inset:55px;border-style:solid;border-color:rgba(218,187,133,.16)}
+.compass-art{width:min(94%,448px);height:auto;filter:drop-shadow(0 25px 38px rgba(0,0,0,.3));animation:float 7s ease-in-out infinite}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-11px)}}
+.north-note{position:absolute;bottom:0;font-size:11px;letter-spacing:3.5px;text-transform:uppercase;color:#ddc99e}
+.intro{padding:91px 0;text-align:center}
+.pretitle{font-size:11px;letter-spacing:2.5px;text-transform:uppercase;color:#aa8246;font-weight:800;margin-bottom:14px}
+.intro h2,.features h2,.steps h2,.closer h2{font-size:clamp(38px,4.4vw,56px);line-height:1.13;letter-spacing:-1px}
+.intro h2{max-width:780px;margin:0 auto 22px}
+.intro p.desc{max-width:680px;margin:auto;color:var(--muted);font-size:16px;line-height:1.85}
+.statement{display:flex;align-items:center;justify-content:center;gap:22px;margin:36px auto 0;color:#9a753d;font-size:13px;font-weight:800;flex-wrap:wrap}
+.statement span+span:before{content:"✦";margin-right:22px;color:#c5a56f}
+.workspace-wrap{background:#ece7dc;padding:83px 0 90px}
+.section-heading{display:flex;justify-content:space-between;align-items:flex-end;gap:25px;margin-bottom:30px}
+.section-heading h2{margin-bottom:0;max-width:575px}
+.section-heading p{max-width:360px;color:var(--muted);font-size:14px;margin-bottom:2px}
+.mockup{display:grid;grid-template-columns:225px 1fr;background:#fffefa;min-height:500px;overflow:hidden;border:1px solid #ddd4c5;border-radius:13px;box-shadow:0 35px 90px rgba(42,37,29,.10)}
+.sidebar{background:#162638;color:#ecf1f6;padding:24px 18px;display:flex;flex-direction:column}
+.side-head{display:flex;align-items:center;gap:8px;color:#e8d1a5;font-size:13px;font-weight:800;border-bottom:1px solid #ffffff20;padding:0 0 24px;margin-bottom:20px}
+.side-label{font-size:10px;letter-spacing:1.7px;color:#8fa0b2;text-transform:uppercase;font-weight:800;margin-bottom:14px}
+.song-item{display:flex;gap:10px;align-items:center;padding:11px 10px;border-radius:7px;font-size:12px;color:#c2ccd6;margin-bottom:5px}
+.song-item.active{background:#334353;color:#fff}
+.song-item span{width:25px;height:25px;display:grid;place-items:center;border-radius:6px;background:#ffffff12;color:#d8be8b;font-size:14px}
+.side-bottom{margin-top:auto;font-size:10px;line-height:1.8;color:#a9b6c1;border-top:1px solid #ffffff20;padding:17px 5px 0}
+.editor{padding:27px 40px 35px;position:relative}
+.editor-top{display:flex;justify-content:space-between;align-items:center;gap:12px;border-bottom:1px solid #e9e4dc;padding-bottom:18px}
+.editor-crumb{font-size:11px;color:#77808a}
+.preview-tag{border:1px solid #e8dcc8;border-radius:20px;padding:5px 12px;color:#937344;font-size:10px;font-weight:800;letter-spacing:.6px}
+.editor-content{max-width:690px;margin:36px auto}
+.editor-content h3{font-size:37px;margin-bottom:5px;color:#1d3144}
+.editor-sub{color:#a6a09a;font-size:12px;margin-bottom:30px}
+.lyric-line{font:18px/2.05 "DM Serif Display",Georgia,serif;color:#404a53}
+.lyric-line.faint{color:#8c9399}
+.lyric-gap{height:20px}
+.tools{display:flex;gap:10px;flex-wrap:wrap;margin-top:34px}
+.tool{display:flex;gap:9px;align-items:center;border:1px solid #e7e2d9;border-radius:7px;padding:11px 13px;color:#65707a;background:#fff;font-size:11px;font-weight:700}
+.tool svg{width:17px;height:17px;color:#ad864a}
+.ai-tip{display:flex;align-items:flex-start;gap:12px;background:#f8f3e8;border:1px solid #ebdfc9;border-radius:9px;padding:15px 17px;margin-top:27px;color:#5d5545;font-size:12px;line-height:1.7}
+.tip-star{font-size:20px;color:#b28b53;line-height:1}
+.preview-caption{font-size:12px;color:#817a70;text-align:center;margin:17px 0 0}
+.features{padding:90px 0 100px}
+.features .head{text-align:center;max-width:660px;margin:0 auto 43px}
+.features .head p:last-child{color:var(--muted)}
+.feature-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.feature{background:#fffefa;border:1px solid var(--line);padding:31px 28px 34px;border-radius:9px;min-height:245px}
+.feature .number{font-size:11px;color:#b58c52;font-weight:800;letter-spacing:1.5px}
+.feature h3{font-size:27px;margin:20px 0 11px}
+.feature p{font-size:14px;line-height:1.8;color:#66717a;margin:0}
+.verse{background:#182a3e;color:#fff;padding:75px 20px;text-align:center}
+.verse p{color:#d7b477;text-transform:uppercase;letter-spacing:3px;font-size:11px;font-weight:800}
+.verse blockquote{max-width:780px;margin:0 auto;font:clamp(28px,4vw,46px)/1.3 "DM Serif Display",Georgia,serif}
+.verse cite{display:block;margin-top:23px;font-size:12px;color:#bec8d2;font-style:normal}
+.steps{padding:95px 0}
+.steps .head{text-align:center;margin-bottom:50px}
+.step-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:38px}
+.step{position:relative;border-top:1px solid #d6c7ad;padding-top:21px}
+.step b{color:#a88248;font-size:13px}
+.step h3{font-size:27px;margin:15px 0 11px}
+.step p{font-size:14px;color:var(--muted);line-height:1.8}
+.closer{background:linear-gradient(130deg,#142336,#0c1726);color:#fff;padding:92px 0;text-align:center}
+.closer h2{margin:10px auto 18px;max-width:700px}
+.closer p{max-width:590px;margin:0 auto 28px;color:#bfcbd6}
+.small-print{font-size:12px;color:#9dabb9;margin-top:22px}
+footer{background:#0d1724;color:#8e9aa7;padding:31px 0;font-size:12px}
+.footer-content{display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap}
+footer a{text-decoration:none;color:#d9bd8e}
+@media(max-width:940px){.hero{grid-template-columns:1fr 1fr;gap:8px}.compass-scene{min-height:380px}.compass-ring{width:340px}.editor{padding:25px}.feature-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:720px){header{height:72px}.brand-name b{font-size:20px}.brand-name small{font-size:8px}nav a:not(.nav-cta){display:none}.nav-cta{font-size:11px;padding:9px 12px}.hero{grid-template-columns:1fr;text-align:left;padding:58px 0 70px}.hero h1{font-size:clamp(55px,14vw,82px)}.hero .lead{font-size:16px}.compass-scene{min-height:340px;margin-top:23px}.compass-art{width:310px}.compass-ring{width:320px}.north-note{bottom:-13px}.intro,.features,.steps{padding:70px 0}.intro h2,.features h2,.steps h2,.closer h2{font-size:40px}.statement{gap:7px;font-size:11px}.statement span+span:before{margin-right:7px}.workspace-wrap{padding:67px 0}.section-heading{display:block}.section-heading p{margin-top:15px}.mockup{grid-template-columns:1fr}.sidebar{display:none}.editor{padding:22px 20px}.editor-content{margin:24px auto}.editor-content h3{font-size:32px}.lyric-line{font-size:16px}.feature-grid,.step-grid{grid-template-columns:1fr;gap:14px}.feature{min-height:auto}.step-grid{gap:22px}.footer-content{display:block}.footer-content span{display:block;margin-bottom:8px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.compass-art{animation:none}.btn{transition:none}}
+</style>
+</head>
+<body>
+<div class="top" id="home">
+<div class="wrap">
+<header>
+<a class="brand" href="#home" aria-label="Songwriter's Compass home">
+<span class="brand-symbol" aria-hidden="true"><svg viewBox="0 0 64 64" fill="none"><circle cx="32" cy="32" r="28" stroke="#D7B477" stroke-width="1.2"/><circle cx="32" cy="32" r="21" stroke="#D7B477" stroke-opacity=".4"/><path d="M32 4L38 27 60 32 38 37 32 60 26 37 4 32 26 27Z" stroke="#E7D4AE" stroke-width="1.5"/><path d="M32 8V32H41L32 8Z" fill="#F3DDAA"/><circle cx="32" cy="32" r="3" fill="#E7D4AE"/></svg></span>
+<span class="brand-name"><b>Songwriter's Compass</b><small>by NorthStar Ventures</small></span>
+</a>
+<nav aria-label="Main navigation"><a href="#vision">Our heart</a><a href="#workspace">The workspace</a><a class="nav-cta" href="#coming-soon">Coming soon ↗</a></nav>
+</header>
+<main>
+<section class="hero">
+<div>
+<div class="eyebrow">A new direction for Christian songwriting</div>
+<h1>Find your<br><em>North Star.</em></h1>
+<p class="lead">Your inspiration. His direction. Your song. A thoughtful creative home for songwriters who want to follow the Holy Spirit's leading and bring the songs on their hearts to life.</p>
+<div class="actions"><a href="#workspace" class="btn">Explore the vision <span aria-hidden="true">↗</span></a><a href="#vision" class="btn ghost">Why we're building it</a></div>
+<div class="hero-foot"><i aria-hidden="true"></i> The songwriter leads. The tools simply help.</div>
+</div>
+<div class="compass-scene" aria-label="Golden compass pointing to the North Star">
+<div class="compass-ring" aria-hidden="true"></div>
+<svg class="compass-art" viewBox="0 0 480 480" fill="none" role="img" aria-label="Compass illustration with North Star">
+<circle cx="240" cy="240" r="188" stroke="#C9AB79" stroke-opacity=".4" stroke-width="2"/>
+<circle cx="240" cy="240" r="171" stroke="#C9AB79" stroke-opacity=".25"/>
+<circle cx="240" cy="240" r="152" stroke="#C9AB79" stroke-opacity=".2"/>
+<g stroke="#C9AB79" stroke-opacity=".55" stroke-width="2"><path d="M240 52V72M240 408V428M52 240H72M408 240H428"/></g>
+<g stroke="#C9AB79" stroke-opacity=".27"><path d="M106 106L122 122M358 358L374 374M374 106L358 122M122 358L106 374"/></g>
+<g fill="#DCC294" font-family="Georgia,serif" font-size="16" text-anchor="middle"><text x="240" y="42">N</text><text x="240" y="453" opacity=".65">S</text><text x="450" y="246" opacity=".65">E</text><text x="30" y="246" opacity=".65">W</text></g>
+<circle cx="240" cy="240" r="108" fill="#14253A" stroke="#C9AB79" stroke-opacity=".35" stroke-width="1.5"/>
+<path d="M240 81L262 218 401 240 262 262 240 399 218 262 79 240 218 218Z" stroke="#DBC398" stroke-width="2" fill="#D6B478" fill-opacity=".13"/>
+<path d="M240 81L240 240L262 218Z" fill="#FBE4AD"/>
+<path d="M240 81L218 218L240 240Z" fill="#B58C53"/>
+<path d="M240 399L240 240L218 262Z" fill="#E8C889" fill-opacity=".55"/>
+<path d="M240 399L262 262L240 240Z" fill="#98794B" fill-opacity=".9"/>
+<path d="M79 240L240 240L218 218Z" fill="#E2C185" fill-opacity=".55"/>
+<path d="M401 240L240 240L262 262Z" fill="#D5AC69" fill-opacity=".6"/>
+<circle cx="240" cy="240" r="18" fill="#101B2B" stroke="#F3D99C" stroke-width="2"/>
+<circle cx="240" cy="240" r="6" fill="#F3D99C"/>
+<path d="M240 19L245 32L258 37L245 42L240 55L235 42L222 37L235 32Z" fill="#FAE5BA"/>
+<circle cx="240" cy="37" r="28" stroke="#F5DFAE" stroke-opacity=".28"/>
+<circle cx="240" cy="37" r="40" stroke="#F5DFAE" stroke-opacity=".1"/>
+</svg>
+<div class="north-note">Spirit-led. Purpose-filled.</div>
+</div>
+</section>
+</div>
+</div>
+<section class="intro wrap" id="vision">
+<p class="pretitle">The heart behind the compass</p>
+<h2>The song is yours.<br>The direction comes from Him.</h2>
+<p class="desc">We believe worship songs should be born out of prayer, Scripture, real experiences and a personal walk with God — not generated at the push of a button. Songwriter's Compass is being imagined as a place to capture that inspiration and thoughtfully develop it, without losing your own voice.</p>
+<div class="statement"><span>Spirit-led</span><span>Writer-driven</span><span>Thoughtfully supported</span></div>
+</section>
+<section class="workspace-wrap" id="workspace">
+<div class="wrap">
+<div class="section-heading"><div><p class="pretitle">A home for every song</p><h2>One peaceful place<br>for all your ideas.</h2></div><p>Imagine opening your phone the moment inspiration strikes and picking up right where your heart left off.</p></div>
+<div class="mockup" aria-label="Concept preview of the planned songwriter workspace">
+<aside class="sidebar">
+<div class="side-head"><span aria-hidden="true">✦</span> My songwriting space</div>
+<div class="side-label">My songs</div>
+<div class="song-item active"><span>♫</span> In the Quiet</div>
+<div class="song-item"><span>♫</span> A New Beginning</div>
+<div class="song-item"><span>♫</span> Your Faithfulness</div>
+<div class="side-label" style="margin-top:24px">My creative space</div>
+<div class="song-item"><span>✎</span> Journal & ideas</div>
+<div class="song-item"><span>✧</span> Scripture notes</div>
+<div class="song-item"><span>▤</span> Drafts & versions</div>
+<div class="side-bottom">Every idea has a place.<br>Every song has a story.</div>
+</aside>
+<div class="editor">
+<div class="editor-top"><span class="editor-crumb">My songs / In the Quiet</span><span class="preview-tag">CONCEPT PREVIEW</span></div>
+<div class="editor-content">
+<h3>In the Quiet</h3>
+<p class="editor-sub">Song draft · Worship · Working on verse one</p>
+<div class="lyric-line">In the quiet I can hear You</div>
+<div class="lyric-line">When the noise begins to fade</div>
+<div class="lyric-line faint">Every word I'm still discovering...</div>
+<div class="lyric-gap"></div>
+<div class="lyric-line faint">Continue writing your song here...</div>
+<div class="tools">
+<div class="tool"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 19l4-.8L19 7.2 16.8 5 5.8 16z"/></svg> Journal my thoughts</div>
+<div class="tool"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 4h14v16H5zM9 8h6M9 12h6"/></svg> Scripture & notes</div>
+<div class="tool"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3v13m-5-5 5 5 5-5M4 20h16"/></svg> Export song</div>
+</div>
+<div class="ai-tip"><div class="tip-star">✦</div><div><strong>Your songwriting companion</strong><br>“What is the main thing you feel God has placed on your heart for this song?”<br><span style="color:#968669">A gentle question, not an auto-written lyric.</span></div></div>
+</div>
+</div>
+</div>
+<p class="preview-caption">Illustrative workspace concept only — accounts, saving, exports and AI are planned features, not live yet.</p>
+</div>
+</section>
+<section class="features wrap" id="features">
+<div class="head"><p class="pretitle">Made for the moments inspiration finds you</p><h2>From first thought<br>to finished song.</h2><p>A future songwriting toolkit designed to help you create with intention.</p></div>
+<div class="feature-grid">
+<article class="feature"><div class="number">01 / CAPTURE</div><h3>Journal anywhere</h3><p>Write down a prayer, melody idea, lyric or thought the moment it comes — at home, church or on the go.</p></article>
+<article class="feature"><div class="number">02 / ORGANIZE</div><h3>Your song library</h3><p>Keep song ideas, works in progress and completed lyrics in one personal, organized place.</p></article>
+<article class="feature"><div class="number">03 / DEVELOP</div><h3>AI as a companion</h3><p>Get thoughtful questions and songwriting suggestions that help develop your own words rather than replacing them.</p></article>
+<article class="feature"><div class="number">04 / REFLECT</div><h3>Scripture & notes</h3><p>Keep the Bible passages, experiences and prayers behind each song alongside your lyrics.</p></article>
+<article class="feature"><div class="number">05 / RETURN</div><h3>Pick up where you left off</h3><p>Come back to unfinished songs, revisit old ideas and keep growing them over time.</p></article>
+<article class="feature"><div class="number">06 / SHARE</div><h3>Save & export</h3><p>Bring your finished songs into rehearsals, worship teams and wherever God leads them next.</p></article>
+</div>
+</section>
+<section class="verse">
+<p>Our guiding conviction</p>
+<blockquote>“We don't want AI to write your worship. We want to help you write what's already on your heart.”</blockquote>
+<cite>Songwriter's Compass · A NorthStar Ventures vision</cite>
+</section>
+<section class="steps wrap" id="how-it-works">
+<div class="head"><p class="pretitle">The vision in three simple steps</p><h2>Listen. Write. Grow.</h2></div>
+<div class="step-grid">
+<div class="step"><b>01</b><h3>Start with inspiration.</h3><p>Spend time with God. Capture the scripture, thought or moment stirring in your heart.</p></div>
+<div class="step"><b>02</b><h3>Write in your own voice.</h3><p>Develop your lyrics and ideas. Let the companion help with questions, clarity and structure when you want it.</p></div>
+<div class="step"><b>03</b><h3>Keep building your song.</h3><p>Save your progress, come back when you're ready and share the finished work with others.</p></div>
+</div>
+</section>
+<section class="closer" id="coming-soon">
+<div class="wrap">
+<p class="pretitle">A new songwriting space is taking shape</p>
+<h2>Every song starts<br>with a step of faith.</h2>
+<p>Songwriter's Compass is in its early stages. The landing page is here now; the private workspaces, guided tools and account features are part of what we hope to build next.</p>
+<a href="#home" class="btn">Find your North Star ↑</a>
+<div class="small-print">Built with purpose by NorthStar Ventures · Access options and pricing to be announced</div>
+</div>
+</section>
+</main>
+<footer><div class="wrap footer-content"><span>© 2026 Songwriter's Compass · A NorthStar Ventures project</span><span>Your inspiration. His direction. Your song. <a href="https://northstarventures.ca" target="_blank" rel="noopener noreferrer">NorthStar Ventures ↗</a></span></div></footer>
+</body></html>
