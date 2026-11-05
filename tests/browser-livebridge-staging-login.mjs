@@ -252,6 +252,8 @@ try {
     "CLERK_AUTH_DENIED", "CLERK_AUTH_VALIDATION_FAILED", "PREVIEW_POLICY_API_REJECTED"
   ];
   report.reason = allowed.includes(error.message) ? error.message : "STAGING_BROWSER_TEST_FAILED";
+  if (javascriptErrors) report.jsErrors = javascriptErrorKinds;
+  report.diagnostics = { loginSubmitted, javascriptErrorCount: javascriptErrors, authRequestSent: clerkSignals.authRequestSent, authHttpStatus: clerkSignals.authStatus, policyHttpStatus: clerkSignals.policyStatus };
   save();
   console.error("FAIL: " + report.reason + (report.stage ? " stage=" + JSON.stringify(report.stage) : "") + (report.jsErrors ? " js=" + JSON.stringify(report.jsErrors) : ""));
   process.exitCode = 1;
