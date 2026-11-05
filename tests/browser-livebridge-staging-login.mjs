@@ -22,7 +22,7 @@ try { target = new URL(endpoint); } catch { throw Error("Invalid staging URL"); 
 const host = target.hostname.toLowerCase();
 if (
   target.protocol !== "https:" || target.username || target.password || target.search || target.hash ||
-  !host.includes("livebridge") || !/(staging|stage|preview|qa)/.test(host) ||
+  !(/^(?:livebridge[a-z0-9-]*\.(?:northstarventures-ca|northstarventuresca)\.workers\.dev|(?:staging|preview|qa)\.livebridge\.ca)$/.test(host)) || !/(staging|stage|preview|qa)/.test(host) ||
   host === "livebridge.ca" || host === "www.livebridge.ca" ||
   !["/login/", "/login", "/account/", "/account"].includes(target.pathname)
 ) {
@@ -58,7 +58,7 @@ try {
     await page.waitForFunction(() => {
       const status = document.querySelector("#message")?.textContent || "";
       return /Password sign-in successful/i.test(status) || /verification|error|not enabled|invalid|incorrect/i.test(status);
-    }, { timeout: 25000 });
+    }, null, { timeout: 25000 });
     const status = await page.locator("#message").innerText();
     if (!/Password sign-in successful/i.test(status)) {
       throw Error(/verif|code/i.test(status) ? "EMAIL_CODE_REQUIRED" : "PASSWORD_PREVIEW_LOGIN_FAILED");
@@ -78,7 +78,7 @@ try {
       await page.waitForFunction(() => {
         return Boolean(window.Clerk?.isSignedIn && window.Clerk?.session) &&
           /^\/(?:account|admin)\/?$/.test(location.pathname);
-      }, { timeout: 30000 });
+      }, null, { timeout: 30000 });
     } catch {
       const alert = await page.locator("#lb-pw-error").textContent().catch(() => "");
       throw Error(/verification|email.code|additional/i.test(alert || "") ? "EMAIL_CODE_REQUIRED" : "PASSWORD_DID_NOT_OPEN_DASHBOARD");
