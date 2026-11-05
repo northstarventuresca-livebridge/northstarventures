@@ -51,6 +51,22 @@ try {
       path: location.pathname === "/account" || location.pathname === "/account/" ? "account" : "other"
     })).catch(() => null);
     console.log("STAGING_LOGIN_STATUS " + JSON.stringify(outcome));
+    const recovery = await page.evaluate(async () => {
+      const clerk = window.Clerk;
+      const session = clerk?.client?.sessions?.find(item => item?.status === "active") ||
+        clerk?.client?.sessions?.[0];
+      if (!session || typeof clerk?.setActive !== "function") return { attempted:false };
+      try {
+        await clerk.setActive({session:session.id});
+        return {
+          attempted:true,
+          signedIn:!!clerk.isSignedIn,
+          userPresent:!!clerk.user,
+          activeSessionPresent:!!clerk.session
+        };
+      } catch { return {attempted:true, failed:true}; }
+    }).catch(() => ({attempted:false, failed:true}));
+    console.log("STAGING_SESSION_RECOVERY " + JSON.stringify(recovery));
     throw Error("PASSWORD_LOGIN_DID_NOT_OPEN_STAGING_DASHBOARD");
   }
   const banner = page.locator("#lb-password-onboarding");
