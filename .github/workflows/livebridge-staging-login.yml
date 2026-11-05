@@ -18,16 +18,17 @@ jobs:
       NSV_LB_STAGING_LOGIN_URL: ${{ vars.NSV_LB_STAGING_LOGIN_URL }}
       NSV_LB_TEST_EMAIL: ${{ secrets.NSV_LB_TEST_EMAIL }}
       NSV_LB_TEST_PASSWORD: ${{ secrets.NSV_LB_TEST_PASSWORD }}
+      NSV_LB_DEDICATED_TEST_ACCOUNT: ${{ vars.NSV_LB_DEDICATED_TEST_ACCOUNT }}
     steps:
       - name: Check dedicated staging configuration
         id: configuration
         shell: bash
         run: |
-          if [[ -n "$NSV_LB_STAGING_LOGIN_URL" && -n "$NSV_LB_TEST_EMAIL" && -n "$NSV_LB_TEST_PASSWORD" ]]; then
+          if [[ -n "$NSV_LB_STAGING_LOGIN_URL" && -n "$NSV_LB_TEST_EMAIL" && -n "$NSV_LB_TEST_PASSWORD" && "$NSV_LB_DEDICATED_TEST_ACCOUNT" == "true" ]]; then
             echo "configured=true" >> "$GITHUB_OUTPUT"
           else
             echo "configured=false" >> "$GITHUB_OUTPUT"
-            echo "NOT RUN: Set the dedicated LiveBridge staging URL and test-account GitHub secrets first." >> "$GITHUB_STEP_SUMMARY"
+            echo "NOT RUN: Confirm a dedicated non-personal LiveBridge test identity before running authentication. Set NSV_LB_DEDICATED_TEST_ACCOUNT=true after test-only account and secrets are configured." >> "$GITHUB_STEP_SUMMARY"
           fi
       - uses: actions/checkout@v4
         if: steps.configuration.outputs.configured == 'true'
