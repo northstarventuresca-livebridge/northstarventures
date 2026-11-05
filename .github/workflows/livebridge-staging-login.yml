@@ -1,5 +1,10 @@
 name: LiveBridge isolated password-only login test
 on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/livebridge-staging-login.yml'
+      - 'tests/browser-livebridge-staging-login.mjs'
   workflow_dispatch:
   schedule:
     - cron: '17 */6 * * *'
