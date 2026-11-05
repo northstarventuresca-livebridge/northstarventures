@@ -180,10 +180,12 @@ try {
       report.stage = { ...stage, policyHttp: clerkSignals.policyStatus, policyEnabled: clerkSignals.policyEnabled, identity: clerkSignals.identityMatch };
       throw Error(await resolveAuthFailure(status));
     }
-    const panel = page.locator("#content");
-    await panel.waitFor({ state: "visible", timeout: 12000 });
-    const policy = await panel.innerText();
-    if (!/Password login enabled for this test account/i.test(policy)) throw Error("TEST_ACCOUNT_PASSWORD_POLICY_DISABLED");
+    const panelHeading = page.locator("#content h2");
+    // Visibility of #content occurs before the asynchronous /api/policy result renders.
+    await panelHeading.waitFor({ state: "visible", timeout: 12000 });
+    const policy = await panelHeading.innerText();
+    if (/Email-code login default/i.test(policy)) throw Error("TEST_ACCOUNT_PASSWORD_POLICY_DISABLED");
+    if (!/Password login enabled for this test account/i.test(policy)) throw Error("PREVIEW_POLICY_PANEL_UNEXPECTED");
   } else {
     // Actual staging site: confirm that a password directly establishes a Clerk session
     // and opens an account/admin dashboard without an email-code challenge.
@@ -222,7 +224,7 @@ try {
     "CLERK_SIGN_IN_RESPONDED_BUT_UI_FAILED",
     "CLERK_SECOND_FACTOR_REQUIRED", "CLERK_FIRST_FACTOR_INCOMPLETE",
     "CLERK_IDENTIFIER_REQUIRED", "CLERK_PASSWORD_RESET_REQUIRED",
-    "CLERK_SESSION_ACTIVATION_FAILED",
+    "CLERK_SESSION_ACTIVATION_FAILED", "PREVIEW_POLICY_PANEL_UNEXPECTED",
     "LIVEBRIDGE_ACCOUNT_ACCESS_MISSING", "PREVIEW_AUTH_TOKEN_MISSING", "CLERK_SIGN_IN_INCOMPLETE",
     "CLERK_PASSWORD_INCORRECT", "CLERK_PASSWORD_OR_IDENTIFIER_INCORRECT",
     "CLERK_IDENTIFIER_NOT_FOUND", "CLERK_PASSWORD_VALIDATION_FAILED",
