@@ -40,13 +40,17 @@ try {
   let javascriptErrors = 0;
   page.on("pageerror", () => { javascriptErrors++; });
 
-  await page.goto(target.toString(), { waitUntil: "domcontentloaded", timeout: 25000 });
+  report.scope = "preview-password-auth-only";
+  try { await page.goto(target.toString(), { waitUntil: "domcontentloaded", timeout: 25000 }); }
+  catch { throw Error("PREVIEW_PAGE_NOT_REACHABLE"); }
   const previewEmail = page.locator("#email");
   const appToggle = page.locator("#lb-pw-open");
-  await Promise.race([
-    previewEmail.waitFor({ state: "visible", timeout: 30000 }),
-    appToggle.waitFor({ state: "visible", timeout: 30000 })
-  ]);
+  try {
+    await Promise.race([
+      previewEmail.waitFor({ state: "visible", timeout: 30000 }),
+      appToggle.waitFor({ state: "visible", timeout: 30000 })
+    ]);
+  } catch { throw Error("PASSWORD_FORM_NOT_AVAILABLE"); }
   const isPreview = await previewEmail.isVisible();
   report.scope = isPreview ? "preview-password-auth-only" : "staging-app-dashboard";
 
@@ -90,7 +94,7 @@ try {
       throw Error(/verification|email.code|additional/i.test(alert || "") ? "EMAIL_CODE_REQUIRED" : "PASSWORD_DID_NOT_OPEN_DASHBOARD");
     }
   }
-  if (javascriptErrors) throw Error("BROWSER_JAVASCRIPT_ERRORS", "AUTH_REQUEST_TIMED_OUT", "AUTH_REJECTED_OR_UNEXPECTED");
+  if (javascriptErrors) throw Error("BROWSER_JAVASCRIPT_ERRORS");
   report.status = "PASS";
   report.reason = isPreview
     ? "Password login completed in isolated preview, without email code; live dashboard not verified"
@@ -103,7 +107,8 @@ try {
   const allowed = [
     "EMAIL_CODE_REQUIRED", "PASSWORD_PREVIEW_LOGIN_FAILED",
     "TEST_ACCOUNT_PASSWORD_POLICY_DISABLED", "PASSWORD_DID_NOT_OPEN_DASHBOARD",
-    "BROWSER_JAVASCRIPT_ERRORS"
+    "BROWSER_JAVASCRIPT_ERRORS", "AUTH_REQUEST_TIMED_OUT", "AUTH_REJECTED_OR_UNEXPECTED",
+    "PREVIEW_PAGE_NOT_REACHABLE", "PASSWORD_FORM_NOT_AVAILABLE"
   ];
   report.reason = allowed.includes(error.message) ? error.message : "STAGING_BROWSER_TEST_FAILED";
   save();
