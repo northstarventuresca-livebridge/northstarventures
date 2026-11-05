@@ -10,17 +10,22 @@ if (!/^livebridge[a-z0-9-]*\.northstarventures-ca\.workers\.dev$/.test(target.ho
 const browser = await chromium.launch({ headless: true });
 try {
   const page = await browser.newPage();
-  const stats = { scriptResponse: null, pageErrors: 0 };
+  const stats = { scriptResponse: null, uiScriptResponse: null, pageErrors: 0, clerkResponses: [], networkFailures: 0 };
   page.on("pageerror", () => { stats.pageErrors++; });
+  page.on("requestfailed", request => { try { if (new URL(request.url()).hostname === "clerk.livebridge.ca") stats.networkFailures++; } catch {} });
   page.on("response", response => {
     let url;
     try { url = new URL(response.url()); } catch { return; }
-    if (url.hostname === "clerk.livebridge.ca" && url.pathname.includes("clerk.browser.js")) {
-      stats.scriptResponse = response.status();
+    if (url.hostname === "clerk.livebridge.ca" && url.pathname.includes("clerk.browser.js")) stats.scriptResponse = response.status();
+    if (url.hostname === "clerk.livebridge.ca" && url.pathname.includes("ui.browser.js")) stats.uiScriptResponse = response.status();
+    if (url.hostname === "clerk.livebridge.ca" && url.pathname.includes("/v1/")) {
+      const matches = url.pathname.match(/\\/v1\\/(client|environment|sign_ins|sessions|users|health|other)(?:\\/|$)/);
+      const type = matches?.[1] || "other";
+      stats.clerkResponses.push({type,status:response.status()});
     }
   });
   await page.goto(target.href, { waitUntil: "domcontentloaded", timeout: 30000 });
-  await page.waitForTimeout(5000);
+  await page.waitForTimeout(8000);
   const found = await page.evaluate(() => {
     const c = window.Clerk;
     return {
@@ -34,7 +39,8 @@ try {
       hasUiConstructor: typeof window.__internal_ClerkUICtor === "function",
       hasMountSignIn: typeof c?.mountSignIn === "function",
       formRendered: !!document.querySelector("#email"),
-      statusError: (document.querySelector("#message")?.textContent || "").trim().length > 0
+      statusError: (document.querySelector("#message")?.textContent || "").trim().length > 0,
+      statusKind: /initialization incomplete/i.test(document.querySelector("#message")?.textContent || "") ? "SDK_INIT_INCOMPLETE" : /domain|origin/i.test(document.querySelector("#message")?.textContent || "") ? "DOMAIN_ORIGIN" : /network|fetch/i.test(document.querySelector("#message")?.textContent || "") ? "NETWORK" : "OTHER_OR_NONE"
     };
   });
   console.log("CLERK_SAFE_PREFLIGHT " + JSON.stringify({ ...stats, ...found }));
