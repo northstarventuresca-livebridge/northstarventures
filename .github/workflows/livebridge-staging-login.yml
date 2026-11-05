@@ -15,7 +15,7 @@ jobs:
     name: LiveBridge staging browser login
     runs-on: ubuntu-latest
     env:
-      NSV_LB_STAGING_LOGIN_URL: ${{ vars.NSV_LB_STAGING_LOGIN_URL }}
+      NSV_LB_STAGING_LOGIN_URL: https://password-preview.livebridge.ca/login/
       NSV_LB_TEST_EMAIL: ${{ secrets.NSV_LB_TEST_EMAIL }}
       NSV_LB_TEST_PASSWORD: ${{ secrets.NSV_LB_TEST_PASSWORD }}
       NSV_LB_DEDICATED_TEST_ACCOUNT: ${{ vars.NSV_LB_DEDICATED_TEST_ACCOUNT == 'true' || vars.NSV_LB_DEDICATED_TEST_ACCOUNT == 'True' }}
