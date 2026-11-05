@@ -18,6 +18,12 @@ try {
   const toggle = page.locator("#passwordLoginToggle");
   await toggle.waitFor({state:"visible",timeout:30000});
   await page.waitForFunction(() => window.__lbPasswordUpgradeReady === true, null, {timeout:20000});
+  try {
+    await page.waitForFunction(() => {
+      const signIn = document.getElementById("clerk-auth");
+      return !!signIn && signIn.childElementCount > 0;
+    },null,{timeout:12000});
+  } catch { throw Error("EMAIL_CODE_SIGN_IN_UI_MISSING"); }
   const script = await page.request.get("https://livebridge.ca/account/password-login-upgrade.js");
   if (!script.ok()) throw Error("PASSWORD_UPGRADE_SCRIPT_MISSING");
 
@@ -86,11 +92,18 @@ try {
   } catch {
     throw Error("PASSWORD_SESSION_NOT_PERSISTED_AFTER_REFRESH");
   }
+  await page.locator("#lb-password-onboarding button").click();
+  try {
+    await page.waitForFunction(() => {
+      return Array.from(document.querySelectorAll('[role="dialog"], .cl-userProfile-root'))
+        .some(element => element.getBoundingClientRect().width > 0);
+    },null,{timeout:12000});
+  } catch { throw Error("PASSWORD_SECURITY_PROFILE_DID_NOT_OPEN"); }
   if (scriptErrors) throw Error("BROWSER_SCRIPT_ERRORS");
-  console.log("PASS: Existing-client password login opened the authenticated staging dashboard without an email code, with the password setup/status card present.");
+  console.log("PASS: Production existing-client password login, dashboard session persistence, email-code option and password security profile all verified.");
   await page.evaluate(() => window.Clerk?.signOut?.()).catch(() => {});
 } catch (error) {
-  const allowed = ["PASSWORD_UPGRADE_SCRIPT_MISSING","PASSWORD_LOGIN_DID_NOT_OPEN_PRODUCTION_DASHBOARD","PASSWORD_SETUP_PROMPT_MISSING","PASSWORD_SESSION_NOT_PERSISTED_AFTER_REFRESH","BROWSER_SCRIPT_ERRORS"];
+  const allowed = ["EMAIL_CODE_SIGN_IN_UI_MISSING","PASSWORD_SECURITY_PROFILE_DID_NOT_OPEN","PASSWORD_UPGRADE_SCRIPT_MISSING","PASSWORD_LOGIN_DID_NOT_OPEN_PRODUCTION_DASHBOARD","PASSWORD_SETUP_PROMPT_MISSING","PASSWORD_SESSION_NOT_PERSISTED_AFTER_REFRESH","BROWSER_SCRIPT_ERRORS"];
   console.error("FAIL: " + (allowed.includes(error.message) ? error.message : "PRODUCTION_AUTH_BROWSER_FAILURE"));
   process.exitCode = 1;
 } finally {
