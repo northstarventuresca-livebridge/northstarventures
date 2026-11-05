@@ -39,6 +39,60 @@ try {
   const page = await context.newPage();
   let javascriptErrors = 0;
   page.on("pageerror", () => { javascriptErrors++; });
+  // Record only safe outcome codes/statuses. Never log request bodies, response text,
+  // identifiers, passwords, sessions, full URLs or raw Clerk messages.
+  const clerkSignals = { authStatus: null, errorCode: null, policyStatus: null };
+  const pendingChecks = [];
+  const permittedCodes = new Set([
+    "form_password_incorrect",
+    "form_password_or_identifier_incorrect",
+    "form_password_validation_failed",
+    "form_identifier_not_found",
+    "form_param_format_invalid",
+    "form_param_nil",
+    "form_password_compromised",
+    "session_exists",
+    "strategy_for_user_invalid"
+  ]);
+  page.on("response", response => {
+    let url;
+    try { url = new URL(response.url()); } catch { return; }
+    if (url.origin === target.origin && url.pathname === "/api/policy") {
+      clerkSignals.policyStatus = response.status();
+      return;
+    }
+    if (url.hostname !== "clerk.livebridge.ca" || !url.pathname.includes("/client/sign_ins")) return;
+    // Only authentication HTTP status and whitelisted Clerk error code are kept.
+    if (response.request().method() !== "POST") return;
+    clerkSignals.authStatus = response.status();
+    if (response.status() >= 400) {
+      pendingChecks.push(response.json().then(data => {
+        for (const item of Array.isArray(data?.errors) ? data.errors : []) {
+          if (permittedCodes.has(item?.code)) {
+            clerkSignals.errorCode = item.code;
+            break;
+          }
+        }
+      }).catch(() => {}));
+    }
+  });
+  async function resolveAuthFailure(message) {
+    await Promise.allSettled(pendingChecks);
+    if (clerkSignals.errorCode === "form_password_incorrect") return "CLERK_PASSWORD_INCORRECT";
+    if (clerkSignals.errorCode === "form_password_or_identifier_incorrect") return "CLERK_PASSWORD_OR_IDENTIFIER_INCORRECT";
+    if (clerkSignals.errorCode === "form_identifier_not_found") return "CLERK_IDENTIFIER_NOT_FOUND";
+    if (clerkSignals.errorCode === "form_password_validation_failed") return "CLERK_PASSWORD_VALIDATION_FAILED";
+    if (clerkSignals.errorCode === "strategy_for_user_invalid") return "CLERK_PASSWORD_STRATEGY_UNAVAILABLE";
+    if (clerkSignals.authStatus === 429) return "CLERK_RATE_LIMITED";
+    if (clerkSignals.authStatus === 401 || clerkSignals.authStatus === 403) return "CLERK_AUTH_DENIED";
+    if (clerkSignals.authStatus === 422) return "CLERK_AUTH_VALIDATION_FAILED";
+    if (clerkSignals.policyStatus && clerkSignals.policyStatus >= 400) return "PREVIEW_POLICY_API_REJECTED";
+    if (/verif|code|additional step|second factor/i.test(message)) return "EMAIL_CODE_REQUIRED";
+    if (/not enabled|policy/i.test(message)) return "TEST_ACCOUNT_PASSWORD_POLICY_DISABLED";
+    if (/incorrect password|password is incorrect/i.test(message)) return "CLERK_PASSWORD_INCORRECT";
+    if (/password or email.*incorrect|email or password.*incorrect/i.test(message)) return "CLERK_PASSWORD_OR_IDENTIFIER_INCORRECT";
+    return "AUTH_REJECTED_OR_UNEXPECTED";
+  }
 
   report.scope = "preview-password-auth-only";
   try { await page.goto(target.toString(), { waitUntil: "domcontentloaded", timeout: 25000 }); }
@@ -67,11 +121,7 @@ try {
     }
     const status = await page.locator("#message").innerText();
     if (!/Password sign-in successful/i.test(status)) {
-      throw Error(/verif|code|additional step|second factor/i.test(status)
-        ? "EMAIL_CODE_REQUIRED"
-        : /not enabled|policy/i.test(status)
-        ? "TEST_ACCOUNT_PASSWORD_POLICY_DISABLED"
-        : "AUTH_REJECTED_OR_UNEXPECTED");
+      throw Error(await resolveAuthFailure(status));
     }
     const panel = page.locator("#content");
     await panel.waitFor({ state: "visible", timeout: 12000 });
@@ -91,7 +141,8 @@ try {
       }, null, { timeout: 30000 });
     } catch {
       const alert = await page.locator("#lb-pw-error").textContent().catch(() => "");
-      throw Error(/verification|email.code|additional/i.test(alert || "") ? "EMAIL_CODE_REQUIRED" : "PASSWORD_DID_NOT_OPEN_DASHBOARD");
+      const cause = await resolveAuthFailure(alert || "");
+      throw Error(cause === "AUTH_REJECTED_OR_UNEXPECTED" ? "PASSWORD_DID_NOT_OPEN_DASHBOARD" : cause);
     }
   }
   if (javascriptErrors) throw Error("BROWSER_JAVASCRIPT_ERRORS");
@@ -108,7 +159,11 @@ try {
     "EMAIL_CODE_REQUIRED", "PASSWORD_PREVIEW_LOGIN_FAILED",
     "TEST_ACCOUNT_PASSWORD_POLICY_DISABLED", "PASSWORD_DID_NOT_OPEN_DASHBOARD",
     "BROWSER_JAVASCRIPT_ERRORS", "AUTH_REQUEST_TIMED_OUT", "AUTH_REJECTED_OR_UNEXPECTED",
-    "PREVIEW_PAGE_NOT_REACHABLE", "PASSWORD_FORM_NOT_AVAILABLE"
+    "PREVIEW_PAGE_NOT_REACHABLE", "PASSWORD_FORM_NOT_AVAILABLE",
+    "CLERK_PASSWORD_INCORRECT", "CLERK_PASSWORD_OR_IDENTIFIER_INCORRECT",
+    "CLERK_IDENTIFIER_NOT_FOUND", "CLERK_PASSWORD_VALIDATION_FAILED",
+    "CLERK_PASSWORD_STRATEGY_UNAVAILABLE", "CLERK_RATE_LIMITED",
+    "CLERK_AUTH_DENIED", "CLERK_AUTH_VALIDATION_FAILED", "PREVIEW_POLICY_API_REJECTED"
   ];
   report.reason = allowed.includes(error.message) ? error.message : "STAGING_BROWSER_TEST_FAILED";
   save();
