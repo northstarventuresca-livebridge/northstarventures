@@ -1,0 +1,24 @@
+name: LiveBridge Clerk browser preflight (no credentials)
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'tests/browser-livebridge-clerk-preflight.mjs'
+      - '.github/workflows/livebridge-clerk-preflight.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    name: Test isolated preview Clerk SDK without sign-in
+    runs-on: ubuntu-latest
+    env:
+      NSV_LB_STAGING_LOGIN_URL: ${{ vars.NSV_LB_STAGING_LOGIN_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - run: node --check tests/browser-livebridge-clerk-preflight.mjs
+      - run: npm install --no-save --ignore-scripts playwright@1.56.1
+      - run: npx --no-install playwright install --with-deps chromium
+      - run: node tests/browser-livebridge-clerk-preflight.mjs
