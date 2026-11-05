@@ -36,7 +36,7 @@ try {
   page.on("pageerror", () => { javascriptErrors++; });
   // Record only safe outcome codes/statuses. Never log request bodies, response text,
   // identifiers, passwords, sessions, full URLs or raw Clerk messages.
-  const clerkSignals = { authStatus: null, signInStatus: null, errorCode: null, policyStatus: null, authRequestSent: false, authNetworkFailed: false };
+  const clerkSignals = { authStatus: null, signInStatus: null, errorCode: null, policyStatus: null, authRequestSent: false, authNetworkFailed: false, policyEnabled: null, identityMatch: null };
   const pendingChecks = [];
   const permittedCodes = new Set([
     "form_password_incorrect",
@@ -58,6 +58,22 @@ try {
   }
   page.on("request", request => {
     if (isSignInCall(request)) clerkSignals.authRequestSent = true;
+    try {
+      const url = new URL(request.url());
+      if (url.origin === target.origin && url.pathname === "/api/policy") {
+        pendingChecks.push(page.evaluate(() => {
+          const id = window.Clerk?.user?.id || window.Clerk?.session?.user?.id || "";
+          const prefix = "user_3LSd8sQ5BxtjpFr";
+          const suffix = "ThWt9XFqY";
+          return {
+            visible: !!id,
+            prefixMatch: id.startsWith(prefix),
+            suffixMatch: id.endsWith(suffix),
+            middle: id.startsWith(prefix) && id.endsWith(suffix) ? id.slice(prefix.length, -suffix.length).slice(0,5) : "different"
+          };
+        }).then(value => { clerkSignals.identityMatch = value; }).catch(() => {}));
+      }
+    } catch {}
   });
   page.on("requestfailed", request => {
     if (isSignInCall(request)) clerkSignals.authNetworkFailed = true;
@@ -67,6 +83,11 @@ try {
     try { url = new URL(response.url()); } catch { return; }
     if (url.origin === target.origin && url.pathname === "/api/policy") {
       clerkSignals.policyStatus = response.status();
+      if (response.ok()) {
+        pendingChecks.push(response.json().then(data => {
+          clerkSignals.policyEnabled = data?.enabled === true;
+        }).catch(() => {}));
+      }
       return;
     }
     if (url.hostname !== "clerk.livebridge.ca" || !url.pathname.includes("/client/sign_ins")) return;
@@ -155,7 +176,8 @@ try {
         const current = window.Clerk?.client?.signIn?.status;
         return { signedIn: !!window.Clerk?.isSignedIn, sessionPresent: !!window.Clerk?.session, signInStatus: allowed.includes(current) ? current : "other" };
       });
-      report.stage = { ...stage, policyHttp: clerkSignals.policyStatus };
+      await Promise.allSettled(pendingChecks);
+      report.stage = { ...stage, policyHttp: clerkSignals.policyStatus, policyEnabled: clerkSignals.policyEnabled, identity: clerkSignals.identityMatch };
       throw Error(await resolveAuthFailure(status));
     }
     const panel = page.locator("#content");
