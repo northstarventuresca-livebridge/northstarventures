@@ -37,8 +37,13 @@ try {
   } catch {
     const outcome = await page.evaluate(() => ({
       signedIn: !!window.Clerk?.isSignedIn,
+      clerkLoaded: !!window.Clerk?.loaded,
       sessionPresent: !!window.Clerk?.session,
+      clerkSessionCount: (window.Clerk?.client?.sessions || []).length,
       hasUser: !!window.Clerk?.user,
+      backendAccountLoaded: !!window.liveBridgeServerAccount,
+      activeOrgLoaded: !!window.liveBridgeAccount,
+      setupCardVisible: !!document.getElementById("lb-password-onboarding") && !document.getElementById("lb-password-onboarding").hidden,
       dashboard: !!document.getElementById("lb-dashboard") &&
         document.getElementById("lb-dashboard").style.display !== "none",
       loginScreen: document.getElementById("lb-login-screen")?.style.display !== "none",
