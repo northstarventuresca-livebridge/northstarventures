@@ -129,7 +129,7 @@ try {
     // Older isolated password preview: tests Clerk password completion and isolated account policy,
     // but does NOT claim the real LiveBridge dashboard was opened.
     // A valid form does not guarantee the loaded Clerk SDK exposes the legacy API.
-    const sdkApiAvailable = await page.evaluate(() => typeof window.Clerk?.client?.signIn?.create === "function");
+    const sdkApiAvailable = await page.evaluate(() => typeof window.Clerk?.signIn?.password === "function" || typeof window.Clerk?.client?.signIn?.create === "function");
     if (!sdkApiAvailable) throw Error("CLERK_BROWSER_API_UNAVAILABLE");
     await previewEmail.fill(email);
     await page.locator("#pass").fill(password);
