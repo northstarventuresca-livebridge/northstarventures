@@ -36,7 +36,7 @@ try {
   page.on("pageerror", () => { javascriptErrors++; });
   // Record only safe outcome codes/statuses. Never log request bodies, response text,
   // identifiers, passwords, sessions, full URLs or raw Clerk messages.
-  const clerkSignals = { authStatus: null, errorCode: null, policyStatus: null, authRequestSent: false, authNetworkFailed: false };
+  const clerkSignals = { authStatus: null, signInStatus: null, errorCode: null, policyStatus: null, authRequestSent: false, authNetworkFailed: false };
   const pendingChecks = [];
   const permittedCodes = new Set([
     "form_password_incorrect",
@@ -73,8 +73,12 @@ try {
     // Only authentication HTTP status and whitelisted Clerk error code are kept.
     if (response.request().method() !== "POST") return;
     clerkSignals.authStatus = response.status();
-    if (response.status() >= 400) {
+    {
       pendingChecks.push(response.json().then(data => {
+        const knownStatuses = ["complete", "needs_second_factor", "needs_first_factor", "needs_identifier", "needs_new_password", "needs_finalization"];
+        const options = [data?.response?.status, data?.status, data?.client?.sign_in?.status, data?.response?.sign_in?.status];
+        const match = options.find(status => knownStatuses.includes(status));
+        if (match) clerkSignals.signInStatus = match;
         for (const item of Array.isArray(data?.errors) ? data.errors : []) {
           if (permittedCodes.has(item?.code)) {
             clerkSignals.errorCode = item.code;
@@ -98,6 +102,12 @@ try {
     if (clerkSignals.authNetworkFailed) return "CLERK_SIGN_IN_NETWORK_FAILURE";
     if (!clerkSignals.authRequestSent && clerkSignals.authStatus === null) return "CLERK_SIGN_IN_NOT_SUBMITTED";
     if (clerkSignals.authRequestSent && clerkSignals.authStatus === null) return "CLERK_SIGN_IN_NO_RESPONSE";
+    if (clerkSignals.signInStatus === "needs_second_factor") return "CLERK_SECOND_FACTOR_REQUIRED";
+    if (clerkSignals.signInStatus === "needs_first_factor") return "CLERK_FIRST_FACTOR_INCOMPLETE";
+    if (clerkSignals.signInStatus === "needs_identifier") return "CLERK_IDENTIFIER_REQUIRED";
+    if (clerkSignals.signInStatus === "needs_new_password") return "CLERK_PASSWORD_RESET_REQUIRED";
+    if (clerkSignals.signInStatus === "complete") return "CLERK_SESSION_ACTIVATION_FAILED";
+    if (/verif|code|additional step|second factor/i.test(message)) return "CLERK_SECOND_FACTOR_REQUIRED";
     if (clerkSignals.authStatus && clerkSignals.authStatus < 400) return "CLERK_SIGN_IN_RESPONDED_BUT_UI_FAILED";
     if (/verif|code|additional step|second factor/i.test(message)) return "EMAIL_CODE_REQUIRED";
     if (/not enabled|policy/i.test(message)) return "TEST_ACCOUNT_PASSWORD_POLICY_DISABLED";
@@ -178,6 +188,9 @@ try {
     "CLERK_BROWSER_API_UNAVAILABLE", "CLERK_SIGN_IN_NOT_SUBMITTED",
     "CLERK_SIGN_IN_NO_RESPONSE", "CLERK_SIGN_IN_NETWORK_FAILURE",
     "CLERK_SIGN_IN_RESPONDED_BUT_UI_FAILED",
+    "CLERK_SECOND_FACTOR_REQUIRED", "CLERK_FIRST_FACTOR_INCOMPLETE",
+    "CLERK_IDENTIFIER_REQUIRED", "CLERK_PASSWORD_RESET_REQUIRED",
+    "CLERK_SESSION_ACTIVATION_FAILED",
     "CLERK_PASSWORD_INCORRECT", "CLERK_PASSWORD_OR_IDENTIFIER_INCORRECT",
     "CLERK_IDENTIFIER_NOT_FOUND", "CLERK_PASSWORD_VALIDATION_FAILED",
     "CLERK_PASSWORD_STRATEGY_UNAVAILABLE", "CLERK_RATE_LIMITED",
