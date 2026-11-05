@@ -30,8 +30,8 @@ try {
 
   try {
     await page.waitForFunction(() => {
-      return !!window.Clerk?.isSignedIn && !!window.Clerk?.session &&
-        !!window.Clerk?.user && !!document.getElementById("lb-dashboard") &&
+      return !!window.Clerk?.session && !!window.Clerk?.user &&
+        !!window.liveBridgeServerAccount && !!document.getElementById("lb-dashboard") &&
         document.getElementById("lb-dashboard").style.display !== "none";
     }, null, {timeout:35000});
   } catch {
@@ -75,11 +75,22 @@ try {
   if (!/Password login is enabled|Set up password login/i.test(bannerText)) {
     throw Error("PASSWORD_SETUP_PROMPT_MISSING");
   }
+  // Confirm the sign-in persists beyond its first redirect and refresh.
+  await page.reload({waitUntil:"domcontentloaded",timeout:30000});
+  try {
+    await page.waitForFunction(() => {
+      const dashboard = document.getElementById("lb-dashboard");
+      return !!window.Clerk?.user && !!window.Clerk?.session &&
+        !!window.liveBridgeServerAccount && dashboard?.style.display !== "none";
+    },null,{timeout:30000});
+  } catch {
+    throw Error("PASSWORD_SESSION_NOT_PERSISTED_AFTER_REFRESH");
+  }
   if (scriptErrors) throw Error("BROWSER_SCRIPT_ERRORS");
   console.log("PASS: Existing-client password login opened the authenticated staging dashboard without an email code, with the password setup/status card present.");
   await page.evaluate(() => window.Clerk?.signOut?.()).catch(() => {});
 } catch (error) {
-  const allowed = ["PASSWORD_UPGRADE_SCRIPT_MISSING","PASSWORD_LOGIN_DID_NOT_OPEN_STAGING_DASHBOARD","PASSWORD_SETUP_PROMPT_MISSING","BROWSER_SCRIPT_ERRORS"];
+  const allowed = ["PASSWORD_UPGRADE_SCRIPT_MISSING","PASSWORD_LOGIN_DID_NOT_OPEN_STAGING_DASHBOARD","PASSWORD_SETUP_PROMPT_MISSING","PASSWORD_SESSION_NOT_PERSISTED_AFTER_REFRESH","BROWSER_SCRIPT_ERRORS"];
   console.error("FAIL: " + (allowed.includes(error.message) ? error.message : "STAGING_AUTH_BROWSER_FAILURE"));
   process.exitCode = 1;
 } finally {
