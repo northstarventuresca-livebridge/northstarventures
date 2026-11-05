@@ -28,7 +28,11 @@ jobs:
             echo "configured=true" >> "$GITHUB_OUTPUT"
           else
             echo "configured=false" >> "$GITHUB_OUTPUT"
-            echo "NOT RUN: Confirm a dedicated non-personal LiveBridge test identity before running authentication. Set NSV_LB_DEDICATED_TEST_ACCOUNT=true after test-only account and secrets are configured." >> "$GITHUB_STEP_SUMMARY"
+            echo "NOT RUN — one or more required settings are missing:" >> "$GITHUB_STEP_SUMMARY"
+            [[ -n "$NSV_LB_STAGING_LOGIN_URL" ]] || echo "- NSV_LB_STAGING_LOGIN_URL (GitHub Actions variable)" >> "$GITHUB_STEP_SUMMARY"
+            [[ -n "$NSV_LB_TEST_EMAIL" ]] || echo "- NSV_LB_TEST_EMAIL (GitHub Actions secret)" >> "$GITHUB_STEP_SUMMARY"
+            [[ -n "$NSV_LB_TEST_PASSWORD" ]] || echo "- NSV_LB_TEST_PASSWORD (GitHub Actions secret)" >> "$GITHUB_STEP_SUMMARY"
+            [[ "$NSV_LB_DEDICATED_TEST_ACCOUNT" == "true" ]] || echo "- NSV_LB_DEDICATED_TEST_ACCOUNT must equal true (GitHub Actions variable)" >> "$GITHUB_STEP_SUMMARY"
           fi
       - uses: actions/checkout@v4
         if: steps.configuration.outputs.configured == 'true'
