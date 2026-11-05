@@ -19,8 +19,10 @@ try {
     if (url.hostname === "clerk.livebridge.ca" && url.pathname.includes("clerk.browser.js")) stats.scriptResponse = response.status();
     if (url.hostname === "clerk.livebridge.ca" && url.pathname.includes("ui.browser.js")) stats.uiScriptResponse = response.status();
     if (url.hostname === "clerk.livebridge.ca" && url.pathname.includes("/v1/")) {
-      const matches = url.pathname.match(/\\/v1\\/(client|environment|sign_ins|sessions|users|health|other)(?:\\/|$)/);
-      const type = matches?.[1] || "other";
+      const parts = url.pathname.split("/");
+      const idx = parts.indexOf("v1");
+      const name = parts[idx + 1];
+      const type = ["client","environment","sign_ins","sessions","users","health"].includes(name) ? name : "other";
       stats.clerkResponses.push({type,status:response.status()});
     }
   });
