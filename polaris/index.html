@@ -235,7 +235,8 @@ function onBargeAudioFrame(evt){
    bargeCapture=bargeRing.slice();bargeCaptureStarted=now;bargeLastVoice=now;bargeStreak=0;bargeText=el("replyText").textContent||"";
    el("voiceHint").textContent="Interruption detected · listening to your full comment";bargeUi("Your voice detected · recording");showHeard("Listening to your interruption...");
    try{
-    if(typeof activeAudio.stop==="function")activeAudio.stop();
+    if(typeof activeAudio.polarisStop==="function")activeAudio.polarisStop();
+    else if(typeof activeAudio.stop==="function")activeAudio.stop();
     else if(typeof activeAudio.pause==="function")activeAudio.pause();
    }catch(e){}
   }
@@ -330,6 +331,7 @@ function playPcmAudio(data){
      if(err)reject(err);else resolve();
     }
     element.onended=function(){finish()};
+    element.polarisStop=function(){finish()};
     element.onerror=function(){finish(new Error("Mobile browser cannot decode AI MP3"))};
     activeAudio=element;holdMicrophoneForSpeaker();
     element.play().then(function(){
