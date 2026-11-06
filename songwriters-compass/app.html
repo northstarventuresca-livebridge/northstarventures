@@ -28,6 +28,47 @@
 @media(max-width:1080px){#workspace{grid-template-columns:205px 1fr}.sidebar{padding:24px 11px}.content{padding:23px}.topbar{padding:0 24px}.split{grid-template-columns:215px minmax(0,1fr)}}
 @media(max-width:770px){#auth{grid-template-columns:1fr}.auth-story{min-height:265px;padding:25px}.auth-story h1{margin:33px 0 8px;font-size:42px}.auth-story p{font-size:13px;max-width:450px}.auth-story .tag{display:none}.auth-pane{padding:35px 23px}.auth-card h2{font-size:36px}#workspace{display:block}.sidebar{height:auto;position:static;padding:11px 15px;display:block}.sidebar .brand{margin:0 0 13px}.sidebar .caption,.navhead,.side-footer{display:none}.sidebar nav{display:flex;overflow-x:auto;gap:5px}.menu-item{width:auto;flex:none;padding:10px 12px;font-size:11px}.menu-item .emoji{display:none}.topbar{position:sticky;top:0;height:59px;padding:0 19px}.topright .pill{display:none}.content{padding:23px 15px}.statgrid{grid-template-columns:repeat(3,1fr);gap:8px}.stat{padding:17px 12px}.stat .value{font-size:32px}.welcome{display:block}.welcome .btn{margin-top:20px}.sectionhead{align-items:flex-start}.split,.settingsgrid{grid-template-columns:1fr}.listpanel{min-height:unset}.editpanel{padding:20px}.editor-head{display:block}.editor-head .editor-actions{margin-top:16px}}
 @media(max-width:390px){.stat .label{font-size:9px}.stat .value{font-size:26px}.record .state{display:none}.sidebar .brand strong{font-size:19px}}
+
+
+/* Compass community, milestones and administrator workspace */
+.tierchip{font-size:10px;font-weight:800;letter-spacing:.6px;border:1px solid #d8b67c88;background:#f9f0df;color:#77572c;border-radius:18px;padding:5px 10px;display:inline-flex;align-items:center;gap:5px}
+.tierchip.dark{background:#243950;border-color:#cfae73;color:#efd39a}
+.tierprofile{background:linear-gradient(140deg,#1b3147,#263f59);color:white;border-radius:14px;padding:27px;display:flex;align-items:center;gap:20px;flex-wrap:wrap;justify-content:space-between;margin-bottom:24px}
+.tierprofile h2{font-size:35px;margin:4px 0}.tierprofile p{color:#b7c8d5;margin-bottom:8px;max-width:560px}.progressbar{width:100%;height:8px;background:#ffffff30;border-radius:50px;margin:12px 0 6px;overflow:hidden}.progressbar span{display:block;background:#e3c487;height:100%;border-radius:50px;width:0%;transition:width .4s}.progresscopy{font-size:11px;color:#cedbe2}
+.achievement-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:13px;margin-top:22px}
+.achievement{border:1px solid #e5dac9;border-radius:12px;padding:18px;background:#fcfaf6;text-align:center;min-height:195px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.achievement.locked{filter:grayscale(1);opacity:.56;background:#f4f2ec}
+.achievement .awardicon{height:55px;width:55px;display:grid;place-items:center;border-radius:50%;background:radial-gradient(circle,#f9e9bd,#d2a45a);color:#1b3349;border:3px solid #c99750;font-size:28px;box-shadow:0 0 0 4px #e8d6ae}
+.achievement.locked .awardicon{background:#c6c6c6;border-color:#b5b5b5;box-shadow:none}
+.achievement b{font-size:12px;line-height:1.3;margin:13px 0 6px}.achievement small{font-size:10px;color:#87919b;line-height:1.5}.achievement .ach-state{color:#987344;font-size:10px;font-weight:800;margin-top:9px}
+.filterline{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:17px 0}.filterline select{max-width:265px}
+#unreadBubble{background:#ef735a;color:#fff;padding:1px 7px;border-radius:15px;margin-left:auto;font-size:10px}
+.menu-item.has-unread{background:#d68f5f29;color:#fff;animation:inboxglow 1.5s ease-in-out infinite}
+@keyframes inboxglow{50%{box-shadow:0 0 0 3px #d3ac674d}}
+.messagebox{display:grid;grid-template-columns:280px minmax(0,1fr);gap:17px}.chatlist{border:1px solid var(--line);border-radius:12px;background:#fff;padding:18px;min-height:470px}.chatlist h3{font-size:24px;margin-bottom:12px}
+.chat-window{border:1px solid var(--line);background:#fffdf9;border-radius:12px;display:flex;flex-direction:column;min-height:535px;overflow:hidden}
+.chat-header{padding:15px 20px;background:#f7f1e6;border-bottom:1px solid var(--line);font-size:15px;font-weight:800}
+.chat-messages{padding:18px;flex:1;min-height:280px;max-height:480px;overflow-y:auto;display:flex;flex-direction:column;gap:14px}
+.msg{max-width:80%;background:#eee8da;border-radius:13px;padding:12px 15px;white-space:pre-wrap;font-size:13px;line-height:1.65;align-self:flex-start}
+.msg.mine{background:#1b3146;color:#fff;align-self:flex-end}.msg small{display:block;opacity:.65;font-size:9px;margin-top:5px}
+.shared-preview{padding:12px;margin-top:9px;border:1px solid #d8b77f;border-radius:8px;background:#fffdfa;color:#243243;white-space:pre-wrap;max-height:210px;overflow:auto}
+.shared-preview b{display:block;color:#94723f;margin-bottom:6px}
+.chat-compose{padding:17px;border-top:1px solid var(--line);background:#fff}.chat-compose textarea{min-height:78px}.compose-row{display:flex;gap:10px;flex-wrap:wrap;justify-content:space-between;align-items:center;margin-top:9px}
+.compose-row select{width:min(250px,100%)}
+.accountrow{display:grid;grid-template-columns:1.4fr .8fr .8fr .8fr auto;gap:12px;align-items:center;padding:13px 12px;border-top:1px solid var(--line);font-size:12px}
+.accountrow b{display:block}.accountrow small{display:block;color:#929ca4;font-size:10px;overflow-wrap:anywhere}
+.accountrow.heading{font-size:10px;text-transform:uppercase;letter-spacing:1px;font-weight:800;color:#86929b;background:#f8f5ef}
+.admin-tools{display:flex;gap:10px;flex-wrap:wrap;margin:20px 0}.admin-tab{border:1px solid var(--line);border-radius:24px;background:#fff;padding:9px 15px;font-size:12px;font-weight:800;color:#687986}.admin-tab.active{background:#1b3146;color:#fff}
+.adminpane{display:none}.adminpane.active{display:block}.keyval{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:16px}.keyval div{background:#f8f3e8;padding:16px;border-radius:9px}.keyval b{display:block;font-size:23px}.keyval small{font-size:10px;color:#76838d}
+.admin-detail{background:#fff;border:1px solid var(--line);padding:18px;border-radius:9px;margin-top:16px}
+.tieredit{display:grid;grid-template-columns:60px 1fr 100px 120px auto;gap:10px;align-items:center;border-bottom:1px solid var(--line);padding:10px 0}.tieredit input{padding:8px}.tieredit input[type=color]{padding:2px;width:50px;height:37px}
+.ach-edit{display:grid;grid-template-columns:1.5fr 1fr 100px 55px auto;gap:7px;align-items:center;margin-bottom:9px}.ach-edit input,.ach-edit select{padding:7px;font-size:11px}.ach-edit .btn{padding:7px}
+#achievementToast{position:fixed;inset:auto 18px 20px auto;z-index:100;border-radius:14px;background:linear-gradient(135deg,#2d3e53,#142336);color:#f8f3e8;box-shadow:0 15px 50px #0005;border:1px solid #c7a569;padding:22px 25px;max-width:310px;display:none}
+#achievementToast.show{display:block;animation:popin .4s ease-out}@keyframes popin{0%{transform:translateY(20px);opacity:0}100%{transform:none;opacity:1}}
+#achievementToast h3{font-size:26px;color:#e6c37d;margin:0 0 6px}#achievementToast .award{font-size:30px}
+@media(max-width:850px){.messagebox{grid-template-columns:1fr}.chatlist{min-height:auto}.chat-window{min-height:420px}.accountrow{grid-template-columns:1.2fr .7fr .7fr auto}.accountrow .hide-tablet{display:none}.keyval{grid-template-columns:repeat(2,minmax(0,1fr))}.tieredit{grid-template-columns:1fr 1fr;align-items:center}.ach-edit{grid-template-columns:1fr 1fr}.tieredit span{display:none}}
+@media(max-width:480px){.achievement-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.achievement{padding:12px 8px;min-height:175px}.chat-messages{padding:12px}.msg{max-width:94%}.keyval{grid-template-columns:1fr 1fr}.accountrow{grid-template-columns:1fr auto}.accountrow .mini-stat{display:none}.admin-tools{gap:5px}.admin-tab{padding:8px 11px}}
+
 </style></head>
 <body>
 <div id="auth">
@@ -60,9 +101,12 @@
       <button class="menu-item active" data-view="home"><span class="emoji">⌂</span> Overview</button>
       <button class="menu-item" data-view="songs"><span class="emoji">♫</span> My Songs</button>
       <button class="menu-item" data-view="journal"><span class="emoji">✎</span> Journal & Ideas</button>
+      <button class="menu-item" data-view="achievements"><span class="emoji">★</span> Achievements</button>
+      <button class="menu-item" id="messagesNav" data-view="messages"><span class="emoji">✉</span> Messages <span id="unreadBubble" class="hidden">0</span></button>
+      <button class="menu-item hidden" id="adminNav" data-view="admin"><span class="emoji">⚙</span> NorthStar Admin</button>
       <button class="menu-item" data-view="settings"><span class="emoji">⚙</span> Account & Security</button>
    </nav>
-   <div class="side-footer"><div class="profile"><div class="avatar" id="avatar">S</div><div><b id="sideName">Songwriter</b><small id="sideEmail">—</small></div></div><div style="color:#9eabb9;font-size:11px">A NorthStar Ventures project</div></div>
+   <div class="side-footer"><div class="profile"><div class="avatar" id="avatar">S</div><div><b id="sideName">Songwriter</b><small id="sideEmail">—</small><small class="tierchip dark" id="memberTier">First Spark</small></div></div><div style="color:#9eabb9;font-size:11px">A NorthStar Ventures project</div></div>
  </aside>
  <div class="main">
   <div class="topbar"><div class="crumb">My workspace <span style="color:#b9c0c6">/</span> <b id="crumb">Overview</b></div><div class="topright"><span class="pill">SPIRIT-LED SONGWRITING</span><button class="btn light small" id="topLogout">Sign out</button></div></div>
@@ -79,7 +123,7 @@
      <div class="editpanel" id="songEditor">
        <div id="noSong" class="empty"><div class="big">♫</div><h3>Choose your next song</h3><p>Select a song to continue writing, or start with a fresh idea.</p><button class="btn gold" id="emptyNewSong">＋ Start writing</button></div>
        <div id="songFields" class="hidden">
-        <div class="editor-head"><div><div class="eyebrow">My songwriting space</div><h2>Song development</h2></div><div class="editor-actions"><button class="btn light small" id="exportSong">↓ Export .txt</button><button class="btn danger small" id="deleteSong">Delete</button></div></div>
+        <div class="editor-head"><div><div class="eyebrow">My songwriting space</div><h2>Song development</h2></div><div class="editor-actions"><button class="btn light small" id="shareThisSong">✉ Share song</button><button class="btn light small" id="exportSong">↓ Export .txt</button><button class="btn danger small" id="deleteSong">Delete</button></div></div>
         <div class="field"><label for="songTitle">Song title</label><input id="songTitle" maxlength="140" placeholder="Give your song a working title"></div>
         <div class="field"><label for="songStatus">Where are you at?</label><select id="songStatus"><option>Idea</option><option>Writing</option><option>Refining</option><option>Finished</option></select></div>
         <div class="editor-tabs"><button class="tab active" data-tab="lyrics">Lyrics</button><button class="tab" data-tab="mission">Creative mission</button><button class="tab" data-tab="scriptures">Scripture</button><button class="tab" data-tab="notes">Notes</button><button class="tab" data-tab="style_prompt">Production</button><button class="tab" data-tab="companion">✦ AI Companion</button></div>
@@ -114,6 +158,96 @@
    </div>
    <div class="panel" style="margin-top:20px"><h3>My account</h3><p class="muted">Only you can see songs and journal entries saved in this account. Sign out when using a shared device.</p><button class="btn light" id="settingsLogout">Sign out</button></div>
    </section>
+
+<section class="section" id="view-achievements">
+  <div class="eyebrow">A journey of faith-filled creativity</div>
+  <h1>My achievements</h1>
+  <p class="subline">Celebrate the work you've put into your songs. Milestones recognize your creative journey, not your spiritual worth.</p>
+  <div id="rankingTheme" class="tierprofile" style="margin-top:25px">
+    <div style="flex:1;min-width:220px">
+      <span class="eyebrow" style="color:#e1be7d">Songwriter level</span><h2 id="rankName">First Spark</h2><p id="rankDesc">Every song begins with a spark.</p>
+      <span class="tierchip dark" id="rankPoints">0 Compass points</span>
+      <div class="progressbar"><span id="rankProgress"></span></div><span class="progresscopy" id="rankNext">Discover your next step</span>
+    </div>
+    <div style="text-align:center"><div style="font-size:45px;color:#d7b477">✦</div><b id="rankBadgeCount">0 achievements</b></div>
+  </div>
+  <div class="panel"><h3>The Compass Milestone Collection</h3>
+  <div class="filterline">
+   <select id="achievementFilter" aria-label="Achievement category">
+    <option value="all">All categories</option>
+    <option value="songs_started">Songs started</option><option value="songs_finished">Songs finished</option><option value="journal_entries">Journaling</option>
+    <option value="ai_sessions">Companion sessions</option><option value="messages_sent">Encouragement</option><option value="songs_shared">Song sharing</option>
+    <option value="lyric_words">Writing</option><option value="missions_written">Creative missions</option><option value="scriptures_added">Scripture reflections</option><option value="days_active">Active days</option>
+   </select>
+   <select id="achievementStatus" aria-label="Achievement status"><option value="all">Unlocked & upcoming</option><option value="earned">Unlocked only</option><option value="locked">Still to discover</option></select>
+   <span class="muted" id="badgeCount" style="font-size:12px">150 milestones</span>
+  </div>
+  <div class="achievement-grid" id="badgeGrid"></div></div>
+</section>
+<section class="section" id="view-messages">
+ <div class="sectionhead"><div><div class="eyebrow">Stay connected</div><h1>Message centre</h1><p class="subline">Encourage another songwriter or privately share a song you're working on.</p></div><button class="btn light small" id="refreshMessages">↻ Refresh</button></div>
+ <div class="messagebox">
+  <div class="chatlist"><h3>Conversations</h3>
+   <form id="startChat" style="display:flex;gap:7px;margin-bottom:20px;flex-wrap:wrap"><input type="email" id="findEmail" placeholder="Songwriter's email" aria-label="Add songwriter by email" required style="min-width:0;flex:1"><button class="btn gold small" type="submit" id="startChatButton">Add</button></form>
+   <div class="rows" id="threadList"></div>
+  </div>
+  <div class="chat-window">
+   <div class="chat-header"><div id="chatWith">Your conversations</div><small id="chatTo" class="muted">Select a conversation or add someone by their email</small></div>
+   <div class="chat-messages" id="chatMessages"><div class="muted">Messages and shared songs will appear here.</div></div>
+   <form class="chat-compose hidden" id="chatComposer">
+      <label for="messageText">Your message</label><textarea id="messageText" maxlength="2000" placeholder="Encourage them, ask a question or share an idea..."></textarea>
+      <div class="compose-row"><select id="shareSongPick" aria-label="Attach one of your songs"><option value="">No song attached</option></select><button type="submit" id="sendMsgButton" class="btn gold">Send message →</button></div>
+   </form>
+  </div>
+ </div>
+ <p class="muted" style="font-size:11px;margin-top:14px">Conversations are private to participants. When you attach a song, the recipient gets a read-only copy of its current title and lyrics. Messages refresh automatically while this page is open.</p>
+</section>
+<section class="section" id="view-admin">
+ <div class="eyebrow">NorthStar Ventures · Restricted access</div>
+ <h1>Administrator centre</h1><p class="subline">Account management, activity, estimated OpenAI usage, and the milestones that encourage writers.</p>
+ <div class="admin-tools">
+   <button data-adminpane="overview" class="admin-tab active">Overview</button>
+   <button data-adminpane="accounts" class="admin-tab">Accounts</button>
+   <button data-adminpane="tiers" class="admin-tab">Levels</button>
+   <button data-adminpane="milestones" class="admin-tab">Achievements</button>
+ </div>
+ <div class="adminpane active" id="admin-overview">
+  <div class="statgrid" id="adminStatRow"></div>
+  <div class="smalltip" id="adminCostNote">AI costs are estimated in USD from per-user token usage, not an OpenAI invoice.</div>
+ </div>
+ <div class="adminpane" id="admin-accounts">
+   <div class="panel"><h3>Registered songwriters</h3><input id="accountSearch" type="search" placeholder="Search name or email" style="max-width:370px;margin-bottom:15px">
+    <div class="accountrow heading"><span>Account</span><span class="mini-stat">Songs</span><span class="mini-stat">AI use</span><span class="hide-tablet mini-stat">Cost USD</span><span>Details</span></div>
+    <div id="adminAccountList"></div></div>
+   <div id="adminAccountDetail" class="admin-detail hidden"></div>
+ </div>
+ <div class="adminpane" id="admin-tiers">
+  <div class="panel"><h3>Songwriter levels</h3><p class="muted">Edit names, Compass-point thresholds and avatar colours. You can create more levels whenever you want.</p>
+   <div id="tiersList"></div>
+   <form id="newTierForm" class="compose-row" style="margin-top:20px"><input id="newTierName" maxlength="50" placeholder="New level name" required style="max-width:240px"><input id="newTierGoal" type="number" min="0" value="2000" required style="max-width:130px"><button class="btn gold" type="submit">Add level</button></form>
+  </div>
+ </div>
+ <div class="adminpane" id="admin-milestones">
+  <div class="panel"><h3>Achievement collection</h3><p class="muted">150 milestones included. Search and edit any achievement, or create custom challenges.</p>
+   <input type="search" id="adminAchievementSearch" placeholder="Find an achievement by name or metric..." style="max-width:400px;margin-bottom:16px">
+   <div id="adminAchievementCount" class="muted" style="margin-bottom:10px"></div>
+   <div id="adminAchievementList"></div>
+   <h3 style="margin-top:22px">Add an achievement</h3>
+   <form id="newAchievementForm" class="compose-row">
+     <input id="newAchievementName" maxlength="80" placeholder="Achievement title" required style="max-width:210px">
+     <input id="newAchievementDesc" maxlength="180" placeholder="Description" style="max-width:230px">
+     <select id="newAchievementMetric" style="max-width:215px">
+       <option value="songs_started">Songs started</option><option value="songs_finished">Songs finished</option><option value="journal_entries">Journal entries</option>
+       <option value="ai_sessions">AI sessions</option><option value="messages_sent">Messages sent</option><option value="songs_shared">Songs shared</option>
+       <option value="lyric_words">Lyric words</option><option value="missions_written">Creative missions</option>
+       <option value="scriptures_added">Scriptures added</option><option value="days_active">Active days</option>
+     </select><input id="newAchievementGoal" type="number" min="1" placeholder="Target" required style="max-width:95px">
+     <button class="btn gold" type="submit">Create</button>
+   </form>
+  </div>
+ </div>
+</section>
+
   </div>
  </div>
 </div>
@@ -187,4 +321,252 @@ function addBubble(message,who){const b=document.createElement("div");b.classNam
 document.querySelectorAll("[data-prompt]").forEach(x=>x.onclick=()=>{$("aiQuestion").value=x.dataset.prompt;$("aiQuestion").focus()});
 $("aiForm").onsubmit=async e=>{e.preventDefault();const q=$("aiQuestion").value.trim(),s=currentSong();if(!q||!s)return;await saveSong(false);$("aiError").textContent="";addBubble(q,"you");$("aiQuestion").value="";$("askButton").disabled=true;$("askButton").textContent="Thinking...";try{const r=await api("/api/assist","POST",{songId:s.id,question:q});addBubble(r.answer,"ai")}catch(err){$("aiError").textContent=err.message;notify(err.message,true)}finally{$("askButton").disabled=false;$("askButton").textContent="Ask Compass ✦"}};
 (async()=>{try{const d=await api("/api/me");await openWorkspace(d.user)}catch(_){showAuth()}})();
+</script>
+<div id="achievementToast" role="status" aria-live="polite"><div class="award">✦</div><h3>Compass milestone!</h3><div id="achievementToastTitle"></div></div>
+<script>
+
+"use strict";
+// Songwriter's Compass community and administration UI. All untrusted text is rendered with textContent.
+const cState={progress:null,threads:[],threadId:null,lastMessageId:null,adminUsers:[],tiers:[],achievements:[],achFilter:"all",adminPane:"overview",poll:null,badgeTimers:0};
+const $c=id=>document.getElementById(id);
+const vDate=t=>t?new Date(t>1e11?t:t*1000).toLocaleString():"Never";
+const usd=n=>"$"+Number(n||0).toFixed(5);
+const escText=s=>String(s==null?"":s);
+const button=(text,fn,kind="light")=>{let b=document.createElement("button");b.type="button";b.className="btn small "+kind;b.textContent=text;b.onclick=fn;return b;};
+const div=(cls,text)=>{const d=document.createElement("div");d.className=cls||"";if(text!==undefined)d.textContent=escText(text);return d;};
+const clear=el=>el.replaceChildren();
+const elInput=(value,type="text")=>{let x=document.createElement("input");x.type=type;x.value=escText(value);return x;};
+const metricsList=["songs_started","songs_finished","journal_entries","ai_sessions","messages_sent","songs_shared","lyric_words","missions_written","scriptures_added","days_active"];
+const metricLabels={songs_started:"Songs started",songs_finished:"Songs finished",journal_entries:"Journal entries",ai_sessions:"AI conversations",messages_sent:"Messages sent",songs_shared:"Songs shared",lyric_words:"Lyric words",missions_written:"Creative missions",scriptures_added:"Scripture notes",days_active:"Active days"};
+function milestoneToast(text){const t=$c("achievementToast");$c("achievementToastTitle").textContent=text;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),6500);}
+async function loadProgress(showUnlock=false){
+ if(!state.user)return;
+ try{
+ const d=await api("/api/progression");
+ const previous=cState.progress?.tier?.id;
+ cState.progress=d;
+ $c("memberTier").textContent=d.tier.name;
+ $c("memberTier").style.color=d.tier.accent;
+ $c("avatar").style.background=d.tier.accent;
+ $c("rankName").textContent=d.tier.name;
+ $c("rankDesc").textContent=d.tier.description||"Keep exploring what God has placed on your heart.";
+ $c("rankPoints").textContent=d.xp+" Compass points";
+ $c("rankBadgeCount").textContent=d.earnedCount+" / "+d.totalAchievements+" achievements";
+ const percent=d.nextTier?Math.max(0,Math.min(100,(d.xp-d.tier.threshold)/(d.nextTier.threshold-d.tier.threshold)*100)):100;
+ $c("rankProgress").style.width=percent+"%";
+ $c("rankNext").textContent=d.nextTier?(d.nextTier.threshold-d.xp)+" points to "+d.nextTier.name:"Highest milestone reached";
+ $c("rankingTheme").style.borderColor=d.tier.accent;
+ if(showUnlock){
+   if(previous&&previous!==d.tier.id)milestoneToast("New level: "+d.tier.name);
+   else if(d.newAwards?.length)milestoneToast("Achievement unlocked: "+d.newAwards[0]);
+ }
+ renderAchievements();
+ }catch(e){notify(e.message,true)}
+}
+function renderAchievements(){
+ const d=cState.progress;if(!d)return;
+ const cards=$c("badgeGrid");clear(cards);
+ const filter=$c("achievementFilter").value;
+ const show=$c("achievementStatus").value;
+ let list=d.achievements.filter(a=>(filter==="all"||a.metric===filter)&&(show==="all"||(show==="earned"&&a.unlocked)||(show==="locked"&&!a.unlocked)));
+ $c("badgeCount").textContent=list.length+" achievements shown";
+ if(!list.length)cards.append(div("empty","No achievements match these filters."));
+ for(const a of list){
+   const item=div("achievement"+(a.unlocked?"":" locked"));
+   const ico=div("awardicon",a.unlocked?a.icon:"♢");
+   const title=document.createElement("b");title.textContent=a.title;
+   const desc=document.createElement("small");desc.textContent=a.description;
+   const progress=div("ach-state",a.unlocked?"✓ Unlocked":a.progress+" / "+a.threshold);
+   item.append(ico,title,desc,progress);cards.append(item);
+ }
+}
+async function pollUnread(){
+ if(!state.user)return;
+ try{const d=await api("/api/messages/unread");const n=Number(d.count)||0;$c("unreadBubble").textContent=n>99?"99+":n;$c("unreadBubble").classList.toggle("hidden",n===0);$c("messagesNav").classList.toggle("has-unread",n>0);}catch(_){}
+}
+function messageCard(t){
+ let item=record(t.other_name,t.last_body||"Start a conversation","journal",t.id===cState.threadId,()=>openThread(t.id),t.unread?t.unread+" new":null);
+ item.setAttribute("aria-label","Conversation with "+t.other_name);
+ return item;
+}
+async function loadThreads(){
+ if(!state.user)return;
+ try{const d=await api("/api/messages/threads");cState.threads=d.threads||[];let holder=$c("threadList");clear(holder);if(!d.threads.length)holder.append(div("muted","No conversations yet. Add a songwriter by their email to get started."));else d.threads.forEach(t=>holder.append(messageCard(t)));await pollUnread();}catch(e){notify(e.message,true)}
+}
+async function openThread(id){
+ cState.threadId=id;cState.lastMessageId=null;const t=cState.threads.find(x=>x.id===id);$c("chatWith").textContent=t?.other_name||"Conversation";$c("chatTo").textContent=t?.other_email||"";$c("chatComposer").classList.remove("hidden");await loadThreadMessages();renderConversationActive();
+}
+function renderConversationActive(){for(const n of $c("threadList").children){n.classList.remove("current")}const t=cState.threads.find(x=>x.id===cState.threadId);if(t){$c("chatWith").textContent=t.other_name;}}
+async function loadThreadMessages(){
+ if(!cState.threadId||!state.user)return;
+ try{
+ const res=await api("/api/messages/threads/"+cState.threadId+"/messages");
+ const msgs=res.messages||[];const latest=msgs[msgs.length-1]?.id||"";
+ if(latest===cState.lastMessageId)return;
+ cState.lastMessageId=latest;
+ const holder=$c("chatMessages");const nearBottom=holder.scrollHeight-holder.scrollTop-holder.clientHeight<90;clear(holder);
+ if(!msgs.length)holder.append(div("muted","Say hello. Encourage one another, share a thought, or send a song."));
+ for(const m of msgs){
+  const bubble=div("msg"+(m.sender_id===state.user.id?" mine":""));
+  if(m.body){bubble.append(document.createTextNode(m.body));}
+  if(m.shared_title){
+    const share=div("shared-preview");const label=document.createElement("b");label.textContent="♫ Shared song: "+m.shared_title;
+    share.append(label,document.createTextNode(m.shared_lyrics||"(No lyrics yet)"));bubble.append(share);
+  }
+  const time=document.createElement("small");time.textContent=vDate(m.created_at);bubble.append(time);holder.append(bubble);
+ }
+ if(nearBottom||!cState.lastMessageId)holder.scrollTop=holder.scrollHeight;
+ await pollUnread();
+ }catch(e){notify(e.message,true)}
+}
+async function createThread(email){
+ const d=await api("/api/messages/threads","POST",{email});
+ await loadThreads();await openThread(d.thread_id);
+ return d;
+}
+$c("startChat").onsubmit=async e=>{
+ e.preventDefault();const input=$c("findEmail"),btn=$c("startChatButton");btn.disabled=true;
+ try{await createThread(input.value.trim());input.value="";notify("Conversation ready")}catch(err){notify(err.message,true)}finally{btn.disabled=false}
+};
+$c("sendMessage").onsubmit=async e=>{
+ e.preventDefault();
+ if(!cState.threadId)return;
+ const input=$c("messageText"),share=$c("shareSongPick"),body=input.value.trim(),songId=share.value;
+ if(!body&&!songId)return notify("Write a message or choose a song.",true);
+ const btn=$c("sendMsgButton");btn.disabled=true;
+ try{await api("/api/messages/threads/"+cState.threadId+"/messages","POST",{body,songId});input.value="";share.value="";cState.lastMessageId=null;await loadThreadMessages();await loadThreads();await loadProgress(true);}catch(err){notify(err.message,true)}finally{btn.disabled=false}
+};
+function fillShareSelect(){
+ const el=$c("shareSongPick"),old=el.value;clear(el);
+ let start=document.createElement("option");start.value="";start.textContent="No song attached";el.append(start);
+ state.songs.forEach(s=>{const opt=document.createElement("option");opt.value=s.id;opt.textContent=s.title;el.append(opt)});
+ if([...el.options].some(o=>o.value===old))el.value=old;
+}
+$c("shareThisSong").onclick=()=>{const s=currentSong();if(!s)return;fillShareSelect();$c("shareSongPick").value=s.id;navigate("messages");notify("Choose a conversation to share your song.")};
+function stat(label,value){const d=div("stat");d.append(div("label",label),div("value",value));return d}
+async function loadAdminOverview(){
+ try{
+ const d=await api("/api/admin/overview");
+ const row=$c("adminStatRow");clear(row);
+ row.append(stat("Accounts",d.users),stat("Online now",d.active),stat("AI cost (USD estimate)",usd(d.ai.estimated_usd)),stat("AI requests",d.ai.calls),stat("Songs",d.songs),stat("Input / output tokens",d.ai.in_tokens+" / "+d.ai.out_tokens));
+ $c("adminCostNote").textContent=d.costNote;
+ }catch(e){notify(e.message,true)}
+}
+async function loadAdminAccounts(){
+ try{
+ const d=await api("/api/admin/accounts");cState.adminUsers=d.users||[];renderAdminAccounts();
+ }catch(e){notify(e.message,true)}
+}
+function renderAdminAccounts(){
+ const holder=$c("adminAccountList"),q=$c("accountSearch").value.toLowerCase().trim();clear(holder);
+ const filtered=cState.adminUsers.filter(u=>!q||[u.email,u.display_name].join(" ").toLowerCase().includes(q));
+ if(!filtered.length)holder.append(div("empty","No accounts match your search."));
+ for(const u of filtered){
+   const row=div("accountrow");
+   const info=div("");const title=document.createElement("b");title.textContent=u.display_name;info.append(title,div("",""+u.email));
+   info.lastChild.className="muted";info.lastChild.style.fontSize="10px";
+   if(u.suspended)info.append(div("error","Suspended"));
+   row.append(info,div("mini-stat",u.songs+" songs"),div("mini-stat",u.calls+" AI calls"),div("hide-tablet mini-stat",usd(u.cost_usd)),button("View",()=>openAdminAccount(u.id)));
+   holder.append(row);
+ }
+}
+$c("accountSearch").addEventListener("input",renderAdminAccounts);
+function makeInfo(label,value){const box=div("");const name=document.createElement("b");name.textContent=label;const details=div("muted",value);details.style.fontSize="12px";box.append(name,details);return box}
+async function openAdminAccount(id){
+ try{
+   const d=await api("/api/admin/accounts/"+id),u=d.user,detail=$c("adminAccountDetail");clear(detail);detail.classList.remove("hidden");
+   const headline=document.createElement("h3");headline.textContent=u.display_name+" — "+u.email;detail.append(headline);
+   const statgrid=div("keyval");
+   const ai=d.ai_calls||[],prompt=ai.reduce((s,x)=>s+Number(x.prompt_tokens),0),output=ai.reduce((s,x)=>s+Number(x.completion_tokens),0),cost=ai.reduce((s,x)=>s+Number(x.cost_usd),0);
+   const live=d.sessions.filter(x=>!x.ended_at&&x.last_seen>Date.now()/1000-300);
+   const duration=d.sessions.reduce((sum,s)=>sum+Math.max(0,(s.ended_at||s.last_seen)-s.started_at),0);
+   [["Member since",vDate(u.created_at)],["Level",d.progress.tier.name],["Compass points",d.progress.xp],["Total sessions shown",d.sessions.length],["Online now",live.length?"Yes":"No"],["Tracked session time",Math.round(duration/60)+" min"],["AI calls (recent)",ai.length],["Prompt tokens (recent)",prompt],["Completion tokens (recent)",output],["Estimated recent AI cost",usd(cost)],["Songs",d.progress.stats.songs_started],["Achievements",d.progress.earnedCount]].forEach(x=>statgrid.append(makeInfo(x[0],x[1])));
+   detail.append(statgrid);
+   const ctrl=div("compose-row");
+   const tierSelect=document.createElement("select");tierSelect.style.width="min(230px,100%)";
+   const manual=document.createElement("option");manual.value="";manual.textContent="Automatic level";tierSelect.append(manual);
+   (cState.tiers||[]).forEach(t=>{const o=document.createElement("option");o.value=t.id;o.textContent=t.name;tierSelect.append(o)});
+   tierSelect.value=u.tier_override||"";
+   const save=button("Save level",async()=>{try{await api("/api/admin/accounts/"+id,"PATCH",{tier_override:tierSelect.value?Number(tierSelect.value):null});notify("Level updated");await openAdminAccount(id);await loadAdminAccounts();}catch(e){notify(e.message,true)}});
+   const suspended=button(u.suspended?"Restore account":"Suspend account",async()=>{if(!confirm((u.suspended?"Restore":"Suspend")+" this account?"))return;try{await api("/api/admin/accounts/"+id,"PATCH",{suspended:!u.suspended});notify("Account updated");await openAdminAccount(id);await loadAdminAccounts()}catch(e){notify(e.message,true)}},u.suspended?"light":"danger");
+   const message=button("Message songwriter",async()=>{try{await createThread(u.email);navigate("messages")}catch(e){notify(e.message,true)}});
+   ctrl.append(tierSelect,save,suspended,message);detail.append(ctrl);
+   const subtitle=document.createElement("h4");subtitle.textContent="Recent account sessions & activity";detail.append(subtitle);
+   for(const s of d.sessions.slice(0,10)){detail.append(div("record",vDate(s.started_at)+" → "+(s.ended_at?vDate(s.ended_at):"Last active "+vDate(s.last_seen))+" ("+Math.max(0,Math.round(((s.ended_at||s.last_seen)-s.started_at)/60))+" min)"));}
+   const activity=document.createElement("h4");activity.textContent="Recent events";detail.append(activity);
+   for(const e of d.activity.slice(0,15))detail.append(div("record",metricLabels[e.kind]||e.kind.replaceAll("_"," ")+" · "+vDate(e.created_at)));
+ }catch(e){notify(e.message,true)}
+}
+async function loadTiers(){
+ try{const d=await api("/api/admin/tiers");cState.tiers=d.tiers||[];renderTierEditor();}catch(e){notify(e.message,true)}
+}
+function renderTierEditor(){
+ const holder=$c("tiersList");clear(holder);
+ for(const t of cState.tiers){
+  const row=div("tieredit");
+  const number=div("",String(t.id));
+  const name=elInput(t.name),limit=elInput(t.threshold,"number");limit.min="0";
+  const color=elInput(t.accent,"color");
+  const save=button("Save",async()=>{try{await api("/api/admin/tiers/"+t.id,"PATCH",{name:name.value,threshold:Number(limit.value),accent:color.value,description:t.description});notify("Tier updated");await loadTiers()}catch(e){notify(e.message,true)}});
+  row.append(number,name,limit,color,save);holder.append(row);
+ }
+}
+$c("newTierForm").onsubmit=async e=>{e.preventDefault();try{await api("/api/admin/tiers","POST",{name:$c("newTierName").value,threshold:Number($c("newTierGoal").value),accent:"#d7b477",description:""});e.target.reset();await loadTiers();notify("New tier created")}catch(err){notify(err.message,true)}};
+async function loadAdminAchievements(){
+ try{const d=await api("/api/admin/achievements");cState.achievements=d.achievements||[];renderAdminAchievements();}catch(e){notify(e.message,true)}
+}
+function renderAdminAchievements(){
+ const holder=$c("adminAchievementList");clear(holder);
+ const q=$c("adminAchievementSearch").value.toLowerCase().trim();
+ const shown=cState.achievements.filter(a=>!q||[a.title,a.metric].join(" ").toLowerCase().includes(q)).slice(0,60);
+ $c("adminAchievementCount").textContent=cState.achievements.length+" total milestones · showing "+shown.length;
+ for(const a of shown){
+   const row=div("ach-edit");
+   const name=elInput(a.title);const selector=document.createElement("select");
+   for(const m of metricsList){const o=document.createElement("option");o.value=m;o.textContent=metricLabels[m];selector.append(o)}selector.value=a.metric;
+   const goal=elInput(a.threshold,"number");goal.min="1";const icon=elInput(a.icon);
+   const save=button("Save",async()=>{try{await api("/api/admin/achievements/"+a.id,"PATCH",{title:name.value,description:a.description,metric:selector.value,threshold:Number(goal.value),icon:icon.value,enabled:!!a.enabled});notify("Achievement saved")}catch(e){notify(e.message,true)}});
+   row.append(name,selector,goal,icon,save);holder.append(row);
+ }
+}
+$c("adminAchievementSearch").addEventListener("input",renderAdminAchievements);
+$c("newAchievementForm").onsubmit=async e=>{e.preventDefault();try{await api("/api/admin/achievements","POST",{title:$c("newAchievementName").value,description:$c("newAchievementDesc").value,metric:$c("newAchievementMetric").value,threshold:Number($c("newAchievementGoal").value),icon:"✦"});e.target.reset();await loadAdminAchievements();notify("Achievement created")}catch(err){notify(err.message,true)}};
+async function switchAdminPane(pane){
+ cState.adminPane=pane;
+ document.querySelectorAll("[data-adminpane]").forEach(el=>el.classList.toggle("active",el.dataset.adminpane===pane));
+ document.querySelectorAll(".adminpane").forEach(el=>el.classList.toggle("active",el.id==="admin-"+pane));
+ if(pane==="overview")await loadAdminOverview();
+ else if(pane==="accounts"){await Promise.all([loadAdminAccounts(),loadTiers()])}
+ else if(pane==="tiers")await loadTiers();
+ else if(pane==="milestones")await loadAdminAchievements();
+}
+document.querySelectorAll("[data-adminpane]").forEach(el=>el.addEventListener("click",()=>switchAdminPane(el.dataset.adminpane)));
+$c("achievementFilter").onchange=renderAchievements;$c("achievementStatus").onchange=renderAchievements;
+$c("refreshMessages").onclick=async()=>{await loadThreads();if(cState.threadId)await loadThreadMessages()};
+const origNavigate=navigate;
+navigate=function(view){
+ origNavigate(view);
+ const labels={messages:"Messages",achievements:"Achievements",admin:"NorthStar Admin"};
+ if(labels[view])$c("crumb").textContent=labels[view];
+ if(view==="achievements")loadProgress(true);
+ if(view==="messages"){fillShareSelect();loadThreads();if(cState.threadId)loadThreadMessages()}
+ if(view==="admin"&&state.user?.role==="admin")switchAdminPane(cState.adminPane);
+};
+const origOpenWorkspace=openWorkspace;
+openWorkspace=async function(user){
+ await origOpenWorkspace(user);
+ $c("adminNav").classList.toggle("hidden",user.role!=="admin");
+ await api("/api/heartbeat","POST",{});
+ await Promise.all([loadProgress(false),pollUnread()]);
+ if(cState.poll)clearInterval(cState.poll);
+ cState.poll=setInterval(async()=>{
+   if(!state.user)return;
+   try{await api("/api/heartbeat","POST",{});await pollUnread();
+      if(state.view==="messages"){await loadThreads();if(cState.threadId)await loadThreadMessages();}
+   }catch(_){}
+ },12000);
+};
+const origLogout=logout;
+logout=async function(){if(cState.poll)clearInterval(cState.poll);cState.poll=null;await origLogout();};
+
 </script></body></html>
