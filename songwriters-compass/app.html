@@ -74,6 +74,23 @@
 #topAdmin{flex:none}
 @media(max-width:770px){.sidebar nav{scrollbar-width:thin}.admin-shortcut{order:-1}.topbar .topright{gap:7px}#topAdmin{font-size:10px;padding:8px 10px}}
 @media(max-width:450px){.topbar .crumb{font-size:10px}#topAdmin{font-size:10px;padding:7px}}
+
+.lyrics-subnav{display:flex;gap:8px;border-bottom:1px solid #e6dfd5;margin:0 0 17px;padding-bottom:12px}
+.lyricssub{border:1px solid #dfd7ca;border-radius:8px;background:#fff;color:#616b75;font-size:12px;font-weight:800;padding:10px 14px}
+.lyricssub.active{background:#1b3247;border-color:#1b3247;color:#fff}
+.chord-status-row{display:flex;align-items:center;gap:12px;justify-content:space-between;flex-wrap:wrap;background:#f7f0e1;border:1px solid #ebdec5;padding:11px 14px;border-radius:8px;margin:0 0 19px}
+.chord-switch{display:inline-flex;align-items:center;gap:9px;font-size:12px;font-weight:800;margin:0;cursor:pointer}
+.chord-switch input{width:17px;height:17px;margin:0;accent-color:#b7945c}
+.chord-note{font-size:11px;color:#827761}
+.chord-quick-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:18px 0 13px;font-size:12px;font-weight:700}
+.chord-ribbon{display:flex;gap:8px;flex-wrap:wrap;margin-top:9px}
+.chord-quick{background:#fff;border:1px solid #ccb184;color:#6d512c;border-radius:8px;padding:10px 14px;font-size:14px;font-weight:800;min-width:54px}
+.chord-quick:hover,.chord-quick:focus-visible{background:#ead09d;color:#1c3042}
+.chord-quick.ghost{border-color:#dad6cf;background:#f6f1e7}
+.chord-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin:19px 0}
+.chord-grid label{font-size:11px}.chord-manual{display:flex;gap:8px;margin:17px 0;flex-wrap:wrap}.chord-manual input{max-width:250px}
+.chord-export-row{display:flex;flex-wrap:wrap;gap:9px;margin-top:15px}
+
 </style></head>
 <body>
 <div id="auth">
@@ -134,7 +151,39 @@
         <div class="field"><label for="songTitle">Song title</label><input id="songTitle" maxlength="140" placeholder="Give your song a working title"></div>
         <div class="field"><label for="songStatus">Where are you at?</label><select id="songStatus"><option>Idea</option><option>Writing</option><option>Refining</option><option>Finished</option></select></div>
         <div class="editor-tabs"><button class="tab active" data-tab="lyrics">Lyrics</button><button class="tab" data-tab="mission">Creative mission</button><button class="tab" data-tab="scriptures">Scripture</button><button class="tab" data-tab="notes">Notes</button><button class="tab" data-tab="style_prompt">Production</button><button class="tab" data-tab="companion">✦ AI Companion</button></div>
-        <div class="editor-tabpane active" id="tab-lyrics"><div class="field"><label for="songLyrics">Write your song</label><textarea class="lyrics" id="songLyrics" placeholder="Verse 1&#10;&#10;Start with what God has placed on your heart..."></textarea><div class="hint">This is your song. Keep what feels true to your voice.</div></div></div>
+        <div class="editor-tabpane active" id="tab-lyrics">
+          <div class="lyrics-subnav"><button class="lyricssub active" type="button" data-lyrics-sub="write">✎ Write lyrics</button><button class="lyricssub" type="button" data-lyrics-sub="chords">♫ Chords & sound</button></div>
+          <div class="chord-status-row"><label class="chord-switch"><input type="checkbox" id="songChordEnabled"><span>Enable chords in my lyrics</span></label><span id="chordToggleLabel" class="chord-note">Chords optional</span></div>
+          <div id="lyricsWriteSub">
+            <div class="field"><label for="songLyrics">Write your song</label><textarea class="lyrics" id="songLyrics" placeholder="Verse 1&#10;&#10;Start with what God has placed on your heart..."></textarea><div class="hint">This is your song. Add chords like [C] or [Am] before the words where they should be played.</div></div>
+            <div id="chordTools" class="hidden">
+              <div class="chord-quick-head"><span>Quick chords for <b id="songKeyDisplay">C major</b></span><button type="button" class="btn light small" id="previewSongKey">♫ Hear the key</button></div>
+              <div class="chord-ribbon" id="chordRibbon"></div>
+              <p class="hint" style="font-size:11px;color:#887b65;margin-top:10px">Tap a chord to insert it at your cursor and hear it. The sound can be muted in Chords & Sound.</p>
+            </div>
+          </div>
+          <div id="lyricsChordsSub" class="hidden">
+            <div id="songChordPane" class="hidden">
+              <h3 style="font-size:29px;margin:5px 0 8px">Your sound, your direction.</h3>
+              <p class="muted" style="font-size:12px">Choose the key and tempo of your song. Preview simple piano or plucked-string chords before placing them in your lyrics.</p>
+              <div class="chord-grid">
+                <div><label for="songKeyRoot">Key root</label><select id="songKeyRoot"></select></div>
+                <div><label for="songKeyMode">Scale</label><select id="songKeyMode"><option value="major">Major</option><option value="minor">Minor</option></select></div>
+                <div><label for="songBpm">Tempo (BPM)</label><input id="songBpm" type="number" min="40" max="240" value="80"></div>
+                <div><label for="songMeter">Time signature</label><select id="songMeter"><option>4/4</option><option>3/4</option><option>2/4</option><option>6/8</option><option>12/8</option></select></div>
+                <div><label for="songInstrument">Preview sound</label><select id="songInstrument"><option value="piano">Piano</option><option value="guitar">Plucked strings</option></select></div>
+              </div>
+              <label class="chord-switch" style="margin:14px 0"><input type="checkbox" id="chordMute"><span>Silent chord entry (no sound)</span></label>
+              <p class="chord-note">Choose a chord from the Lyrics quick bar, or add a custom chord below.</p>
+              <div class="chord-ribbon" id="chordExtras"></div>
+              <div class="chord-manual"><input id="chordManual" placeholder="Try Am, Dsus4, Cmaj7, G7" maxlength="12" aria-label="Custom chord"><button type="button" class="btn gold small" id="chordInsert">Insert & play</button></div>
+              <div class="field"><label for="chordChart">Chord progression / musician arrangement notes</label><textarea id="chordChart" placeholder="[Verse] C  G  Am  F&#10;[Chorus] F  G  C  Am&#10;Arrangement notes for the band..." style="min-height:160px"></textarea></div>
+              <div class="chord-export-row"><button class="btn light small" type="button" id="sunoExport">↓ Export AI music guide</button></div>
+              <p class="muted" style="font-size:11px;margin-top:10px">The file includes your requested key, tempo, meter, lyrics and chord references. AI music tools such as Suno may interpret these as suggestions and may not reproduce the exact notes.</p>
+            </div>
+            <div id="chordsDisabledHint" class="smalltip">Switch on <b>Enable chords in my lyrics</b> above to start. Your lyrics stay unchanged until you add chords.</div>
+          </div>
+        </div>
         <div class="editor-tabpane" id="tab-mission"><div class="field"><label for="songMission">The heart behind this song</label><textarea id="songMission" style="min-height:230px" placeholder="What do you want this song to reveal?&#10;&#10;What inspired it?&#10;&#10;What do you want someone to recognize or experience?"></textarea><div class="hint">Your creative mission leads the process. The companion follows your intent, not the other way around.</div></div></div>
         <div class="editor-tabpane" id="tab-scriptures"><div class="field"><label for="songScriptures">Scriptures & reflections</label><textarea id="songScriptures" style="min-height:230px" placeholder="Scripture passages, theological insights, and what you've been discovering..."></textarea></div></div>
         <div class="editor-tabpane" id="tab-notes"><div class="field"><label for="songNotes">Private notes & working ideas</label><textarea id="songNotes" style="min-height:230px" placeholder="Journal what you're feeling, melody ideas, verse directions and anything you don't want to lose..."></textarea></div></div>
@@ -586,5 +635,181 @@ openWorkspace=async function(user){
 };
 const origLogout=logout;
 logout=async function(){if(cState.poll)clearInterval(cState.poll);cState.poll=null;await origLogout();};
+
+</script>
+<script>
+
+"use strict";
+// Original, browser-synthesized musical references only; no copyrighted samples.
+const chordRoots=["C","C#","D","Eb","E","F","F#","G","Ab","A","Bb","B"];
+const chordNotes={C:0,"C#":1,Db:1,D:2,"D#":3,Eb:3,E:4,F:5,"F#":6,Gb:6,G:7,"G#":8,Ab:8,A:9,"A#":10,Bb:10,B:11};
+const chordIntervals={major:[0,4,7],minor:[0,3,7],dim:[0,3,6],aug:[0,4,8],sus2:[0,2,7],sus4:[0,5,7],major7:[0,4,7,11],dominant7:[0,4,7,10],minor7:[0,3,7,10],add9:[0,4,7,14]};
+const rootSelect=document.getElementById("songKeyRoot"),modeSelect=document.getElementById("songKeyMode");
+const chordControls=["songKeyRoot","songKeyMode","songBpm","songMeter","songInstrument","chordChart"];
+for(const root of chordRoots){const o=document.createElement("option");o.value=root;o.textContent=root;rootSelect.append(o);}
+const qualityMap={major:["","m","m","","","m","dim"],minor:["m","dim","","m","m","",""]};
+let audioCtx=null;
+function makeChordName(root,quality){return root+quality;}
+function notesForChord(label){
+ const m=/^([A-G](?:#|b)?)(maj7|m7|sus2|sus4|dim|aug|add9|m|7)?$/.exec(label);
+ if(!m)return null;
+ const root=chordNotes[m[1]];if(root===undefined)return null;
+ const quality=({m:"minor",m7:"minor7",maj7:"major7",7:"dominant7",sus2:"sus2",sus4:"sus4",dim:"dim",aug:"aug",add9:"add9"})[m[2]]||"major";
+ return chordIntervals[quality].map(x=>48+root+x); // C3 plus the chosen chord interval
+}
+function soundVoice(midi,at,mode,seconds=1.6){
+ // These voices are synthesized from oscillators — piano-like and plucked-string-like reference sounds.
+ const hz=440*Math.pow(2,(midi-69)/12);
+ const gain=audioCtx.createGain();
+ gain.connect(audioCtx.destination);
+ const start=at,end=at+seconds;
+ const isString=mode==="guitar";
+ gain.gain.setValueAtTime(0.00001,start);
+ gain.gain.exponentialRampToValueAtTime(isString?.12:.095,start+(isString?.008:.018));
+ gain.gain.exponentialRampToValueAtTime(.00001,end);
+ const frequencies=isString?[1,2,3]:[1,2,4];
+ frequencies.forEach((f,i)=>{
+  const osc=audioCtx.createOscillator();const partial=audioCtx.createGain();
+  osc.type=isString?(i===0?"triangle":"sine"):"sine";osc.frequency.setValueAtTime(hz*f,start);
+  partial.gain.value=i===0?1:(isString?.17:.24)/(i+1);
+  osc.connect(partial);partial.connect(gain);osc.start(start);osc.stop(end+.01);
+ });
+}
+async function auditionNotes(notes){
+ if(document.getElementById("chordMute")?.checked)return;
+ const Ctx=window.AudioContext||window.webkitAudioContext;
+ if(!Ctx){notify("Your browser does not support audio preview.",true);return;}
+ try{
+ if(!audioCtx)audioCtx=new Ctx();
+ if(audioCtx.state==="suspended")await audioCtx.resume();
+ const instrument=document.getElementById("songInstrument").value;
+ const t=audioCtx.currentTime+.025;
+ notes.forEach((m,i)=>soundVoice(m,t+(instrument==="guitar"?i*.045:0),instrument,1.5));
+ }catch(e){notify("Audio preview unavailable: "+e.message,true)}
+}
+function chordKeyRoot(){return rootSelect.value||"C"}
+function currentKey(){return chordKeyRoot()+" "+modeSelect.value}
+function renderChordRibbon(){
+ const holder=document.getElementById("chordRibbon");holder.replaceChildren();
+ const rootIndex=chordNotes[chordKeyRoot()]??0;
+ const scales=modeSelect.value==="minor"?[0,2,3,5,7,8,10]:[0,2,4,5,7,9,11];
+ const quality=qualityMap[modeSelect.value]||qualityMap.major;
+ scales.forEach((offset,i)=>{
+  const label=makeChordName(chordRoots[(rootIndex+offset)%12],quality[i]);
+  const btn=document.createElement("button");btn.type="button";btn.className="chord-quick";
+  btn.textContent=label;
+  btn.title="Insert "+label+" into your lyrics, and preview its sound";
+  btn.onclick=()=>insertChord(label);
+  holder.append(btn);
+ });
+ const extra=document.getElementById("chordExtras");extra.replaceChildren();
+ ["","m","7","maj7","m7","sus2","sus4","add9"].forEach(quality=>{
+  const label=chordKeyRoot()+quality;
+  const btn=document.createElement("button");btn.type="button";btn.className="chord-quick ghost";
+  btn.textContent=label;btn.title="Insert "+label;
+  btn.onclick=()=>insertChord(label);
+  extra.append(btn);
+ });
+ document.getElementById("songKeyDisplay").textContent=currentKey();
+}
+function chordModeUI(){
+ const enabled=document.getElementById("songChordEnabled").checked;
+ document.getElementById("chordTools").classList.toggle("hidden",!enabled);
+ document.getElementById("songChordPane").classList.toggle("hidden",!enabled);
+ document.getElementById("chordsDisabledHint").classList.toggle("hidden",enabled);
+ document.getElementById("chordToggleLabel").textContent=enabled?"Chords enabled":"Chords optional";
+}
+function insertChord(chord){
+ const input=document.getElementById("songLyrics"),start=input.selectionStart??input.value.length,end=input.selectionEnd??start;
+ const tag="["+chord+"]";input.value=input.value.slice(0,start)+tag+input.value.slice(end);
+ input.focus();input.setSelectionRange(start+tag.length,start+tag.length);
+ input.dispatchEvent(new Event("input",{bubbles:true}));
+ auditionNotes(notesForChord(chord)||[]);
+}
+function previewKey(){
+ const root=chordNotes[chordKeyRoot()]||0;
+ const suffix=modeSelect.value==="minor"?"m":"";
+ auditionNotes(notesForChord(chordKeyRoot()+suffix)||[48+root]);
+}
+function getChordState(){
+ const [root,mode]=[chordKeyRoot(),modeSelect.value];
+ return {chord_enabled:document.getElementById("songChordEnabled").checked?1:0,
+ song_key:root+" "+mode,
+ bpm:Number(document.getElementById("songBpm").value)||80,
+ time_signature:document.getElementById("songMeter").value,
+ preview_instrument:document.getElementById("songInstrument").value,
+ chord_chart:document.getElementById("chordChart").value};
+}
+function showChordState(song){
+ const key=String(song.song_key||"C major").split(" ");
+ rootSelect.value=chordRoots.includes(key[0])?key[0]:"C";
+ modeSelect.value=key[1]==="minor"?"minor":"major";
+ document.getElementById("songChordEnabled").checked=!!song.chord_enabled;
+ document.getElementById("songBpm").value=song.bpm||80;
+ document.getElementById("songMeter").value=song.time_signature||"4/4";
+ document.getElementById("songInstrument").value=song.preview_instrument||"piano";
+ document.getElementById("chordChart").value=song.chord_chart||"";
+ chordModeUI();renderChordRibbon();setLyricsSubPane("write");
+}
+function updateChordSong(){
+ const s=currentSong();if(!s)return;
+ Object.assign(s,getChordState());
+ document.getElementById("songSaveState").textContent="Unsaved changes...";
+ clearTimeout(state.songTimer);
+ state.songTimer=setTimeout(()=>saveSong(false),1000);
+ renderChordRibbon();
+ chordModeUI();
+}
+const prevSelectSong=selectSong;
+selectSong=function(id){
+ if(state.songId===id){navigate("songs");return;}
+ // The core selection function updates songId after its async save; refresh our controls afterwards.
+ prevSelectSong(id);
+ const target=id;
+ const apply=()=>{if(state.songId===target){const s=currentSong();if(s)showChordState(s);}else requestAnimationFrame(apply);};
+ requestAnimationFrame(apply);
+};
+const prevUpdateSong=updateSongLocal;
+updateSongLocal=function(){
+ const s=currentSong();if(s)Object.assign(s,getChordState());
+ return prevUpdateSong();
+};
+const prevExport=document.getElementById("exportSong").onclick;
+document.getElementById("exportSong").onclick=function(){
+ const s=currentSong();if(s)Object.assign(s,getChordState());
+ if(!s)return;
+ const chords=s.chord_enabled?"\nKEY: "+s.song_key+"\nTEMPO: "+s.bpm+" BPM\nTIME SIGNATURE: "+s.time_signature+"\nPREFERRED SOUND: "+s.preview_instrument+"\n\nCHORD CHART\n"+(s.chord_chart||"Chords are shown inline in the lyrics.")+"\n":"";
+ const txt=[s.title,chords,"\nLYRICS WITH CHORDS\n"+(s.lyrics||""),s.mission?"\nCREATIVE MISSION\n"+s.mission:"",s.scriptures?"\nSCRIPTURE NOTES\n"+s.scriptures:"",s.notes?"\nWORKING NOTES\n"+s.notes:"",s.style_prompt?"\nPRODUCTION NOTES\n"+s.style_prompt:""].join("\n");
+ exportChordText(txt,s.title+"-musician-sheet.txt");notify("Musician sheet exported.");
+};
+function exportChordText(contents,name){
+ const url=URL.createObjectURL(new Blob([contents],{type:"text/plain;charset=utf-8"}));
+ const a=document.createElement("a");a.href=url;a.download=name.replace(/[^A-Za-z0-9_.-]/g,"-");document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),500);
+}
+document.getElementById("sunoExport").onclick=function(){
+ const s=currentSong();if(!s)return;
+ Object.assign(s,getChordState());
+ const cleanLyrics=(s.lyrics||"").replace(/\[([A-G](?:#|b)?)(?:maj7|m7|sus2|sus4|dim|aug|add9|m|7)?\]/g,"").replace(/ {2,}/g," ");
+ const style=[s.style_prompt||"",s.chord_enabled?"Desired musical key: "+s.song_key+". Tempo: "+s.bpm+" BPM. Time signature: "+s.time_signature+". Arrangement instrument: "+s.preview_instrument+".":""].filter(Boolean).join(" ");
+ const text=[s.title,"","STYLE / MUSICAL DIRECTION",style,"","LYRICS (without chord tokens)",cleanLyrics,"",s.chord_enabled?"OPTIONAL CHORD REFERENCE\n"+(s.chord_chart||"Inline chords recorded in musician sheet"):""].join("\n");
+ exportChordText(text,s.title+"-music-ai-guide.txt");notify("AI music guide exported. Key and pitch are suggestions, not guaranteed.");
+};
+document.getElementById("previewSongKey").onclick=previewKey;
+document.getElementById("songChordEnabled").addEventListener("change",updateChordSong);
+for(const id of chordControls)document.getElementById(id).addEventListener("input",updateChordSong);
+document.getElementById("chordInsert").onclick=()=>{
+ const text=document.getElementById("chordManual").value.trim();
+ if(notesForChord(text))insertChord(text);else notify("Try a chord like C, Am, G7, Fmaj7 or Dsus4.",true);
+};
+document.getElementById("chordManual").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();document.getElementById("chordInsert").click();}};
+renderChordRibbon();
+
+
+function setLyricsSubPane(which){
+ document.querySelectorAll("[data-lyrics-sub]").forEach(x=>x.classList.toggle("active",x.dataset.lyricsSub===which));
+ document.getElementById("lyricsWriteSub").classList.toggle("hidden",which!=="write");
+ document.getElementById("lyricsChordsSub").classList.toggle("hidden",which!=="chords");
+}
+document.querySelectorAll("[data-lyrics-sub]").forEach(x=>x.addEventListener("click",()=>setLyricsSubPane(x.dataset.lyricsSub)));
 
 </script></body></html>
