@@ -90,6 +90,7 @@ function chordModeUI(){
 function insertChord(chord){
  const input=document.getElementById("songLyrics"),start=input.selectionStart??input.value.length,end=input.selectionEnd??start;
  const tag="["+chord+"]";input.value=input.value.slice(0,start)+tag+input.value.slice(end);
+ setLyricsSubPane("write");
  input.focus();input.setSelectionRange(start+tag.length,start+tag.length);
  input.dispatchEvent(new Event("input",{bubbles:true}));
  auditionNotes(notesForChord(chord)||[]);
