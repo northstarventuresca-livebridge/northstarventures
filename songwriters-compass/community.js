@@ -229,7 +229,7 @@ navigate=function(view){
 };
 const origOpenWorkspace=openWorkspace;
 function revealAdmin(role){
- const admin=role==="admin";
+ const admin=role==="admin" || document.body.dataset.serverAdmin==="1";
  for(const id of ["adminNav","topAdmin","homeAdminBanner"])$c(id).classList.toggle("hidden",!admin);
 }
 $c("topAdmin").onclick=()=>navigate("admin");
