@@ -562,7 +562,7 @@ navigate=function(view){
 };
 const origOpenWorkspace=openWorkspace;
 function revealAdmin(role){
- const admin=role==="admin";
+ const admin=role==="admin" || document.body.dataset.serverAdmin==="1";
  for(const id of ["adminNav","topAdmin","homeAdminBanner"])$c(id).classList.toggle("hidden",!admin);
 }
 $c("topAdmin").onclick=()=>navigate("admin");
@@ -573,7 +573,7 @@ openWorkspace=async function(user){
  await origOpenWorkspace(user);
  // /api/me is authoritative when the app resumes an already-signed-in session.
  try{const fresh=await api("/api/me");if(fresh.user?.id===state.user.id){state.user.role=fresh.user.role;revealAdmin(fresh.user.role);}}catch(_){ }
- if((new URLSearchParams(location.search).get("view")==="admin"||location.pathname==="/admin")&&state.user.role==="admin")navigate("admin");
+ if(new URLSearchParams(location.search).get("view")==="admin"&&state.user.role==="admin")navigate("admin");
  await api("/api/heartbeat","POST",{});
  await Promise.all([loadProgress(false),pollUnread()]);
  if(cState.poll)clearInterval(cState.poll);
