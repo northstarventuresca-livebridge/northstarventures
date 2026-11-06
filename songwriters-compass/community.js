@@ -102,7 +102,7 @@ $c("startChat").onsubmit=async e=>{
  e.preventDefault();const input=$c("findEmail"),btn=$c("startChatButton");btn.disabled=true;
  try{await createThread(input.value.trim());input.value="";notify("Conversation ready")}catch(err){notify(err.message,true)}finally{btn.disabled=false}
 };
-$c("sendMessage").onsubmit=async e=>{
+$c("chatComposer").onsubmit=async e=>{
  e.preventDefault();
  if(!cState.threadId)return;
  const input=$c("messageText"),share=$c("shareSongPick"),body=input.value.trim(),songId=share.value;
