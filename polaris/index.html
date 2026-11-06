@@ -191,6 +191,7 @@ function talk(message){
  showReply(message);
  voiceQueue=voiceQueue.catch(function(){}).then(async function(){
   try{
+   if(audioContext&&!audioReady){try{await audioContext.resume();audioReady=audioContext.state==="running"}catch(e){}}
    if(!audioReady||!audioContext||audioContext.state!=="running"){
     setAudioStatus("AUDIO LOCKED · TAP ENABLE AUDIO","error");
     el("voiceHint").textContent="I have a reply ready, but phone audio is locked. Tap ENABLE AUDIO, then TEST VOICE.";
