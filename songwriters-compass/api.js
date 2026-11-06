@@ -58,13 +58,19 @@ async function limit(db,key,max,seconds){
  await db.prepare("INSERT INTO security_events (key,count,expires_at) VALUES(?,?,?) ON CONFLICT(key) DO UPDATE SET count=excluded.count,expires_at=excluded.expires_at").bind(key,count,t+seconds).run();
  return true;
 }
-const songFields=["title","status","mission","lyrics","notes","scriptures","style_prompt"];
+const songFields=["title","status","mission","lyrics","notes","scriptures","style_prompt","chord_enabled","song_key","bpm","time_signature","preview_instrument","chord_chart"];
 function songData(b){
  return {
    title:str(b.title,140).trim()||"Untitled song",
    status:["Idea","Writing","Refining","Finished"].includes(b.status)?b.status:"Idea",
    mission:str(b.mission,7000),lyrics:str(b.lyrics,30000),notes:str(b.notes,20000),
-   scriptures:str(b.scriptures,10000),style_prompt:str(b.style_prompt,2000)
+   scriptures:str(b.scriptures,10000),style_prompt:str(b.style_prompt,2000),
+   chord_enabled:b.chord_enabled===1||b.chord_enabled===true?1:0,
+   song_key:/^[A-G](?:#|b)? (?:major|minor)$/.test(str(b.song_key,20))?b.song_key:"C major",
+   bpm:Number.isInteger(Number(b.bpm))&&Number(b.bpm)>=40&&Number(b.bpm)<=240?Number(b.bpm):80,
+   time_signature:["2/4","3/4","4/4","6/8","12/8"].includes(b.time_signature)?b.time_signature:"4/4",
+   preview_instrument:["piano","guitar"].includes(b.preview_instrument)?b.preview_instrument:"piano",
+   chord_chart:str(b.chord_chart,24000)
  };
 }
 const AUTH_LIMIT=8;
@@ -177,7 +183,7 @@ async function handleApi(req,env,url){
  }
  if(path==="/api/songs" && req.method==="POST"){
     const b=songData(await bodyJson(req)),id=crypto.randomUUID(),t=now();
-    await db.prepare("INSERT INTO songs(id,user_id,title,status,mission,lyrics,notes,scriptures,style_prompt,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)").bind(id,user.id,b.title,b.status,b.mission,b.lyrics,b.notes,b.scriptures,b.style_prompt,t,t).run();
+    await db.prepare("INSERT INTO songs(id,user_id,title,status,mission,lyrics,notes,scriptures,style_prompt,chord_enabled,song_key,bpm,time_signature,preview_instrument,chord_chart,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)").bind(id,user.id,b.title,b.status,b.mission,b.lyrics,b.notes,b.scriptures,b.style_prompt,b.chord_enabled,b.song_key,b.bpm,b.time_signature,b.preview_instrument,b.chord_chart,t,t).run();
     await eventLog(db,user.id,"song_created");
     return reply({song:{...b,id,user_id:user.id,created_at:t,updated_at:t}},201);
  }
@@ -190,7 +196,7 @@ async function handleApi(req,env,url){
     }
     if(req.method==="PUT"){
        const b=songData(await bodyJson(req));
-       const result=await db.prepare("UPDATE songs SET title=?,status=?,mission=?,lyrics=?,notes=?,scriptures=?,style_prompt=?,updated_at=? WHERE id=? AND user_id=?").bind(b.title,b.status,b.mission,b.lyrics,b.notes,b.scriptures,b.style_prompt,now(),id,user.id).run();
+       const result=await db.prepare("UPDATE songs SET title=?,status=?,mission=?,lyrics=?,notes=?,scriptures=?,style_prompt=?,chord_enabled=?,song_key=?,bpm=?,time_signature=?,preview_instrument=?,chord_chart=?,updated_at=? WHERE id=? AND user_id=?").bind(b.title,b.status,b.mission,b.lyrics,b.notes,b.scriptures,b.style_prompt,b.chord_enabled,b.song_key,b.bpm,b.time_signature,b.preview_instrument,b.chord_chart,now(),id,user.id).run();
        if(!result.meta?.changes)return reply({error:"Song not found."},404);
        const lastEdit=await db.prepare("SELECT created_at FROM usage_events WHERE user_id=? AND kind='song_edited' ORDER BY created_at DESC LIMIT 1").bind(user.id).first();
        if(!lastEdit || lastEdit.created_at<now()-60)await eventLog(db,user.id,"song_edited");
