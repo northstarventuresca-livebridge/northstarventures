@@ -56,7 +56,7 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}a{color:inherit;
  <div class="topright"><div class="clock"><strong id="timeNow">--:--</strong><small id="dateNow">SYSTEM TIME</small></div><div class="indicator" title="Polaris web interface is online"><span class="dot"></span> INTERFACE ONLINE</div></div>
 </header>
 <section class="hero" id="home">
- <div class="eyebrow">PERSONAL INTELLIGENCE NETWORK / V1.5</div>
+ <div class="eyebrow">PERSONAL INTELLIGENCE NETWORK / V1.6</div>
  <h1>Welcome to your command center.</h1>
  <p>Your projects, tools, and next actions in one intelligent workspace. Speak naturally to the Polaris AI.</p>
  <div class="orb-wrap" id="orb"><div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><div class="orbit orbit-three"></div><div class="orbit orbit-four"></div><div class="orb-core"><span class="orb-mark">✦</span><b>POLARIS</b><span id="coreState">AWAITING ACTIVATION</span></div><span class="coord left">NSV / 01</span><span class="coord right">CORE / READY</span></div>
@@ -74,7 +74,7 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}a{color:inherit;
   </div>
   <div class="voice-settings" aria-label="Voice output settings">
    <div class="speed-control"><label for="speedSlider">VOICE SPEED</label><input type="range" id="speedSlider" min="0.85" max="1.65" step="0.05" value="1.25" aria-label="Polaris speaking speed"><output id="speedValue" for="speedSlider">1.25×</output></div>
-   <label class="echo-label" id="echoLabel"><span><input type="checkbox" id="bargeToggle" checked> INTERRUPTIONS ON</span><span id="bargeStatus">Echo cancellation · experimental</span></label>
+   <label class="echo-label" id="echoLabel"><span><input type="checkbox" id="bargeToggle"> INTERRUPTIONS ON</span><span id="bargeStatus">Optional · enable after mic works</span></label>
   </div>
   <form class="command" id="commandForm"><input id="commandText" autocomplete="off" aria-label="Enter Polaris command" placeholder="Ask Polaris to open a project, refresh, show status..."><button type="submit">SEND ↗</button></form>
  </div>
@@ -100,9 +100,9 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}a{color:inherit;
 </section>
 <div class="bottom-grid">
  <section class="glass" id="activity"><h3>◴ RECENT ACTIVITY</h3><div id="activityList"><div class="event">Polaris mobile command center initialized.<small>System event · this device</small></div></div></section>
- <section class="glass"><h3>◎ QUICK COMMANDS</h3><p>Say “Hey Polaris, activate” to start, then speak follow-up commands. Use “Polaris, speak faster” or adjust Voice Speed above. With Interruptions On, Polaris tries to detect your voice over its speech, stop talking, and transcribe your complete comment from a short audio buffer. Echo Guard takes over automatically when interruption capture is unavailable.</p><div class="quick"><button data-cmd="show my projects">Show projects</button><button data-cmd="open north star ventures">Open NSV admin</button><button data-cmd="system status">System status</button><button data-cmd="refresh dashboard">Refresh</button></div><p style="margin-top:15px;font-size:10px">Security: no account passwords or API keys are stored in your browser. Project notes and progress currently save on this device only.</p></section>
+ <section class="glass"><h3>◎ QUICK COMMANDS</h3><p>Say “Hey Polaris, activate” to start, then speak follow-up commands. Use “Polaris, speak faster” or adjust Voice Speed above. Voice listening comes first. Optional Interruptions mode is experimental on Android. Leave it off for reliable speech recognition; Echo Guard will prevent Polaris from triggering itself.</p><div class="quick"><button data-cmd="show my projects">Show projects</button><button data-cmd="open north star ventures">Open NSV admin</button><button data-cmd="system status">System status</button><button data-cmd="refresh dashboard">Refresh</button></div><p style="margin-top:15px;font-size:10px">Security: no account passwords or API keys are stored in your browser. Project notes and progress currently save on this device only.</p></section>
 </div>
-<div class="footer"><span>✦ POLARIS</span> · POWERED BY NORTH STAR VENTURES · MOBILE FOUNDATION v1.5</div>
+<div class="footer"><span>✦ POLARIS</span> · POWERED BY NORTH STAR VENTURES · MOBILE FOUNDATION v1.6</div>
 </main>
 <div class="toast" id="toast" role="status"></div>
 <div class="dialogbg" id="editBg"><form class="dialog" id="editForm">
@@ -128,7 +128,7 @@ var defaults=[
 ];
 function load(key,fallback){try{var raw=JSON.parse(localStorage.getItem(key));return Array.isArray(raw)?raw:fallback}catch(e){return fallback}}
 var projects=load(KEY,defaults),events=load(ACT,[]),filter="all",editing=null,active=false,listenWanted=false,recognition=null,micEnabled=false,speaking=false,toastTimer=0,armedUntil=0,activeAudio=null,voiceQueue=Promise.resolve(),requestBusy=false,conversation=[],audioContext=null,audioReady=false,lastInputWasVoice=false,audioGeneration=0,echoGuard=false,echoGuardTimer=null,recognitionRestartTimer=null,speechRate=1.25,
-bargeWanted=true,bargeContext=null,bargeStream=null,bargeSource=null,bargeProcessor=null,bargeSilent=null,bargeMicrophoneReady=false,bargeMicPromise=null,bargeRing=[],bargeCapture=null,bargeNoise=.003,bargeStreak=0,bargeCaptureStarted=0,bargeLastVoice=0,bargePlaybackStarted=0,bargeTranscribing=false,bargeText="",bargeCoolDown=0,bargeSampleRate=16000;
+bargeWanted=false,bargeContext=null,bargeStream=null,bargeSource=null,bargeProcessor=null,bargeSilent=null,bargeMicrophoneReady=false,bargeMicPromise=null,bargeRing=[],bargeCapture=null,bargeNoise=.003,bargeStreak=0,bargeCaptureStarted=0,bargeLastVoice=0,bargePlaybackStarted=0,bargeTranscribing=false,bargeText="",bargeCoolDown=0,bargeSampleRate=16000;
 var el=function(id){return document.getElementById(id)};
 var safe=function(s){return String(s||"").replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]})};
 function save(){localStorage.setItem(KEY,JSON.stringify(projects))}
@@ -181,15 +181,16 @@ function resumeMicrophoneAfterSpeaker(){
  },850);
 }
 
-var BARGE_KEY="polaris.voice.interruptions.v1";
+var BARGE_KEY="polaris.voice.interruptions.v2";
 try{var storedBarge=localStorage.getItem(BARGE_KEY);if(storedBarge!==null)bargeWanted=storedBarge==="on"}catch(e){}
 el("bargeToggle").checked=bargeWanted;
 function bargeUi(note){var s=el("bargeStatus");if(s)s.textContent=note||(bargeWanted?(bargeMicrophoneReady?"Buffered mic · ready":"Echo guard fallback · mic pauses"):"Mic pauses while Polaris speaks")}
 bargeUi();
 el("bargeToggle").addEventListener("change",function(){
  bargeWanted=this.checked;try{localStorage.setItem(BARGE_KEY,bargeWanted?"on":"off")}catch(e){}
+ if(!bargeWanted)stopBargeMicrophone();
  if(!bargeWanted){bargeCapture=null;bargeRing=[];bargeUi();notify("Interruptions off. Echo Guard pauses the microphone while Polaris speaks.")}
- else{bargeUi("Echo cancellation enabled");notify("Interruptions enabled. Polaris will listen while speaking.");if(listenWanted)ensureBargeMicrophone().catch(function(){})}
+ else{bargeUi("Echo cancellation enabled");notify("Interruptions enabled. Polaris will listen while speaking.");if(listenWanted)ensureBargeMicrophone().then(function(ok){if(!ok)notify("This phone may not support interruption mode. Normal voice commands still work.")}).catch(function(){})}
 });
 function stopBargeMicrophone(){
  try{if(bargeProcessor){bargeProcessor.disconnect();bargeProcessor.onaudioprocess=null}}catch(e){}
@@ -427,15 +428,28 @@ el("commandForm").addEventListener("submit",function(e){e.preventDefault();prime
 document.querySelectorAll("[data-cmd]").forEach(function(b){b.addEventListener("click",function(){command(b.dataset.cmd,false)})});
 el("logoutBtn").addEventListener("click",async function(){try{await fetch("/api/logout",{method:"POST"});location.reload()}catch(e){notify("Unable to lock. Try again.")}});
 var Rec=window.SpeechRecognition||window.webkitSpeechRecognition;
+var voiceDiagnostic="STANDBY";
+function showVoiceDiagnostic(message,kind){
+ voiceDiagnostic=message;
+ el("voiceDetail").textContent=message;
+ if(kind==="error"){el("voiceStat").textContent="MIC ERROR";el("voiceHint").textContent=message;}
+}
 function displayVoice(){el("orb").classList.toggle("listening",listenWanted&&micEnabled&&!echoGuard);el("voiceCenter").classList.toggle("live",listenWanted&&micEnabled&&!echoGuard);el("voiceStat").textContent=echoGuard?"ECHO GUARD":listenWanted&&micEnabled?"LISTENING":listenWanted?"CONNECTING":"STANDBY";el("voiceDetail").textContent=echoGuard?"Blocking speaker feedback":listenWanted?"Foreground microphone":"Wake phrase required";el("micBtn").classList.toggle("active",listenWanted);el("micBtn").textContent=listenWanted?"◉ VOICE ON":"🎙 ENABLE VOICE";el("moduleVoice").textContent=echoGuard?"Speaker-safe · mic temporarily paused":listenWanted?"Say “Hey Polaris” to begin":"Tap to enable · foreground only"}
 function setListen(on){
  if(!Rec){notify("Your browser doesn't support voice recognition. Try Chrome on Android, or type a command.");el("voiceHint").textContent="Speech recognition unavailable here; type a command below.";return}
  listenWanted=on;
  if(!recognition){
   recognition=new Rec();recognition.lang="en-CA";recognition.continuous=true;recognition.interimResults=true;recognition.maxAlternatives=1;
-  recognition.onstart=function(){if(echoGuard){try{recognition.abort()}catch(e){};return}micEnabled=true;displayVoice();el("voiceHint").textContent="Microphone connected. Say “Hey Polaris, activate.”"};
+  recognition.onstart=function(){
+   if(echoGuard){try{recognition.abort()}catch(e){};return}
+   micEnabled=true;
+   displayVoice();
+   showVoiceDiagnostic("Web Speech microphone active");
+   el("voiceHint").textContent="Microphone connected. Try saying Hey Polaris, activate.";
+  };
   recognition.onresult=function(e){
    if(echoGuard||speaking||!listenWanted)return;
+   showVoiceDiagnostic("Speech detected");
    for(var i=e.resultIndex;i<e.results.length;i++){
     var phrase=e.results[i][0].transcript;
     if(phrase){showHeard(phrase);el("voiceHint").textContent=(e.results[i].isFinal?"Heard: ":"Hearing: ")+phrase}
@@ -447,8 +461,18 @@ function setListen(on){
    }
   };
   recognition.onerror=function(e){
-   if(e.error==="not-allowed"||e.error==="service-not-allowed"){listenWanted=false;micEnabled=false;notify("Microphone denied. Allow microphone access in Chrome settings.");showReply("Microphone permission denied.")}
-   else if(e.error==="network"){notify("Speech recognition connection failed; try again or type instead.")}
+   if(e.error==="not-allowed"||e.error==="service-not-allowed"){
+    listenWanted=false;micEnabled=false;
+    showVoiceDiagnostic("Microphone permission denied. Allow access in Chrome settings.","error");
+    notify("Microphone access denied.")
+   }else if(e.error==="network"){
+    showVoiceDiagnostic("Speech network unavailable. Tap VOICE OFF, then ON.","error");
+    notify("Speech recognition connection failed.")
+   }else if(e.error==="audio-capture"){
+    showVoiceDiagnostic("Microphone busy. Toggle VOICE OFF and ON.","error")
+   }else if(e.error!=="no-speech"&&e.error!=="aborted"){
+    showVoiceDiagnostic("Speech error: "+e.error,"error")
+   }
    displayVoice()
   };
   recognition.onend=function(){
@@ -460,7 +484,7 @@ function setListen(on){
    },650)
   }
  }
- if(on){if(!echoGuard)try{recognition.start()}catch(e){el("voiceHint").textContent="Reconnecting microphone..."}}else{
+ if(on){if(!echoGuard)try{recognition.start()}catch(e){el("voiceHint").textContent="Reconnecting microphone...";showVoiceDiagnostic("Waiting for microphone restart...")}}else{
   armedUntil=0;
   if(recognitionRestartTimer)clearTimeout(recognitionRestartTimer);
   recognitionRestartTimer=null;
@@ -471,8 +495,11 @@ function setListen(on){
 el("micBtn").addEventListener("click",function(){
  primeAudio(false).catch(function(){});
  if(listenWanted){setListen(false);stopBargeMicrophone();return}
- listenWanted=true;
- ensureBargeMicrophone().finally(function(){listenWanted=false;setListen(true)});
+ // Android voice recognition should be first and only mic owner on startup.
+ // Acquiring a second getUserMedia stream first can starve SpeechRecognition.
+ stopBargeMicrophone();
+ setListen(true);
+ showVoiceDiagnostic("Starting phone microphone...");
 });
 document.addEventListener("visibilitychange",function(){
  if(document.visibilityState==="hidden"){if(recognition)try{recognition.abort()}catch(e){};micEnabled=false;stopBargeMicrophone();displayVoice()}
