@@ -157,7 +157,7 @@
           <div id="lyricsWriteSub">
             <div class="field"><label for="songLyrics">Write your song</label><textarea class="lyrics" id="songLyrics" placeholder="Verse 1&#10;&#10;Start with what God has placed on your heart..."></textarea><div class="hint">This is your song. Add chords like [C] or [Am] before the words where they should be played.</div></div>
             <div id="chordTools" class="hidden">
-              <div class="chord-quick-head"><span>Quick chords for <b id="songKeyDisplay">C major</b></span><button type="button" class="btn light small" id="previewSongKey">♫ Hear the key</button></div>
+              <div class="chord-quick-head"><span>Quick chords for <b id="songKeyDisplay">C major</b> · <small id="pitchDisplay">C4 (261.6 Hz)</small></span><div style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" class="btn light small" id="previewSongKey">♫ Hear root note</button><button type="button" class="btn light small" id="previewKeyChord">♫ Hear key chord</button></div></div>
               <div class="chord-ribbon" id="chordRibbon"></div>
               <p class="hint" style="font-size:11px;color:#887b65;margin-top:10px">Tap a chord to insert it at your cursor and hear it. The sound can be muted in Chords & Sound.</p>
             </div>
@@ -172,6 +172,7 @@
                 <div><label for="songBpm">Tempo (BPM)</label><input id="songBpm" type="number" min="40" max="240" value="80"></div>
                 <div><label for="songMeter">Time signature</label><select id="songMeter"><option>4/4</option><option>3/4</option><option>2/4</option><option>6/8</option><option>12/8</option></select></div>
                 <div><label for="songInstrument">Preview sound</label><select id="songInstrument"><option value="piano">Piano</option><option value="guitar">Plucked strings</option></select></div>
+                <div><label for="referenceOctave">Reference octave</label><select id="referenceOctave"><option value="2">2 · Low</option><option value="3">3 · Lower middle</option><option value="4" selected>4 · Middle</option><option value="5">5 · Higher</option></select></div>
               </div>
               <label class="chord-switch" style="margin:14px 0"><input type="checkbox" id="chordMute"><span>Silent chord entry (no sound)</span></label>
               <p class="chord-note">Choose a chord from the Lyrics quick bar, or add a custom chord below.</p>
@@ -645,7 +646,7 @@ const chordRoots=["C","C#","D","Eb","E","F","F#","G","Ab","A","Bb","B"];
 const chordNotes={C:0,"C#":1,Db:1,D:2,"D#":3,Eb:3,E:4,F:5,"F#":6,Gb:6,G:7,"G#":8,Ab:8,A:9,"A#":10,Bb:10,B:11};
 const chordIntervals={major:[0,4,7],minor:[0,3,7],dim:[0,3,6],aug:[0,4,8],sus2:[0,2,7],sus4:[0,5,7],major7:[0,4,7,11],dominant7:[0,4,7,10],minor7:[0,3,7,10],add9:[0,4,7,14]};
 const rootSelect=document.getElementById("songKeyRoot"),modeSelect=document.getElementById("songKeyMode");
-const chordControls=["songKeyRoot","songKeyMode","songBpm","songMeter","songInstrument","chordChart"];
+const chordControls=["songKeyRoot","songKeyMode","songBpm","songMeter","songInstrument","referenceOctave","chordChart"];
 for(const root of chordRoots){const o=document.createElement("option");o.value=root;o.textContent=root;rootSelect.append(o);}
 const qualityMap={major:["","m","m","","","m","dim"],minor:["m","dim","","m","m","",""]};
 let audioCtx=null;
@@ -655,7 +656,8 @@ function notesForChord(label){
  if(!m)return null;
  const root=chordNotes[m[1]];if(root===undefined)return null;
  const quality=({m:"minor",m7:"minor7",maj7:"major7",7:"dominant7",sus2:"sus2",sus4:"sus4",dim:"dim",aug:"aug",add9:"add9"})[m[2]]||"major";
- return chordIntervals[quality].map(x=>48+root+x); // C3 plus the chosen chord interval
+ const octave=Number(document.getElementById("referenceOctave").value)||4;
+ return chordIntervals[quality].map(x=>(octave+1)*12+root+x); // middle C is C4 / MIDI note 60
 }
 function soundVoice(midi,at,mode,seconds=1.6){
  // These voices are synthesized from oscillators — piano-like and plucked-string-like reference sounds.
@@ -688,6 +690,12 @@ async function auditionNotes(notes){
  }catch(e){notify("Audio preview unavailable: "+e.message,true)}
 }
 function chordKeyRoot(){return rootSelect.value||"C"}
+function getPitchInfo(){
+ const octave=Number(document.getElementById("referenceOctave").value)||4;
+ const root=chordKeyRoot(),midi=(octave+1)*12+(chordNotes[root]||0);
+ const hz=440*Math.pow(2,(midi-69)/12);
+ return root+octave+" ("+Math.round(hz*10)/10+" Hz)";
+}
 function currentKey(){return chordKeyRoot()+" "+modeSelect.value}
 function renderChordRibbon(){
  const holder=document.getElementById("chordRibbon");holder.replaceChildren();
@@ -711,6 +719,7 @@ function renderChordRibbon(){
   extra.append(btn);
  });
  document.getElementById("songKeyDisplay").textContent=currentKey();
+ document.getElementById("pitchDisplay").textContent=getPitchInfo();
 }
 function chordModeUI(){
  const enabled=document.getElementById("songChordEnabled").checked;
@@ -728,13 +737,14 @@ function insertChord(chord){
 }
 function previewKey(){
  const root=chordNotes[chordKeyRoot()]||0;
- const suffix=modeSelect.value==="minor"?"m":"";
- auditionNotes(notesForChord(chordKeyRoot()+suffix)||[48+root]);
+ const octave=Number(document.getElementById("referenceOctave").value)||4;
+ auditionNotes([(octave+1)*12+root]);
 }
 function getChordState(){
  const [root,mode]=[chordKeyRoot(),modeSelect.value];
  return {chord_enabled:document.getElementById("songChordEnabled").checked?1:0,
  song_key:root+" "+mode,
+ reference_octave:Number(document.getElementById("referenceOctave").value)||4,
  bpm:Number(document.getElementById("songBpm").value)||80,
  time_signature:document.getElementById("songMeter").value,
  preview_instrument:document.getElementById("songInstrument").value,
@@ -746,6 +756,7 @@ function showChordState(song){
  modeSelect.value=key[1]==="minor"?"minor":"major";
  document.getElementById("songChordEnabled").checked=!!song.chord_enabled;
  document.getElementById("songBpm").value=song.bpm||80;
+ document.getElementById("referenceOctave").value=song.reference_octave||4;
  document.getElementById("songMeter").value=song.time_signature||"4/4";
  document.getElementById("songInstrument").value=song.preview_instrument||"piano";
  document.getElementById("chordChart").value=song.chord_chart||"";
@@ -778,7 +789,7 @@ const prevExport=document.getElementById("exportSong").onclick;
 document.getElementById("exportSong").onclick=function(){
  const s=currentSong();if(s)Object.assign(s,getChordState());
  if(!s)return;
- const chords=s.chord_enabled?"\nKEY: "+s.song_key+"\nTEMPO: "+s.bpm+" BPM\nTIME SIGNATURE: "+s.time_signature+"\nPREFERRED SOUND: "+s.preview_instrument+"\n\nCHORD CHART\n"+(s.chord_chart||"Chords are shown inline in the lyrics.")+"\n":"";
+ const chords=s.chord_enabled?"\nKEY: "+s.song_key+"\nREFERENCE PITCH: "+getPitchInfo()+"\nTEMPO: "+s.bpm+" BPM\nTIME SIGNATURE: "+s.time_signature+"\nPREFERRED SOUND: "+s.preview_instrument+"\n\nCHORD CHART\n"+(s.chord_chart||"Chords are shown inline in the lyrics.")+"\n":"";
  const txt=[s.title,chords,"\nLYRICS WITH CHORDS\n"+(s.lyrics||""),s.mission?"\nCREATIVE MISSION\n"+s.mission:"",s.scriptures?"\nSCRIPTURE NOTES\n"+s.scriptures:"",s.notes?"\nWORKING NOTES\n"+s.notes:"",s.style_prompt?"\nPRODUCTION NOTES\n"+s.style_prompt:""].join("\n");
  exportChordText(txt,s.title+"-musician-sheet.txt");notify("Musician sheet exported.");
 };
@@ -790,11 +801,12 @@ document.getElementById("sunoExport").onclick=function(){
  const s=currentSong();if(!s)return;
  Object.assign(s,getChordState());
  const cleanLyrics=(s.lyrics||"").replace(/\[([A-G](?:#|b)?)(?:maj7|m7|sus2|sus4|dim|aug|add9|m|7)?\]/g,"").replace(/ {2,}/g," ");
- const style=[s.style_prompt||"",s.chord_enabled?"Desired musical key: "+s.song_key+". Tempo: "+s.bpm+" BPM. Time signature: "+s.time_signature+". Arrangement instrument: "+s.preview_instrument+".":""].filter(Boolean).join(" ");
+ const style=[s.style_prompt||"",s.chord_enabled?"Desired musical key: "+s.song_key+". Reference pitch: "+getPitchInfo()+". Tempo: "+s.bpm+" BPM. Time signature: "+s.time_signature+". Arrangement instrument: "+s.preview_instrument+".":""].filter(Boolean).join(" ");
  const text=[s.title,"","STYLE / MUSICAL DIRECTION",style,"","LYRICS (without chord tokens)",cleanLyrics,"",s.chord_enabled?"OPTIONAL CHORD REFERENCE\n"+(s.chord_chart||"Inline chords recorded in musician sheet"):""].join("\n");
  exportChordText(text,s.title+"-music-ai-guide.txt");notify("AI music guide exported. Key and pitch are suggestions, not guaranteed.");
 };
 document.getElementById("previewSongKey").onclick=previewKey;
+document.getElementById("previewKeyChord").onclick=()=>auditionNotes(notesForChord(chordKeyRoot()+(modeSelect.value==="minor"?"m":""))||[]);
 document.getElementById("songChordEnabled").addEventListener("change",updateChordSong);
 for(const id of chordControls)document.getElementById(id).addEventListener("input",updateChordSong);
 document.getElementById("chordInsert").onclick=()=>{
