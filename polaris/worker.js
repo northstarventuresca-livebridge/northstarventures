@@ -8,7 +8,7 @@ function json(data,status=200,extra={}){return reply(JSON.stringify(data),"appli
 function eq(a,b){if(typeof a!=="string"||typeof b!=="string"||a.length!==b.length)return false;let n=0;for(let i=0;i<a.length;i++)n|=a.charCodeAt(i)^b.charCodeAt(i);return n===0}
 async function mac(value,secret){const key=await crypto.subtle.importKey("raw",encoder.encode(secret),{name:"HMAC",hash:"SHA-256"},false,["sign"]);const raw=new Uint8Array(await crypto.subtle.sign("HMAC",key,encoder.encode(value)));return Array.from(raw).map(v=>v.toString(16).padStart(2,"0")).join("")}
 async function isAuth(req,env){const cookie=(req.headers.get("cookie")||"").split(";").map(v=>v.trim()).find(v=>v.startsWith("polaris_session="));if(!cookie)return false;const val=cookie.slice(16).split(".");if(val.length!==2)return false;const exp=Number(val[0]);if(!Number.isSafeInteger(exp)||Date.now()>exp||exp-Date.now()>31*86400000)return false;return eq(await mac("polaris:"+exp,env.POLARIS_AUTH_SECRET),val[1])}
-export default {async fetch(request,env){try{const url=new URL(request.url);const path=url.pathname;if(path==="/health")return json({service:"polaris-mobile",online:true,version:"1.7",aiConnected:Boolean(env.AI),visionConnected:false});if(path==="/manifest.webmanifest")return reply(JSON.stringify({name:"Polaris · North Star Ventures",short_name:"Polaris",id:"/",start_url:"/",scope:"/",display:"standalone",background_color:"#030915",theme_color:"#060e1c",icons:[{src:"/favicon.svg",sizes:"any",type:"image/svg+xml",purpose:"any maskable"}]}),"application/manifest+json; charset=utf-8");if(path==="/favicon.svg")return reply('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="13" fill="#091a31"/><path d="M32 5l7 20 20 7-20 7-7 20-7-20L5 32l20-7z" fill="#71e9ff"/><circle cx="32" cy="32" r="7" fill="#122344"/></svg>',"image/svg+xml");if(!env.POLARIS_ACCESS_CODE||!env.POLARIS_AUTH_SECRET)return reply("Polaris authentication not configured","text/plain",503);if(path==="/api/unlock"&&request.method==="POST"){if(Number(request.headers.get("content-length")||"0")>1024)return json({error:"Invalid request"},413);let body;try{body=await request.json()}catch(e){return json({error:"Invalid request"},400)}if(!eq(body?.code,env.POLARIS_ACCESS_CODE))return json({error:"Invalid access code"},401);const exp=Date.now()+30*86400000;const sig=await mac("polaris:"+exp,env.POLARIS_AUTH_SECRET);return json({ok:true},200,{"set-cookie":"polaris_session="+exp+"."+sig+"; Max-Age=2592000; Path=/; HttpOnly; Secure; SameSite=Strict"})}if(path==="/api/logout"&&request.method==="POST")return json({ok:true},200,{"set-cookie":"polaris_session=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=Strict"});const ok=await isAuth(request,env);if(!ok){if(path==="/"||path==="/index.html")return reply(LOGIN,"text/html; charset=utf-8");return json({error:"Authentication required"},401)}if(path==="/api/tts"&&request.method==="POST"){
+export default {async fetch(request,env){try{const url=new URL(request.url);const path=url.pathname;if(path==="/health")return json({service:"polaris-mobile",online:true,version:"1.8",aiConnected:Boolean(env.AI),visionConnected:false});if(path==="/manifest.webmanifest")return reply(JSON.stringify({name:"Polaris · North Star Ventures",short_name:"Polaris",id:"/",start_url:"/",scope:"/",display:"standalone",background_color:"#030915",theme_color:"#060e1c",icons:[{src:"/favicon.svg",sizes:"any",type:"image/svg+xml",purpose:"any maskable"}]}),"application/manifest+json; charset=utf-8");if(path==="/favicon.svg")return reply('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="13" fill="#091a31"/><path d="M32 5l7 20 20 7-20 7-7 20-7-20L5 32l20-7z" fill="#71e9ff"/><circle cx="32" cy="32" r="7" fill="#122344"/></svg>',"image/svg+xml");if(!env.POLARIS_ACCESS_CODE||!env.POLARIS_AUTH_SECRET)return reply("Polaris authentication not configured","text/plain",503);if(path==="/api/unlock"&&request.method==="POST"){if(Number(request.headers.get("content-length")||"0")>1024)return json({error:"Invalid request"},413);let body;try{body=await request.json()}catch(e){return json({error:"Invalid request"},400)}if(!eq(body?.code,env.POLARIS_ACCESS_CODE))return json({error:"Invalid access code"},401);const exp=Date.now()+30*86400000;const sig=await mac("polaris:"+exp,env.POLARIS_AUTH_SECRET);return json({ok:true},200,{"set-cookie":"polaris_session="+exp+"."+sig+"; Max-Age=2592000; Path=/; HttpOnly; Secure; SameSite=Strict"})}if(path==="/api/logout"&&request.method==="POST")return json({ok:true},200,{"set-cookie":"polaris_session=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=Strict"});const ok=await isAuth(request,env);if(!ok){if(path==="/"||path==="/index.html")return reply(LOGIN,"text/html; charset=utf-8");return json({error:"Authentication required"},401)}if(path==="/api/tts"&&request.method==="POST"){
  if(!env.AI)return json({error:"AI connection unavailable"},503);
  if(Number(request.headers.get("content-length")||0)>3500)return json({error:"Message too long"},413);
  let data;try{data=await request.json()}catch(e){return json({error:"Invalid JSON"},400)}
@@ -45,44 +45,93 @@ if(path==="/api/transcribe"&&request.method==="POST"){
   return json({error:"Speech transcription service unavailable"},502);
  }
 }
+
+if(path==="/api/history"&&request.method==="GET"){
+ if(!env.POLARIS_DB)return json({error:"Conversation journal not connected"},503);
+ const limit=Math.min(200,Math.max(1,Number(url.searchParams.get("limit")||80)||80));
+ try{
+  await env.POLARIS_DB.prepare("DELETE FROM dialogue_turns WHERE created_at < datetime('now', '-30 days')").run();
+  const r=await env.POLARIS_DB.prepare("SELECT id,kind,source,user_text,assistant_text,model,latency_ms,feedback,feedback_notes,created_at FROM dialogue_turns ORDER BY created_at DESC,id DESC LIMIT ?").bind(limit).all();
+  return json({turns:r.results||[],retention_days:30,raw_audio_saved:false});
+ }catch(e){return json({error:"Could not read conversation journal"},502)}
+}
+if(path==="/api/clear-history"&&request.method==="POST"){
+ if(!env.POLARIS_DB)return json({error:"Conversation journal not connected"},503);
+ try{await env.POLARIS_DB.prepare("DELETE FROM dialogue_turns").run();return json({ok:true,deleted:true})}
+ catch(e){return json({error:"Could not delete conversation journal"},502)}
+}
+if(path==="/api/feedback"&&request.method==="POST"){
+ if(!env.POLARIS_DB)return json({error:"Conversation journal not connected"},503);
+ const raw=await request.text();if(raw.length>1500)return json({error:"Too much feedback"},413);
+ let d;try{d=JSON.parse(raw)}catch(e){return json({error:"Invalid JSON"},400)}
+ if(typeof d?.id!=="string"||!/^[A-Za-z0-9-]{16,75}$/.test(d.id)||!["wrong","helpful",""].includes(d.feedback))return json({error:"Invalid feedback"},400);
+ const notes=typeof d.notes==="string"?d.notes.slice(0,400):"";
+ try{await env.POLARIS_DB.prepare("UPDATE dialogue_turns SET feedback=?,feedback_notes=? WHERE id=?").bind(d.feedback,notes,d.id).run();return json({ok:true})}
+ catch(e){return json({error:"Feedback update failed"},502)}
+}
+if(path==="/api/log"&&request.method==="POST"){
+ if(!env.POLARIS_DB)return json({error:"Conversation journal not connected"},503);
+ const raw=await request.text();if(raw.length>3800)return json({error:"Too much text"},413);
+ let d;try{d=JSON.parse(raw)}catch(e){return json({error:"Invalid JSON"},400)}
+ if(typeof d?.message!=="string"||typeof d?.reply!=="string")return json({error:"Invalid action log"},400);
+ const clean=s=>String(s).slice(0,2300).replace(/\b(?:sk-[A-Za-z0-9_-]{16,}|ghp_[A-Za-z0-9_]{20,})\b/g,"[REDACTED KEY]").replace(/(\b(?:password|secret|token|api key|access key|access code)\b\s*(?:is|:|=)\s*)\S+/gi,"$1[REDACTED]");
+ const id=typeof d.request_id==="string"&&/^[A-Za-z0-9-]{16,75}$/.test(d.request_id)?d.request_id:crypto.randomUUID();
+ const source=d.source==="microphone"?"microphone":"typed";
+ try{
+  await env.POLARIS_DB.prepare("INSERT OR IGNORE INTO dialogue_turns(id,kind,source,user_text,assistant_text,model) VALUES(?,?,?,?,?,?)").bind(id,"command",source,clean(d.message),clean(d.reply),"Local command").run();
+  return json({ok:true,id});
+ }catch(e){return json({error:"Action logging failed"},502)}
+}
 if(path==="/api/ask"&&request.method==="POST"){
  if(!env.AI)return json({error:"AI connection unavailable"},503);
- if(Number(request.headers.get("content-length")||0)>11000)return json({error:"Request too long"},413);
- let data;try{data=await request.json()}catch(e){return json({error:"Invalid JSON"},400)}
- const message=typeof data?.message==="string"?data.message.trim():"";
- if(!message||message.length>1400)return json({error:"Message must be 1-1400 characters"},400);
- const channel=data?.source==="microphone"?"microphone":"typed";
- const history=Array.isArray(data?.history)?data.history.slice(-8).filter(m=>m&&["user","assistant"].includes(m.role)&&typeof m.content==="string").map(m=>({role:m.role,content:m.content.slice(0,800)})):[];
- const system="You are Polaris, a sharp, natural and capable personal voice assistant for the user's North Star Ventures command centre on their Android phone. Reply intelligently to the actual intent, using clear, concise conversational English with a polished British tone, generally 1-3 short sentences. Do not use markdown, lists, labels or emojis because your answers are read aloud. Never pad an answer with robotic phrases like \"Got your spoken request\", \"I'm here to help\", or \"I understand\" unless a status acknowledgement is specifically requested. Consider the context and previous conversation, and answer the specific question rather than giving a generic introduction. Never repeat essentially the same response.\n\nInput-source labels indicate MICROPHONE TRANSCRIPT or TYPED MESSAGE. If the user asks whether you can hear their voice, explain that the microphone successfully recognized their spoken words and sent you the transcript. You cannot directly hear raw sound or see video/camera footage. Do not claim you see typing when they are speaking. If speech recognition is slightly inaccurate, infer the likely intention from context.\n\nYour current confirmed capabilities: conversational AI through Cloudflare Workers AI; a British synthetic spoken voice; speech recognition; basic voice shortcuts; a pitch-preserving Voice Speed slider in the app, applied to the next spoken reply; optional experimental voice interruptions; locally stored project cards. If the user requests \"speak faster\" or \"speak slower\", the web app handles the setting locally; do not imply you control it through AI alone. It does not control their entire phone or TV.\n\nLocal project cards are manually entered, not live project database records. If project card details are supplied with the user message, use only those exact names, statuses and progress percentages. Never invent a project's features, milestones, progress, deadlines, team members, permissions or deployments, or claim you fetched information you did not fetch. If asked for specifics not supplied, clearly say you don't yet have live data. You do NOT currently have direct access to the user's ChatGPT memory, connected Gmail, GitHub, Cloudflare, camera, screens or browser interaction, nor can you deploy websites, send email, or operate their computer. Say so plainly when asked, and never pretend to execute real-world actions. You are an early prototype, not a fully connected autonomous agent. Be straightforward when uncertain.";
- const localCards=Array.isArray(data?.projects)?data.projects.slice(0,12).filter(p=>p&&typeof p.name==="string").map(p=>({
-  name:p.name.slice(0,75),
-  status:typeof p.status==="string"?p.status.slice(0,35):"not connected",
-  progress:typeof p.progress==="number"&&p.progress>=0&&p.progress<=100?p.progress:null
- })):[];
- const userInput="[INPUT SOURCE: "+(channel==="microphone"?"MICROPHONE TRANSCRIPT":"TYPED MESSAGE")+"]\n"+
-   (localCards.length?"[LOCAL PROJECT CARDS, manually entered and NOT live-synced: "+JSON.stringify(localCards)+"]\n":"")+
-   message;
- const messages=[{role:"system",content:system},...history,{role:"user",content:userInput}];
+ if(!env.POLARIS_DB)return json({error:"Conversation memory unavailable"},503);
+ const raw=await request.text();if(raw.length>14500)return json({error:"Request too large"},413);
+ let d;try{d=JSON.parse(raw)}catch(e){return json({error:"Invalid JSON"},400)}
+ const message=typeof d?.message==="string"?d.message.trim():"";
+ if(!message||message.length>2200)return json({error:"Message must be 1-2200 characters"},400);
+ const id=typeof d.request_id==="string"&&/^[A-Za-z0-9-]{16,75}$/.test(d.request_id)?d.request_id:crypto.randomUUID();
+ const source=d.source==="microphone"?"microphone":"typed";
+ const clean=s=>String(s).slice(0,3500).replace(/\b(?:sk-[A-Za-z0-9_-]{16,}|ghp_[A-Za-z0-9_]{20,})\b/g,"[REDACTED KEY]").replace(/(\b(?:password|secret|token|api key|access key|access code)\b\s*(?:is|:|=)\s*)\S+/gi,"$1[REDACTED]");
+ const began=Date.now();
+ try{
+  const saved=await env.POLARIS_DB.prepare("SELECT assistant_text,model FROM dialogue_turns WHERE id=? LIMIT 1").bind(id).first();
+  if(saved&&saved.assistant_text)return json({reply:saved.assistant_text,engine:saved.model,replayed:true,request_id:id});
+ }catch(e){}
+ let history=[];
+ try{
+  const q=await env.POLARIS_DB.prepare("SELECT user_text,assistant_text FROM dialogue_turns WHERE kind='ai' ORDER BY created_at DESC,id DESC LIMIT 22").all();
+  for(const item of (q.results||[]).reverse()){
+   if(item.user_text)history.push({role:"user",content:String(item.user_text).slice(0,2000)});
+   if(item.assistant_text)history.push({role:"assistant",content:String(item.assistant_text).slice(0,2200)});
+  }
+ }catch(e){}
+ const system="You are Polaris, a thoughtful, capable, conversational AI assistant for the owner of North Star Ventures. You have a natural polished British tone. Actually satisfy requests and address their intent. When asked to recite the alphabet, recite it. Do not list projects unless asked. For simple requests, answer directly and briefly. For brainstorming, design discussions and problem-solving, collaborate deeply, explore tradeoffs, build on previous ideas, and ask one thoughtful follow-up when useful. Be as helpful and insightful as possible, never generic or robotic. Do not say 'I am here to help' or repeat a menu of abilities.\nThe input can be a phone MICROPHONE TRANSCRIPT, not typing. For voice checks, note the phone recognized the spoken words; you cannot directly hear raw audio or see camera video. Minor transcription mistakes happen, use context to infer intended meaning. You receive recent real conversation turns, so reference them and maintain continuity, including brainstorming context.\nNorth Star Ventures owns several projects: HOH HUB (sponsorship and administration), LiveBridge (live transcription and communication), TapBin (inventory and NFC), Songwriters Compass (songwriting AI), X32 AI Engineer (audio EQ) and Polaris. Those are broad background topics, not current project statuses. The only project cards available, if present, are manually entered and not live data. Never invent actual project milestones, current work, account connections or deployments.\nYou currently cannot access other ChatGPT conversations or memories, Cloudflare account resources, GitHub repositories, Gmail, camera or phone screen, or take real-world actions. You are not GPT-6 and are not connected to the ChatGPT session. You can brainstorm and give advice, but don't pretend to have run code or changed sites. Answers are read aloud, so no markdown headings or bullet lists unless explicitly requested. Private 30-day dialogue logs store transcribed text and AI replies, not microphone recordings.";
+ const wantsProjects=/\b(?:project|projects|hoh|livebridge|tapbin|compass|x32|nsv)\b|home of hope|north star ventures/i.test(message);
+ const cards=Array.isArray(d.projects)&&wantsProjects?d.projects.slice(0,12).filter(p=>p&&typeof p.name==="string").map(p=>({name:p.name.slice(0,80),status:typeof p.status==="string"?p.status.slice(0,40):"unknown",progress:typeof p.progress==="number"?p.progress:null})):[];
+ const userText="[INPUT: "+(source==="microphone"?"MICROPHONE TRANSCRIPT":"TYPED TEXT")+"]\n"+(cards.length?"[LOCAL PROJECT CARDS (not live): "+JSON.stringify(cards)+"]\n":"")+message;
+ const messages=[{role:"system",content:system},...history,{role:"user",content:userText}];
  let answer="",engine="";
  try{
-  const result=await env.AI.run("@cf/openai/gpt-oss-120b",{
-   messages,max_tokens:500,reasoning:{effort:"low"}
-  });
-  answer=typeof result?.choices?.[0]?.message?.content==="string"?result.choices[0].message.content.trim():
-         typeof result?.response==="string"?result.response.trim():"";
-  if(!answer)throw new Error("Empty response");
-  engine="OpenAI gpt-oss-120b · Cloudflare";
- }catch(primaryError){
+  const r=await env.AI.run("@cf/deepseek-ai/deepseek-v4-pro-0813",{messages,max_tokens:900,reasoning:{effort:"low"}});
+  answer=typeof r?.choices?.[0]?.message?.content==="string"?r.choices[0].message.content.trim():typeof r?.response==="string"?r.response.trim():"";
+  if(!answer)throw new Error("No answer");
+  engine="DeepSeek V4 Pro · Cloudflare";
+ }catch(e){
   try{
-   const fallback=await env.AI.run("@cf/meta/llama-3.3-70b-instruct-fp8-fast",{
-    messages,max_tokens:260,temperature:.25
-   });
-   answer=typeof fallback?.response==="string"?fallback.response.trim():
-          typeof fallback?.choices?.[0]?.message?.content==="string"?fallback.choices[0].message.content.trim():"";
-   engine="Llama 3.3 · Cloudflare fallback";
-  }catch(fallbackError){return json({error:"AI conversation unavailable"},502)}
+   const r=await env.AI.run("@cf/openai/gpt-oss-120b",{messages,max_tokens:850,reasoning:{effort:"low"}});
+   answer=typeof r?.choices?.[0]?.message?.content==="string"?r.choices[0].message.content.trim():typeof r?.response==="string"?r.response.trim():"";
+   if(!answer)throw new Error("No fallback answer");
+   engine="OpenAI gpt-oss-120b · fallback";
+  }catch(e){return json({error:"AI conversation unavailable"},502)}
  }
- if(!answer)return json({error:"AI conversation unavailable"},502);
- return json({reply:answer.slice(0,1200),engine,source:channel,voice:"draco"});
+ answer=answer.slice(0,3500);
+ const duration=Date.now()-began;
+ let logged=false;
+ try{
+  await env.POLARIS_DB.prepare("DELETE FROM dialogue_turns WHERE created_at < datetime('now', '-30 days')").run();
+  const saved=await env.POLARIS_DB.prepare("INSERT OR IGNORE INTO dialogue_turns(id,kind,source,user_text,assistant_text,model,latency_ms) VALUES(?,?,?,?,?,?,?)").bind(id,"ai",source,clean(message),clean(answer),engine,duration).run();
+  logged=!!saved.success;
+ }catch(e){}
+ return json({reply:answer,engine,source,request_id:id,logged,latency_ms:duration,history_turns:history.length/2});
 }
 if(path==="/api/session")return json({authenticated:true});if(request.method==="GET"&&(path==="/"||path==="/index.html")){const r=await fetch(RAW_URL,{cf:{cacheTtl:60}});if(!r.ok)return reply("Polaris dashboard temporarily unavailable","text/plain",502);const html=await r.text(),target="\n})();\n</script>";if(!html.includes(target))return reply("Polaris frontend version is incompatible","text/plain",502);return reply(html.replace(target,"\n"+VOICE_UPGRADE+target),"text/html; charset=utf-8")}return reply("Not found","text/plain",404)}catch(e){return reply("Polaris server error","text/plain",500)}}};
