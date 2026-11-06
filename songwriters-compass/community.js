@@ -149,7 +149,16 @@ function makeInfo(label,value){const box=div("");const name=document.createEleme
 async function openAdminAccount(id){
  try{
    const d=await api("/api/admin/accounts/"+id),u=d.user,detail=$c("adminAccountDetail");clear(detail);detail.classList.remove("hidden");
-   const headline=document.createElement("h3");headline.textContent=u.display_name+" — "+u.email;detail.append(headline);
+   const header=div("admin-account-head");
+   const headline=document.createElement("h3");headline.textContent=u.display_name+" — "+u.email;
+   const refresh=button("↻ Refresh stats",async()=>{
+     const at=window.scrollY;refresh.disabled=true;refresh.textContent="Refreshing…";
+     await openAdminAccount(id);
+     requestAnimationFrame(()=>window.scrollTo({top:at,behavior:"instant"}));
+     notify("Account stats refreshed");
+   });
+   refresh.title="Reload the latest statistics for this account without leaving this screen";
+   header.append(headline,refresh);detail.append(header);
    const statgrid=div("keyval");
    const ai=d.ai_calls||[],prompt=ai.reduce((s,x)=>s+Number(x.prompt_tokens),0),output=ai.reduce((s,x)=>s+Number(x.completion_tokens),0),cost=ai.reduce((s,x)=>s+Number(x.cost_usd),0);
    const live=d.sessions.filter(x=>!x.ended_at&&x.last_seen>Date.now()/1000-300);
@@ -225,7 +234,7 @@ navigate=function(view){
  if(labels[view])$c("crumb").textContent=labels[view];
  if(view==="achievements")loadProgress(true);
  if(view==="messages"){fillShareSelect();loadThreads();if(cState.threadId)loadThreadMessages()}
- if(view==="admin"&&state.user?.role==="admin")switchAdminPane(cState.adminPane);
+ if(view==="admin"&&state.user?.role==="admin"&&!window.__compassRestoring) switchAdminPane(cState.adminPane);
 };
 const origOpenWorkspace=openWorkspace;
 function revealAdmin(role){
