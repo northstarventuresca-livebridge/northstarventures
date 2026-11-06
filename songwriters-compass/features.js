@@ -79,7 +79,7 @@ async function featureApi(req,env,url,user){
    if(!thread)return reply({error:"Conversation not found."},404);
    if(method==="GET"){
      const messages=await db.prepare("SELECT m.id,m.thread_id,m.sender_id,m.body,m.shared_title,m.shared_lyrics,m.created_at FROM dm_messages m WHERE m.thread_id=? ORDER BY m.created_at DESC,m.id DESC LIMIT 150").bind(thread.id).all();
-     const t=now();
+     const t=Date.now();
      await db.prepare("INSERT INTO dm_reads(thread_id,user_id,read_at) VALUES(?,?,?) ON CONFLICT(thread_id,user_id) DO UPDATE SET read_at=excluded.read_at").bind(thread.id,user.id,t).run();
      return reply({messages:(messages.results||[]).reverse()});
    }
@@ -94,7 +94,7 @@ async function featureApi(req,env,url,user){
         if(!s)return reply({error:"You can only share your own songs."},403);
         title=s.title;lyrics=s.lyrics.slice(0,20000);
      }
-     const id=crypto.randomUUID(),t=now();
+     const id=crypto.randomUUID(),t=Date.now();
      await db.prepare("INSERT INTO dm_messages(id,thread_id,sender_id,body,shared_title,shared_lyrics,created_at) VALUES(?,?,?,?,?,?,?)").bind(id,thread.id,user.id,body,title,lyrics,t).run();
      await eventLog(db,user.id,songId?"share":"message");
      return reply({message:{id,thread_id:thread.id,sender_id:user.id,body,shared_title:title,shared_lyrics:lyrics,created_at:t}},201);
