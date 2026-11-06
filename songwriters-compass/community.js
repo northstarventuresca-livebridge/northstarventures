@@ -217,6 +217,7 @@ async function switchAdminPane(pane){
 document.querySelectorAll("[data-adminpane]").forEach(el=>el.addEventListener("click",()=>switchAdminPane(el.dataset.adminpane)));
 $c("achievementFilter").onchange=renderAchievements;$c("achievementStatus").onchange=renderAchievements;
 $c("refreshMessages").onclick=async()=>{await loadThreads();if(cState.threadId)await loadThreadMessages()};
+let progressTimer=null;function scheduleProgress(){clearTimeout(progressTimer);progressTimer=setTimeout(()=>loadProgress(true),1800)}
 const origNavigate=navigate;
 navigate=function(view){
  origNavigate(view);
