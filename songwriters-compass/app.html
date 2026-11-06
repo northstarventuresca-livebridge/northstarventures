@@ -561,9 +561,19 @@ navigate=function(view){
  if(view==="admin"&&state.user?.role==="admin")switchAdminPane(cState.adminPane);
 };
 const origOpenWorkspace=openWorkspace;
+function revealAdmin(role){
+ const admin=role==="admin";
+ for(const id of ["adminNav","topAdmin","homeAdminBanner"])$c(id).classList.toggle("hidden",!admin);
+}
+$c("topAdmin").onclick=()=>navigate("admin");
+$c("homeAdmin").onclick=()=>navigate("admin");
 openWorkspace=async function(user){
+ // Reveal privileged navigation immediately; it is not dependent on other dashboard API calls.
+ revealAdmin(user.role);
  await origOpenWorkspace(user);
- $c("adminNav").classList.toggle("hidden",user.role!=="admin");
+ // /api/me is authoritative when the app resumes an already-signed-in session.
+ try{const fresh=await api("/api/me");if(fresh.user?.id===state.user.id){state.user.role=fresh.user.role;revealAdmin(fresh.user.role);}}catch(_){ }
+ if(new URLSearchParams(location.search).get("view")==="admin"&&state.user.role==="admin")navigate("admin");
  await api("/api/heartbeat","POST",{});
  await Promise.all([loadProgress(false),pollUnread()]);
  if(cState.poll)clearInterval(cState.poll);
