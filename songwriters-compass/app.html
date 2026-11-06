@@ -69,6 +69,11 @@
 @media(max-width:850px){.messagebox{grid-template-columns:1fr}.chatlist{min-height:auto}.chat-window{min-height:420px}.accountrow{grid-template-columns:1.2fr .7fr .7fr auto}.accountrow .hide-tablet{display:none}.keyval{grid-template-columns:repeat(2,minmax(0,1fr))}.tieredit{grid-template-columns:1fr 1fr;align-items:center}.ach-edit{grid-template-columns:1fr 1fr}.tieredit span{display:none}}
 @media(max-width:480px){.achievement-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.achievement{padding:12px 8px;min-height:175px}.chat-messages{padding:12px}.msg{max-width:94%}.keyval{grid-template-columns:1fr 1fr}.accountrow{grid-template-columns:1fr auto}.accountrow .mini-stat{display:none}.admin-tools{gap:5px}.admin-tab{padding:8px 11px}}
 
+.admin-shortcut{background:#d4b176!important;color:#122339!important;font-weight:800;border:1px solid #ebd6a6}
+.admin-shortcut.active{background:#ebcd92!important;color:#122339!important}
+#topAdmin{flex:none}
+@media(max-width:770px){.sidebar nav{scrollbar-width:thin}.admin-shortcut{order:-1}.topbar .topright{gap:7px}#topAdmin{font-size:10px;padding:8px 10px}}
+@media(max-width:450px){.topbar .crumb{font-size:10px}#topAdmin{font-size:10px;padding:7px}}
 </style></head>
 <body>
 <div id="auth">
@@ -98,22 +103,24 @@
    <div class="caption">Your songwriting home</div>
    <div class="navhead">Workspace</div>
    <nav id="menu">
+      <button class="menu-item hidden admin-shortcut" id="adminNav" data-view="admin"><span class="emoji">✦</span> NorthStar Admin</button>
       <button class="menu-item active" data-view="home"><span class="emoji">⌂</span> Overview</button>
       <button class="menu-item" data-view="songs"><span class="emoji">♫</span> My Songs</button>
       <button class="menu-item" data-view="journal"><span class="emoji">✎</span> Journal & Ideas</button>
       <button class="menu-item" data-view="achievements"><span class="emoji">★</span> Achievements</button>
       <button class="menu-item" id="messagesNav" data-view="messages"><span class="emoji">✉</span> Messages <span id="unreadBubble" class="hidden">0</span></button>
-      <button class="menu-item hidden" id="adminNav" data-view="admin"><span class="emoji">⚙</span> NorthStar Admin</button>
+
       <button class="menu-item" data-view="settings"><span class="emoji">⚙</span> Account & Security</button>
    </nav>
    <div class="side-footer"><div class="profile"><div class="avatar" id="avatar">S</div><div><b id="sideName">Songwriter</b><small id="sideEmail">—</small><small class="tierchip dark" id="memberTier">First Spark</small></div></div><div style="color:#9eabb9;font-size:11px">A NorthStar Ventures project</div></div>
  </aside>
  <div class="main">
-  <div class="topbar"><div class="crumb">My workspace <span style="color:#b9c0c6">/</span> <b id="crumb">Overview</b></div><div class="topright"><span class="pill">SPIRIT-LED SONGWRITING</span><button class="btn light small" id="topLogout">Sign out</button></div></div>
+  <div class="topbar"><div class="crumb">My workspace <span style="color:#b9c0c6">/</span> <b id="crumb">Overview</b></div><div class="topright"><button class="btn gold small hidden" type="button" id="topAdmin">✦ Admin Dashboard</button><span class="pill">SPIRIT-LED SONGWRITING</span><button class="btn light small" id="topLogout">Sign out</button></div></div>
   <div class="content">
    <section class="section active" id="view-home">
      <div class="eyebrow">Welcome to your creative space</div><h1 id="greeting">Welcome home.</h1><p class="subline">A place for what God has put on your heart. No rush. No pressure. Just room to write.</p>
      <div class="statgrid"><div class="stat"><div class="label">Songs in progress</div><div class="value" id="countActive">0</div><div class="detail">Keep growing</div></div><div class="stat"><div class="label">Finished songs</div><div class="value" id="countFinished">0</div><div class="detail">Every song has a story</div></div><div class="stat"><div class="label">Journal entries</div><div class="value" id="countJournal">0</div><div class="detail">Capture what moves you</div></div></div>
+     <div id="homeAdminBanner" class="panel hidden" style="display:flex;justify-content:space-between;align-items:center;gap:15px;flex-wrap:wrap;background:#fff7e6;border-color:#d9b676"><div><b style="display:block;color:#72501e">✦ NorthStar Administrator</b><span class="muted" style="font-size:12px">Manage accounts, songwriter levels, achievements and platform usage.</span></div><button class="btn gold" type="button" id="homeAdmin">Open Admin Dashboard →</button></div>
      <div class="welcome"><div><div class="eyebrow" style="color:#d9b478">When inspiration comes</div><h2>There's a song in your heart.</h2><p>Start with the revelation, the prayer, or the one line you can't stop thinking about. Your Compass will help you develop it.</p></div><button id="homeNew" class="btn gold">＋ Start a song</button></div>
      <div class="panel" style="margin-top:24px"><div class="editor-head"><h3>Recently opened songs</h3><button class="btn light small" data-viewbtn="songs">View all songs →</button></div><div class="rows" id="recentSongs"></div></div>
    </section>
