@@ -76,6 +76,7 @@ function chordModeUI(){
  const enabled=document.getElementById("songChordEnabled").checked;
  document.getElementById("chordTools").classList.toggle("hidden",!enabled);
  document.getElementById("songChordPane").classList.toggle("hidden",!enabled);
+ document.getElementById("chordsDisabledHint").classList.toggle("hidden",enabled);
  document.getElementById("chordToggleLabel").textContent=enabled?"Chords enabled":"Chords optional";
 }
 function insertChord(chord){
@@ -108,7 +109,7 @@ function showChordState(song){
  document.getElementById("songMeter").value=song.time_signature||"4/4";
  document.getElementById("songInstrument").value=song.preview_instrument||"piano";
  document.getElementById("chordChart").value=song.chord_chart||"";
- chordModeUI();renderChordRibbon();
+ chordModeUI();renderChordRibbon();setLyricsSubPane("write");
 }
 function updateChordSong(){
  const s=currentSong();if(!s)return;
@@ -162,3 +163,11 @@ document.getElementById("chordInsert").onclick=()=>{
 };
 document.getElementById("chordManual").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();document.getElementById("chordInsert").click();}};
 renderChordRibbon();
+
+
+function setLyricsSubPane(which){
+ document.querySelectorAll("[data-lyrics-sub]").forEach(x=>x.classList.toggle("active",x.dataset.lyricsSub===which));
+ document.getElementById("lyricsWriteSub").classList.toggle("hidden",which!=="write");
+ document.getElementById("lyricsChordsSub").classList.toggle("hidden",which!=="chords");
+}
+document.querySelectorAll("[data-lyrics-sub]").forEach(x=>x.addEventListener("click",()=>setLyricsSubPane(x.dataset.lyricsSub)));
