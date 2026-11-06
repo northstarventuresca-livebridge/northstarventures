@@ -7,7 +7,7 @@ function json(data,status=200,extra={}){return reply(JSON.stringify(data),"appli
 function eq(a,b){if(typeof a!=="string"||typeof b!=="string"||a.length!==b.length)return false;let n=0;for(let i=0;i<a.length;i++)n|=a.charCodeAt(i)^b.charCodeAt(i);return n===0}
 async function mac(value,secret){const key=await crypto.subtle.importKey("raw",encoder.encode(secret),{name:"HMAC",hash:"SHA-256"},false,["sign"]);const raw=new Uint8Array(await crypto.subtle.sign("HMAC",key,encoder.encode(value)));return Array.from(raw).map(v=>v.toString(16).padStart(2,"0")).join("")}
 async function isAuth(req,env){const cookie=(req.headers.get("cookie")||"").split(";").map(v=>v.trim()).find(v=>v.startsWith("polaris_session="));if(!cookie)return false;const val=cookie.slice(16).split(".");if(val.length!==2)return false;const exp=Number(val[0]);if(!Number.isSafeInteger(exp)||Date.now()>exp||exp-Date.now()>31*86400000)return false;return eq(await mac("polaris:"+exp,env.POLARIS_AUTH_SECRET),val[1])}
-export default {async fetch(request,env){try{const url=new URL(request.url);const path=url.pathname;if(path==="/health")return json({service:"polaris-mobile",online:true,version:"1.0",aiConnected:Boolean(env.AI),visionConnected:false});if(path==="/manifest.webmanifest")return reply(JSON.stringify({name:"Polaris · North Star Ventures",short_name:"Polaris",id:"/",start_url:"/",scope:"/",display:"standalone",background_color:"#030915",theme_color:"#060e1c",icons:[{src:"/favicon.svg",sizes:"any",type:"image/svg+xml",purpose:"any maskable"}]}),"application/manifest+json; charset=utf-8");if(path==="/favicon.svg")return reply('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="13" fill="#091a31"/><path d="M32 5l7 20 20 7-20 7-7 20-7-20L5 32l20-7z" fill="#71e9ff"/><circle cx="32" cy="32" r="7" fill="#122344"/></svg>',"image/svg+xml");if(!env.POLARIS_ACCESS_CODE||!env.POLARIS_AUTH_SECRET)return reply("Polaris authentication not configured","text/plain",503);if(path==="/api/unlock"&&request.method==="POST"){if(Number(request.headers.get("content-length")||"0")>1024)return json({error:"Invalid request"},413);let body;try{body=await request.json()}catch(e){return json({error:"Invalid request"},400)}if(!eq(body?.code,env.POLARIS_ACCESS_CODE))return json({error:"Invalid access code"},401);const exp=Date.now()+30*86400000;const sig=await mac("polaris:"+exp,env.POLARIS_AUTH_SECRET);return json({ok:true},200,{"set-cookie":"polaris_session="+exp+"."+sig+"; Max-Age=2592000; Path=/; HttpOnly; Secure; SameSite=Strict"})}if(path==="/api/logout"&&request.method==="POST")return json({ok:true},200,{"set-cookie":"polaris_session=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=Strict"});const ok=await isAuth(request,env);if(!ok){if(path==="/"||path==="/index.html")return reply(LOGIN,"text/html; charset=utf-8");return json({error:"Authentication required"},401)}if(path==="/api/tts"&&request.method==="POST"){
+export default {async fetch(request,env){try{const url=new URL(request.url);const path=url.pathname;if(path==="/health")return json({service:"polaris-mobile",online:true,version:"1.4",aiConnected:Boolean(env.AI),visionConnected:false});if(path==="/manifest.webmanifest")return reply(JSON.stringify({name:"Polaris · North Star Ventures",short_name:"Polaris",id:"/",start_url:"/",scope:"/",display:"standalone",background_color:"#030915",theme_color:"#060e1c",icons:[{src:"/favicon.svg",sizes:"any",type:"image/svg+xml",purpose:"any maskable"}]}),"application/manifest+json; charset=utf-8");if(path==="/favicon.svg")return reply('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="13" fill="#091a31"/><path d="M32 5l7 20 20 7-20 7-7 20-7-20L5 32l20-7z" fill="#71e9ff"/><circle cx="32" cy="32" r="7" fill="#122344"/></svg>',"image/svg+xml");if(!env.POLARIS_ACCESS_CODE||!env.POLARIS_AUTH_SECRET)return reply("Polaris authentication not configured","text/plain",503);if(path==="/api/unlock"&&request.method==="POST"){if(Number(request.headers.get("content-length")||"0")>1024)return json({error:"Invalid request"},413);let body;try{body=await request.json()}catch(e){return json({error:"Invalid request"},400)}if(!eq(body?.code,env.POLARIS_ACCESS_CODE))return json({error:"Invalid access code"},401);const exp=Date.now()+30*86400000;const sig=await mac("polaris:"+exp,env.POLARIS_AUTH_SECRET);return json({ok:true},200,{"set-cookie":"polaris_session="+exp+"."+sig+"; Max-Age=2592000; Path=/; HttpOnly; Secure; SameSite=Strict"})}if(path==="/api/logout"&&request.method==="POST")return json({ok:true},200,{"set-cookie":"polaris_session=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=Strict"});const ok=await isAuth(request,env);if(!ok){if(path==="/"||path==="/index.html")return reply(LOGIN,"text/html; charset=utf-8");return json({error:"Authentication required"},401)}if(path==="/api/tts"&&request.method==="POST"){
  if(!env.AI)return json({error:"AI connection unavailable"},503);
  if(Number(request.headers.get("content-length")||0)>3500)return json({error:"Message too long"},413);
  let data;try{data=await request.json()}catch(e){return json({error:"Invalid JSON"},400)}
@@ -21,6 +21,28 @@ export default {async fetch(request,env){try{const url=new URL(request.url);cons
   if(!(body instanceof ReadableStream)&&!(body instanceof ArrayBuffer)&&!ArrayBuffer.isView(body))return json({error:"AI speech returned an unexpected format"},502);
   return new Response(body,{status:200,headers:{...baseHeaders,"content-type":"audio/mpeg","x-polaris-voice":"draco-british-ai","cache-control":"no-store"}});
  }catch(e){return json({error:"AI voice service is not available"},502)}
+}
+if(path==="/api/transcribe"&&request.method==="POST"){
+ if(!env.AI)return json({error:"Speech recognition unavailable"},503);
+ const mime=(request.headers.get("content-type")||"").split(";")[0].trim().toLowerCase();
+ if(mime!=="audio/wav"&&mime!=="audio/wave"&&mime!=="audio/x-wav")return json({error:"Expected WAV audio"},415);
+ const len=Number(request.headers.get("content-length")||0);
+ if(len>1500000)return json({error:"Audio too large"},413);
+ try{
+  const buf=await request.arrayBuffer();
+  if(buf.byteLength<1000||buf.byteLength>1500000)return json({error:"Audio length out of range"},413);
+  const view=new DataView(buf);
+  if(view.getUint32(0,false)!==0x52494646||view.getUint32(8,false)!==0x57415645)return json({error:"Invalid WAV header"},400);
+  const arr=new Uint8Array(buf);
+  const segments=[];
+  for(let i=0;i<arr.byteLength;i+=8192)segments.push(String.fromCharCode(...arr.subarray(i,i+8192)));
+  const audio=btoa(segments.join(""));
+  const output=await env.AI.run("@cf/openai/whisper-large-v3-turbo",{audio,language:"en",task:"transcribe",vad_filter:true});
+  const transcript=typeof output?.text==="string"?output.text.trim():"";
+  return json({text:transcript.slice(0,1500),source:"buffered-microphone",model:"whisper-large-v3-turbo"});
+ }catch(e){
+  return json({error:"Speech transcription service unavailable"},502);
+ }
 }
 if(path==="/api/ask"&&request.method==="POST"){
  if(!env.AI)return json({error:"AI connection unavailable"},503);
