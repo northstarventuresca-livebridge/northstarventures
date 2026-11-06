@@ -275,6 +275,7 @@ export default {
       let html=APP;
       if(viewer?.role==="admin" && !viewer.suspended){
         html=html
+          .replace('<body>','<body data-server-admin="1">')
           .replace('class="menu-item hidden admin-shortcut" id="adminNav"','class="menu-item admin-shortcut" id="adminNav"')
           .replace('class="btn gold small hidden" type="button" id="topAdmin"','class="btn gold small" type="button" id="topAdmin"')
           .replace('id="homeAdminBanner" class="panel hidden"','id="homeAdminBanner" class="panel"');
