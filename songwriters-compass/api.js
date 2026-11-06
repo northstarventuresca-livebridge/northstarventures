@@ -22,7 +22,7 @@ const b64 = b => btoa(String.fromCharCode(...b));
 async function hashPassword(password, saltB64){
   const salt = Uint8Array.from(atob(saltB64), x=>x.charCodeAt(0));
   const key = await crypto.subtle.importKey("raw",enc.encode(password),"PBKDF2",false,["deriveBits"]);
-  const bits = await crypto.subtle.deriveBits({name:"PBKDF2",salt,iterations:150000,hash:"SHA-256"},key,256);
+  const bits = await crypto.subtle.deriveBits({name:"PBKDF2",salt,iterations:100000,hash:"SHA-256"},key,256);
   return b64(new Uint8Array(bits));
 }
 function equal(a,b){if(typeof a!=="string" || typeof b!=="string" || a.length!==b.length)return false;let v=0;for(let i=0;i<a.length;i++)v|=a.charCodeAt(i)^b.charCodeAt(i);return v===0;}
