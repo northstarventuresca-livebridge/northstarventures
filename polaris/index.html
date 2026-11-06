@@ -56,7 +56,7 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}a{color:inherit;
  <div class="topright"><div class="clock"><strong id="timeNow">--:--</strong><small id="dateNow">SYSTEM TIME</small></div><div class="indicator" title="Polaris web interface is online"><span class="dot"></span> INTERFACE ONLINE</div></div>
 </header>
 <section class="hero" id="home">
- <div class="eyebrow">PERSONAL INTELLIGENCE NETWORK / V1.4</div>
+ <div class="eyebrow">PERSONAL INTELLIGENCE NETWORK / V1.5</div>
  <h1>Welcome to your command center.</h1>
  <p>Your projects, tools, and next actions in one intelligent workspace. Speak naturally to the Polaris AI.</p>
  <div class="orb-wrap" id="orb"><div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><div class="orbit orbit-three"></div><div class="orbit orbit-four"></div><div class="orb-core"><span class="orb-mark">✦</span><b>POLARIS</b><span id="coreState">AWAITING ACTIVATION</span></div><span class="coord left">NSV / 01</span><span class="coord right">CORE / READY</span></div>
@@ -102,7 +102,7 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}a{color:inherit;
  <section class="glass" id="activity"><h3>◴ RECENT ACTIVITY</h3><div id="activityList"><div class="event">Polaris mobile command center initialized.<small>System event · this device</small></div></div></section>
  <section class="glass"><h3>◎ QUICK COMMANDS</h3><p>Say “Hey Polaris, activate” to start, then speak follow-up commands. Use “Polaris, speak faster” or adjust Voice Speed above. With Interruptions On, Polaris tries to detect your voice over its speech, stop talking, and transcribe your complete comment from a short audio buffer. Echo Guard takes over automatically when interruption capture is unavailable.</p><div class="quick"><button data-cmd="show my projects">Show projects</button><button data-cmd="open north star ventures">Open NSV admin</button><button data-cmd="system status">System status</button><button data-cmd="refresh dashboard">Refresh</button></div><p style="margin-top:15px;font-size:10px">Security: no account passwords or API keys are stored in your browser. Project notes and progress currently save on this device only.</p></section>
 </div>
-<div class="footer"><span>✦ POLARIS</span> · POWERED BY NORTH STAR VENTURES · MOBILE FOUNDATION v1.4</div>
+<div class="footer"><span>✦ POLARIS</span> · POWERED BY NORTH STAR VENTURES · MOBILE FOUNDATION v1.5</div>
 </main>
 <div class="toast" id="toast" role="status"></div>
 <div class="dialogbg" id="editBg"><form class="dialog" id="editForm">
@@ -127,7 +127,7 @@ var defaults=[
 {id:"x32",name:"X32 AI Engineer",kind:"Audio Engineering",icon:"≋",color:"#77a1ff",status:"not-connected",progress:null,url:"",notes:""}
 ];
 function load(key,fallback){try{var raw=JSON.parse(localStorage.getItem(key));return Array.isArray(raw)?raw:fallback}catch(e){return fallback}}
-var projects=load(KEY,defaults),events=load(ACT,[]),filter="all",editing=null,active=false,listenWanted=false,recognition=null,micEnabled=false,speaking=false,toastTimer=0,armedUntil=0,activeAudio=null,voiceQueue=Promise.resolve(),requestBusy=false,conversation=[],audioContext=null,audioReady=false,audioGeneration=0,echoGuard=false,echoGuardTimer=null,recognitionRestartTimer=null,speechRate=1.25,
+var projects=load(KEY,defaults),events=load(ACT,[]),filter="all",editing=null,active=false,listenWanted=false,recognition=null,micEnabled=false,speaking=false,toastTimer=0,armedUntil=0,activeAudio=null,voiceQueue=Promise.resolve(),requestBusy=false,conversation=[],audioContext=null,audioReady=false,lastInputWasVoice=false,audioGeneration=0,echoGuard=false,echoGuardTimer=null,recognitionRestartTimer=null,speechRate=1.25,
 bargeWanted=true,bargeContext=null,bargeStream=null,bargeSource=null,bargeProcessor=null,bargeSilent=null,bargeMicrophoneReady=false,bargeMicPromise=null,bargeRing=[],bargeCapture=null,bargeNoise=.003,bargeStreak=0,bargeCaptureStarted=0,bargeLastVoice=0,bargePlaybackStarted=0,bargeTranscribing=false,bargeText="",bargeCoolDown=0,bargeSampleRate=16000;
 var el=function(id){return document.getElementById(id)};
 var safe=function(s){return String(s||"").replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]})};
@@ -234,7 +234,10 @@ function onBargeAudioFrame(evt){
   if(bargeStreak>=3&&activeAudio){
    bargeCapture=bargeRing.slice();bargeCaptureStarted=now;bargeLastVoice=now;bargeStreak=0;bargeText=el("replyText").textContent||"";
    el("voiceHint").textContent="Interruption detected · listening to your full comment";bargeUi("Your voice detected · recording");showHeard("Listening to your interruption...");
-   try{activeAudio.stop()}catch(e){}
+   try{
+    if(typeof activeAudio.stop==="function")activeAudio.stop();
+    else if(typeof activeAudio.pause==="function")activeAudio.pause();
+   }catch(e){}
   }
   return;
  }
@@ -300,18 +303,56 @@ function primeAudio(playTone){
 }
 function playPcmAudio(data){
  if(!audioContext||audioContext.state!=="running")return Promise.reject(new Error("Audio is locked. Tap ENABLE AUDIO again."));
- return audioContext.decodeAudioData(data.slice(0)).then(async function(buffer){
+ return (async function(){
+  // Native HTML audio uses temporal pitch correction; WebAudio buffer playbackRate does not.
   if(listenWanted&&bargeWanted)await ensureBargeMicrophone().catch(function(){return false});
+  var url=URL.createObjectURL(new Blob([data],{type:"audio/mpeg"})),element=new Audio();
+  var sourceNode=null,closed=false,timeout=null;
+  try{
+   element.preload="auto";
+   element.src=url;
+   element.playbackRate=speechRate;
+   if("preservesPitch" in element)element.preservesPitch=true;
+   else if("webkitPreservesPitch" in element)element.webkitPreservesPitch=true;
+   else if("mozPreservesPitch" in element)element.mozPreservesPitch=true;
+   // Route through the already unlocked audio context so Android can play after a network response.
+   if(typeof audioContext.createMediaElementSource==="function"){
+    sourceNode=audioContext.createMediaElementSource(element);sourceNode.connect(audioContext.destination);
+   }
+   return await new Promise(function(resolve,reject){
+    var ended=false;
+    function finish(err){
+     if(ended)return;ended=true;closed=true;
+     if(timeout)clearTimeout(timeout);
+     try{element.pause();element.removeAttribute("src");element.load()}catch(e){}
+     try{if(sourceNode)sourceNode.disconnect()}catch(e){}
+     URL.revokeObjectURL(url);activeAudio=null;resumeMicrophoneAfterSpeaker();
+     if(err)reject(err);else resolve();
+    }
+    element.onended=function(){finish()};
+    element.onerror=function(){finish(new Error("Mobile browser cannot decode AI MP3"))};
+    activeAudio=element;holdMicrophoneForSpeaker();
+    element.play().then(function(){
+     setAudioStatus("POLARIS SPEAKING · NATURAL PITCH · "+speechRate.toFixed(2)+"×","ready");
+     timeout=setTimeout(function(){finish()},Math.max(12000,Math.ceil((Number.isFinite(element.duration)?element.duration:20)*1000/speechRate)+3500));
+    }).catch(function(e){finish(new Error("Mobile playback blocked: "+e.message))});
+   });
+  }catch(e){
+   if(!closed){try{element.pause()}catch(x){};try{if(sourceNode)sourceNode.disconnect()}catch(x){};URL.revokeObjectURL(url)}
+   throw e;
+  }
+ })().catch(async function(error){
+  // Keep speaking on phones that reject the HTML media element, but do NOT speed-pitch the voice.
+  setAudioStatus("COMPATIBILITY MODE · NATURAL PITCH AT 1×","error");
+  record("Pitch-preserving playback unavailable: "+String(error.message).slice(0,120));
+  var buffer=await audioContext.decodeAudioData(data.slice(0));
   return new Promise(function(resolve,reject){
-   if(!buffer||!buffer.length){reject(new Error("Generated audio is empty."));return}
-   var source=audioContext.createBufferSource(),gain=audioContext.createGain(),complete=false;
-   source.buffer=buffer;source.playbackRate.value=speechRate;gain.gain.value=1;source.connect(gain);gain.connect(audioContext.destination);activeAudio=source;
-   var end=function(){if(complete)return;complete=true;activeAudio=null;resumeMicrophoneAfterSpeaker();resolve()};
-   source.onended=end;
-   holdMicrophoneForSpeaker();
-   try{source.start()}catch(e){resumeMicrophoneAfterSpeaker();reject(e);return}
-   setAudioStatus("POLARIS SPEAKING · BRITISH AI VOICE","ready");
-   setTimeout(end,Math.ceil(buffer.duration*1000/speechRate)+1800);
+   var source=audioContext.createBufferSource(),finished=false,timer=null;
+   source.buffer=buffer;source.playbackRate.value=1;source.connect(audioContext.destination);activeAudio=source;
+   function end(){if(finished)return;finished=true;clearTimeout(timer);activeAudio=null;resumeMicrophoneAfterSpeaker();resolve()}
+   source.onended=end;holdMicrophoneForSpeaker();
+   try{source.start()}catch(e){reject(e);return}
+   timer=setTimeout(end,Math.ceil(buffer.duration*1000)+1400);
   });
  });
 }
@@ -352,7 +393,7 @@ async function askAI(query){
  if(requestBusy){showReply("I'm finishing your previous question. Please try again in a moment.");return}
  requestBusy=true;showReply("Analysing your request...");el("aiStat").textContent="THINKING";el("aiDetail").textContent="Generating response";
  try{
-  var resp=await fetch("/api/ask",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({message:query,history:conversation.slice(-8)})});
+  var resp=await fetch("/api/ask",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({message:query,source:lastInputWasVoice?"microphone":"typed",history:conversation.slice(-8)})});
   if(!resp.ok)throw new Error("AI service returned "+resp.status);
   var data=await resp.json();if(!data.reply)throw new Error("Empty AI reply");
   conversation.push({role:"user",content:query},{role:"assistant",content:data.reply});conversation=conversation.slice(-12);
@@ -362,7 +403,7 @@ async function askAI(query){
  finally{requestBusy=false}
 }
 function activate(){primeAudio(false).catch(function(){});active=true;armedUntil=Date.now()+60000;el("orb").classList.add("activated");el("coreState").textContent="CORE ACTIVE";el("activateBtn").textContent="✦ POLARIS ACTIVE";el("voiceHint").textContent="Polaris activated. Say “Hey Polaris, show my projects.”";record("Polaris activated");talk("Polaris online. Good to have you back. The command centre is ready.");notify("POLARIS ACTIVATED")}
-function command(raw,fromVoice){var x=String(raw||"").trim();if(!x)return;showHeard(x);var text=x.toLowerCase().replace(/[,.!?]/g," ").replace(/\s+/g," ").trim();if(fromVoice){var ix=text.indexOf("polaris");if(ix>=0){text=text.slice(ix+7).trim();armedUntil=Date.now()+60000;active=true}else if(Date.now()<armedUntil){armedUntil=Date.now()+60000}else{return}if(!text){showReply("I'm listening. What's next?");return}}else if(/^(hey )?polaris\b/.test(text)){text=text.replace(/^(hey )?polaris\b/,"").trim();if(!text){activate();return}}
+function command(raw,fromVoice){var x=String(raw||"").trim();if(!x)return;lastInputWasVoice=!!fromVoice;showHeard(x);var text=x.toLowerCase().replace(/[,.!?]/g," ").replace(/\s+/g," ").trim();if(fromVoice){var ix=text.indexOf("polaris");if(ix>=0){text=text.slice(ix+7).trim();armedUntil=Date.now()+60000;active=true}else if(Date.now()<armedUntil){armedUntil=Date.now()+60000}else{return}if(!text){showReply("I'm listening. What's next?");return}}else if(/^(hey )?polaris\b/.test(text)){text=text.replace(/^(hey )?polaris\b/,"").trim();if(!text){activate();return}}
 record((fromVoice?"Voice":"Typed")+" command: "+x);
 if(/^(activate|wake up|online|start)$/.test(text)||text==="hey"||text==="activate polaris"){activate();return}
 if(/\b(speak|talk|speaking|voice|go)?\s*(much\s+)?(faster|quicker|speed up)\b/.test(text)||/^(faster|speed up)$/.test(text)){setSpeechRate(speechRate+0.15,true);return}
