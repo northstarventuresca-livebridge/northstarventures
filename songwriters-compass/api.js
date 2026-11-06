@@ -82,6 +82,37 @@ async function handleApi(req,env,url){
     if(req.headers.get("content-type")?.split(";")[0]!=="application/json")return reply({error:"JSON required."},415);
  }
  const path=url.pathname;
+ // First-admin activation requires a time-limited, single-use invitation.
+ if(path==="/api/admin/activate" && req.method==="POST"){
+   const b=await bodyJson(req);
+   const email=str(b.email,254).trim().toLowerCase();
+   const code=str(b.code,100).trim();
+   const password=b.password;
+   const expected="northstarventures.ca@gmail.com";
+   const ip=req.headers.get("cf-connecting-ip")||"unknown";
+   const allowed=await limit(db,"admin-activation:"+await sha256(ip),8,3600);
+   if(!allowed)return reply({error:"Too many attempts. Try again later."},429);
+   if(email!==expected || code.length<20 || !validPassword(password))
+      return reply({error:"Check your activation code and use a new password with 8+ characters, a letter and a number."},400);
+   const existing=await db.prepare("SELECT id FROM users WHERE email=?").bind(expected).first();
+   const admins=await db.prepare("SELECT count(*) AS n FROM users WHERE role='admin'").first();
+   if(existing || admins?.n>0)return reply({error:"Administrator setup is already complete. Please sign in."},409);
+   const codeHash=await sha256(code);
+   const record=await db.prepare("SELECT code_hash FROM admin_invites WHERE code_hash=? AND email=? AND used_at IS NULL AND expires_at>?").bind(codeHash,expected,now()).first();
+   if(!record)return reply({error:"Invalid or expired activation code."},403);
+   // Claim exactly once, even under concurrent requests.
+   const claim=await db.prepare("UPDATE admin_invites SET used_at=? WHERE code_hash=? AND email=? AND used_at IS NULL AND expires_at>?").bind(now(),codeHash,expected,now()).run();
+   if(claim.meta?.changes!==1)return reply({error:"Activation code was already used."},409);
+   const salt=b64(crypto.getRandomValues(new Uint8Array(16)));
+   const hash=await hashPassword(password,salt);
+   const id=crypto.randomUUID(),t=now(),name="NorthStar Admin";
+   try{
+     await db.prepare("INSERT INTO users(id,email,display_name,salt,password_hash,created_at,updated_at,role,suspended) VALUES(?,?,?,?,?,?,?,?,0)").bind(id,email,name,salt,hash,t,t,"admin").run();
+   }catch(_){return reply({error:"Could not activate the account. Please contact support."},500);}
+   const token=await createSession(db,id);
+   await eventLog(db,id,"admin_activated");
+   return reply({ok:true,user:{id,email,display_name:name,created_at:t,role:"admin"}},201,{"set-cookie":makeCookie(token)});
+ }
  if(path==="/api/auth/register" && req.method==="POST"){
     const b=await bodyJson(req);
     const email=str(b.email,254).toLowerCase().trim();
@@ -239,6 +270,7 @@ export default {
    if(url.pathname==="/favicon.svg")return new Response(ICON,{headers:{"content-type":"image/svg+xml; charset=utf-8","cache-control":"public, max-age=86400"}});
    if(url.pathname==="/" || url.pathname==="/index.html")return new Response(LANDING,{headers:pageHeaders});
    if(url.pathname==="/app" || url.pathname==="/app/")return new Response(APP,{headers:{...pageHeaders,"cache-control":"no-store"}});
+   if(url.pathname==="/admin-setup")return new Response(ADMIN_SETUP,{headers:{...pageHeaders,"cache-control":"no-store"}});
    if(url.pathname.startsWith("/api/"))return await handleApi(req,env,url);
    return new Response("Not found",{status:404,headers:{"content-type":"text/plain; charset=utf-8"}});
   }catch(e){if(e?.message==="too_large")return reply({error:"Request is too large."},413);if(e instanceof SyntaxError)return reply({error:"Invalid request body."},400);return reply({error:"Something went wrong. Please try again."},500);}
