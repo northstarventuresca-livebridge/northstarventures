@@ -161,7 +161,8 @@ async function handleApi(req,env,url){
        const b=songData(await bodyJson(req));
        const result=await db.prepare("UPDATE songs SET title=?,status=?,mission=?,lyrics=?,notes=?,scriptures=?,style_prompt=?,updated_at=? WHERE id=? AND user_id=?").bind(b.title,b.status,b.mission,b.lyrics,b.notes,b.scriptures,b.style_prompt,now(),id,user.id).run();
        if(!result.meta?.changes)return reply({error:"Song not found."},404);
-       await eventLog(db,user.id,"song_edited");
+       const lastEdit=await db.prepare("SELECT created_at FROM usage_events WHERE user_id=? AND kind='song_edited' ORDER BY created_at DESC LIMIT 1").bind(user.id).first();
+       if(!lastEdit || lastEdit.created_at<now()-60)await eventLog(db,user.id,"song_edited");
        return reply({ok:true});
     }
     if(req.method==="DELETE"){
