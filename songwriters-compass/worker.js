@@ -51,7 +51,7 @@ async function featureApi(req,env,url,user){
  const requireAdmin=()=>isAdmin?null:reply({error:"Administrator access required."},403);
  if(path==="/api/heartbeat" && method==="POST"){
   const cookie=(req.headers.get("cookie")||"").match(/(?:^|;\s*)sc_session=([a-f0-9]{64})(?:;|$)/);
-  if(cookie){const tokenHash=await sha256(cookie[1]),t=now();await db.prepare("UPDATE sessions SET last_seen=? WHERE token_hash=?").bind(t,tokenHash).run();await db.prepare("UPDATE session_history SET last_seen=? WHERE token_hash=?").bind(t,tokenHash).run();}
+  if(cookie){const tokenHash=await sha256(cookie[1]),t=now();await db.prepare("UPDATE sessions SET last_seen=? WHERE token_hash=?").bind(t,tokenHash).run();await db.prepare("INSERT OR IGNORE INTO session_history(token_hash,user_id,started_at,last_seen) SELECT token_hash,user_id,created_at,? FROM sessions WHERE token_hash=?").bind(t,tokenHash).run();await db.prepare("UPDATE session_history SET last_seen=? WHERE token_hash=?").bind(t,tokenHash).run();}
   // One event per day from each account. Count a day of participating, not every heartbeat.
   const day=await db.prepare("SELECT 1 FROM usage_events WHERE user_id=? AND kind='visit' AND date(created_at,'unixepoch')=date('now') LIMIT 1").bind(user.id).first();
   if(!day)await eventLog(db,user.id,"visit");
