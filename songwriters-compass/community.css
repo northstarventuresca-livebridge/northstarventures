@@ -1,0 +1,39 @@
+
+/* Compass community, milestones and administrator workspace */
+.tierchip{font-size:10px;font-weight:800;letter-spacing:.6px;border:1px solid #d8b67c88;background:#f9f0df;color:#77572c;border-radius:18px;padding:5px 10px;display:inline-flex;align-items:center;gap:5px}
+.tierchip.dark{background:#243950;border-color:#cfae73;color:#efd39a}
+.tierprofile{background:linear-gradient(140deg,#1b3147,#263f59);color:white;border-radius:14px;padding:27px;display:flex;align-items:center;gap:20px;flex-wrap:wrap;justify-content:space-between;margin-bottom:24px}
+.tierprofile h2{font-size:35px;margin:4px 0}.tierprofile p{color:#b7c8d5;margin-bottom:8px;max-width:560px}.progressbar{width:100%;height:8px;background:#ffffff30;border-radius:50px;margin:12px 0 6px;overflow:hidden}.progressbar span{display:block;background:#e3c487;height:100%;border-radius:50px;width:0%;transition:width .4s}.progresscopy{font-size:11px;color:#cedbe2}
+.achievement-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:13px;margin-top:22px}
+.achievement{border:1px solid #e5dac9;border-radius:12px;padding:18px;background:#fcfaf6;text-align:center;min-height:195px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.achievement.locked{filter:grayscale(1);opacity:.56;background:#f4f2ec}
+.achievement .awardicon{height:55px;width:55px;display:grid;place-items:center;border-radius:50%;background:radial-gradient(circle,#f9e9bd,#d2a45a);color:#1b3349;border:3px solid #c99750;font-size:28px;box-shadow:0 0 0 4px #e8d6ae}
+.achievement.locked .awardicon{background:#c6c6c6;border-color:#b5b5b5;box-shadow:none}
+.achievement b{font-size:12px;line-height:1.3;margin:13px 0 6px}.achievement small{font-size:10px;color:#87919b;line-height:1.5}.achievement .ach-state{color:#987344;font-size:10px;font-weight:800;margin-top:9px}
+.filterline{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:17px 0}.filterline select{max-width:265px}
+#unreadBubble{background:#ef735a;color:#fff;padding:1px 7px;border-radius:15px;margin-left:auto;font-size:10px}
+.menu-item.has-unread{background:#d68f5f29;color:#fff;animation:inboxglow 1.5s ease-in-out infinite}
+@keyframes inboxglow{50%{box-shadow:0 0 0 3px #d3ac674d}}
+.messagebox{display:grid;grid-template-columns:280px minmax(0,1fr);gap:17px}.chatlist{border:1px solid var(--line);border-radius:12px;background:#fff;padding:18px;min-height:470px}.chatlist h3{font-size:24px;margin-bottom:12px}
+.chat-window{border:1px solid var(--line);background:#fffdf9;border-radius:12px;display:flex;flex-direction:column;min-height:535px;overflow:hidden}
+.chat-header{padding:15px 20px;background:#f7f1e6;border-bottom:1px solid var(--line);font-size:15px;font-weight:800}
+.chat-messages{padding:18px;flex:1;min-height:280px;max-height:480px;overflow-y:auto;display:flex;flex-direction:column;gap:14px}
+.msg{max-width:80%;background:#eee8da;border-radius:13px;padding:12px 15px;white-space:pre-wrap;font-size:13px;line-height:1.65;align-self:flex-start}
+.msg.mine{background:#1b3146;color:#fff;align-self:flex-end}.msg small{display:block;opacity:.65;font-size:9px;margin-top:5px}
+.shared-preview{padding:12px;margin-top:9px;border:1px solid #d8b77f;border-radius:8px;background:#fffdfa;color:#243243;white-space:pre-wrap;max-height:210px;overflow:auto}
+.shared-preview b{display:block;color:#94723f;margin-bottom:6px}
+.chat-compose{padding:17px;border-top:1px solid var(--line);background:#fff}.chat-compose textarea{min-height:78px}.compose-row{display:flex;gap:10px;flex-wrap:wrap;justify-content:space-between;align-items:center;margin-top:9px}
+.compose-row select{width:min(250px,100%)}
+.accountrow{display:grid;grid-template-columns:1.4fr .8fr .8fr .8fr auto;gap:12px;align-items:center;padding:13px 12px;border-top:1px solid var(--line);font-size:12px}
+.accountrow b{display:block}.accountrow small{display:block;color:#929ca4;font-size:10px;overflow-wrap:anywhere}
+.accountrow.heading{font-size:10px;text-transform:uppercase;letter-spacing:1px;font-weight:800;color:#86929b;background:#f8f5ef}
+.admin-tools{display:flex;gap:10px;flex-wrap:wrap;margin:20px 0}.admin-tab{border:1px solid var(--line);border-radius:24px;background:#fff;padding:9px 15px;font-size:12px;font-weight:800;color:#687986}.admin-tab.active{background:#1b3146;color:#fff}
+.adminpane{display:none}.adminpane.active{display:block}.keyval{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:16px}.keyval div{background:#f8f3e8;padding:16px;border-radius:9px}.keyval b{display:block;font-size:23px}.keyval small{font-size:10px;color:#76838d}
+.admin-detail{background:#fff;border:1px solid var(--line);padding:18px;border-radius:9px;margin-top:16px}
+.tieredit{display:grid;grid-template-columns:60px 1fr 100px 120px auto;gap:10px;align-items:center;border-bottom:1px solid var(--line);padding:10px 0}.tieredit input{padding:8px}.tieredit input[type=color]{padding:2px;width:50px;height:37px}
+.ach-edit{display:grid;grid-template-columns:1.5fr 1fr 100px 55px auto;gap:7px;align-items:center;margin-bottom:9px}.ach-edit input,.ach-edit select{padding:7px;font-size:11px}.ach-edit .btn{padding:7px}
+#achievementToast{position:fixed;inset:auto 18px 20px auto;z-index:100;border-radius:14px;background:linear-gradient(135deg,#2d3e53,#142336);color:#f8f3e8;box-shadow:0 15px 50px #0005;border:1px solid #c7a569;padding:22px 25px;max-width:310px;display:none}
+#achievementToast.show{display:block;animation:popin .4s ease-out}@keyframes popin{0%{transform:translateY(20px);opacity:0}100%{transform:none;opacity:1}}
+#achievementToast h3{font-size:26px;color:#e6c37d;margin:0 0 6px}#achievementToast .award{font-size:30px}
+@media(max-width:850px){.messagebox{grid-template-columns:1fr}.chatlist{min-height:auto}.chat-window{min-height:420px}.accountrow{grid-template-columns:1.2fr .7fr .7fr auto}.accountrow .hide-tablet{display:none}.keyval{grid-template-columns:repeat(2,minmax(0,1fr))}.tieredit{grid-template-columns:1fr 1fr;align-items:center}.ach-edit{grid-template-columns:1fr 1fr}.tieredit span{display:none}}
+@media(max-width:480px){.achievement-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.achievement{padding:12px 8px;min-height:175px}.chat-messages{padding:12px}.msg{max-width:94%}.keyval{grid-template-columns:1fr 1fr}.accountrow{grid-template-columns:1fr auto}.accountrow .mini-stat{display:none}.admin-tools{gap:5px}.admin-tab{padding:8px 11px}}
