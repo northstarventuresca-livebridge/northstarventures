@@ -269,7 +269,22 @@ export default {
    if(url.pathname==="/health")return reply({ok:true,name:"Songwriter's Compass",database:!!env.DB,promptLoaded:!!env.DB,apiConfigured:!!env.Songwritter});
    if(url.pathname==="/favicon.svg")return new Response(ICON,{headers:{"content-type":"image/svg+xml; charset=utf-8","cache-control":"public, max-age=86400"}});
    if(url.pathname==="/" || url.pathname==="/index.html")return new Response(LANDING,{headers:pageHeaders});
-   if(url.pathname==="/app" || url.pathname==="/app/")return new Response(APP,{headers:{...pageHeaders,"cache-control":"no-store"}});
+   if(url.pathname==="/app" || url.pathname==="/app/" || url.pathname==="/admin"){
+      // Render privileged navigation server-side, never relying only on client JS after sign-in.
+      const viewer=env.DB?await sessionFor(req,env.DB):null;
+      let html=APP;
+      if(viewer?.role==="admin" && !viewer.suspended){
+        html=html
+          .replace('class="menu-item hidden admin-shortcut" id="adminNav"','class="menu-item admin-shortcut" id="adminNav"')
+          .replace('class="btn gold small hidden" type="button" id="topAdmin"','class="btn gold small" type="button" id="topAdmin"')
+          .replace('id="homeAdminBanner" class="panel hidden"','id="homeAdminBanner" class="panel"');
+        if(url.pathname==="/admin" || url.searchParams.get("view")==="admin"){
+          // Works even if the usual dashboard initialization is delayed.
+          html=html.replace("</body></html>",'<script>Promise.resolve().then(function(){try{if(typeof navigate==="function")navigate("admin");if(typeof switchAdminPane==="function")switchAdminPane("overview");}catch(e){console.error("Admin view:",e)}});</script></body></html>');
+        }
+      }
+      return new Response(html,{headers:{...pageHeaders,"cache-control":"private, no-store, max-age=0","vary":"Cookie"}});
+   }
    if(url.pathname==="/admin-setup")return new Response(ADMIN_SETUP,{headers:{...pageHeaders,"cache-control":"no-store"}});
    if(url.pathname.startsWith("/api/"))return await handleApi(req,env,url);
    return new Response("Not found",{status:404,headers:{"content-type":"text/plain; charset=utf-8"}});
