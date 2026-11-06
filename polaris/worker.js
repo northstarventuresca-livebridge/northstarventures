@@ -14,9 +14,12 @@ export default {async fetch(request,env){try{const url=new URL(request.url);cons
  const content=typeof data?.text==="string"?data.text.trim():"";
  if(content.length<1||content.length>700)return json({error:"Text must be 1-700 characters"},400);
  try{
-  const speech=await env.AI.run("@cf/deepgram/aura-2-en",{speaker:"draco",encoding:"mp3",text:content});
+  const speech=await env.AI.run("@cf/deepgram/aura-2-en",{speaker:"draco",encoding:"mp3",text:content},{returnRawResponse:true});
   if(!speech)return json({error:"AI voice returned no audio"},502);
-  return new Response(speech,{status:200,headers:{...baseHeaders,"content-type":"audio/mpeg","x-polaris-voice":"draco-british-ai"}});
+  const body=speech instanceof Response?(speech.ok?speech.body:null):speech;
+  if(!body)return json({error:"AI speech service failed"},502);
+  if(!(body instanceof ReadableStream)&&!(body instanceof ArrayBuffer)&&!ArrayBuffer.isView(body))return json({error:"AI speech returned an unexpected format"},502);
+  return new Response(body,{status:200,headers:{...baseHeaders,"content-type":"audio/mpeg","x-polaris-voice":"draco-british-ai","cache-control":"no-store"}});
  }catch(e){return json({error:"AI voice service is not available"},502)}
 }
 if(path==="/api/ask"&&request.method==="POST"){
