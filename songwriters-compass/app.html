@@ -91,6 +91,15 @@
 .chord-grid label{font-size:11px}.chord-manual{display:flex;gap:8px;margin:17px 0;flex-wrap:wrap}.chord-manual input{max-width:250px}
 .chord-export-row{display:flex;flex-wrap:wrap;gap:9px;margin-top:15px}
 
+
+.compass-mode-row{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin:0 0 14px}
+.compass-mode-row label{font-size:11px;color:#69604e;font-weight:800;margin:0}
+.compass-mode-row select{width:min(240px,100%);padding:9px 12px;border:1px solid #e1d6c3;background:#fbf7ef;font-size:12px;font-weight:700}
+.compass-live-status{display:flex;align-items:center;gap:8px;color:#806039;font-size:11px;font-weight:700;padding:9px 0 0}
+.compass-live-dot{width:8px;height:8px;flex:0 0 8px;border-radius:50%;background:#c39b62;box-shadow:0 0 0 3px #c39b622e;animation:compassPulse 1.2s ease-in-out infinite}
+@keyframes compassPulse{50%{opacity:.35;transform:scale(.8)}}
+@media(prefers-reduced-motion:reduce){.compass-live-dot{animation:none}}
+
 </style></head>
 <body>
 <div id="auth">
@@ -192,7 +201,7 @@
         <div class="editor-tabpane" id="tab-companion">
          <div class="ai-panel"><div class="ai-header"><div class="eyebrow">Private guidance · V25 songwriting system</div><h3>Your songwriting companion</h3><p>It asks, guides and helps refine. You're still the songwriter.</p></div>
           <div class="ai-messages" id="aiMessages"><div class="bubble ai">What's the main thing you feel God has placed on your heart for this song? I'm here to help you explore it in your own words.</div></div>
-          <form class="ai-form" id="aiForm"><div class="prompts"><button class="promptchip" type="button" data-prompt="Help me discover the deepest revelation in this song. Ask me questions.">Find the revelation</button><button class="promptchip" type="button" data-prompt="Review my lyrics for singability and natural wording. Suggest only the changes that truly strengthen them.">Check singability</button><button class="promptchip" type="button" data-prompt="Help me develop the song's chorus without changing my original vision.">Develop the chorus</button></div><textarea id="aiQuestion" placeholder="Ask a question about this song..." maxlength="2000" required></textarea><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:10px"><span class="muted" style="font-size:11px">Your words lead the way</span><button class="btn gold small" id="askButton" type="submit">Ask Compass ✦</button></div><div class="error" id="aiError"></div></form>
+          <form class="ai-form" id="aiForm"><div class="compass-mode-row"><label for="aiMode">AI response speed</label><select id="aiMode"><option value="quick">⚡ Quick — faster feedback</option><option value="deep">✦ Deep — more detailed guidance</option></select></div><div class="prompts"><button class="promptchip" type="button" data-prompt="Help me discover the deepest revelation in this song. Ask me questions.">Find the revelation</button><button class="promptchip" type="button" data-prompt="Review my lyrics for singability and natural wording. Suggest only the changes that truly strengthen them.">Check singability</button><button class="promptchip" type="button" data-prompt="Help me develop the song's chorus without changing my original vision.">Develop the chorus</button></div><textarea id="aiQuestion" placeholder="Ask a question about this song..." maxlength="2000" required></textarea><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:10px"><span class="muted" style="font-size:11px">Your words lead the way</span><button class="btn gold small" id="askButton" type="submit">Ask Compass ✦</button></div><div class="compass-live-status hidden" id="aiLiveStatus" role="status" aria-live="polite"><span class="compass-live-dot" aria-hidden="true"></span><span id="aiLiveStatusText">Preparing your response…</span></div><div class="error" id="aiError"></div></form>
          </div>
          <p class="smalltip" style="margin:15px 0 0">The companion follows Master Songwriting System V25.0 but cannot replace prayer, Scripture or your judgment. When you ask for AI feedback, your selected song, notes and question are sent to OpenAI for processing.</p>
         </div>
@@ -376,7 +385,87 @@ $("passwordForm").onsubmit=async e=>{e.preventDefault();$("passwordError").textC
 function resetAi(){$("aiMessages").replaceChildren();addBubble("What's the main thing you feel God has placed on your heart for this song? I'm here to help you explore it in your own words.","ai");$("aiQuestion").value="";$("aiError").textContent="";}
 function addBubble(message,who){const b=document.createElement("div");b.className="bubble "+who;b.textContent=message;$("aiMessages").append(b);$("aiMessages").scrollTop=$("aiMessages").scrollHeight;}
 document.querySelectorAll("[data-prompt]").forEach(x=>x.onclick=()=>{$("aiQuestion").value=x.dataset.prompt;$("aiQuestion").focus()});
-$("aiForm").onsubmit=async e=>{e.preventDefault();const q=$("aiQuestion").value.trim(),s=currentSong();if(!q||!s)return;await saveSong(false);$("aiError").textContent="";addBubble(q,"you");$("aiQuestion").value="";$("askButton").disabled=true;$("askButton").textContent="Thinking...";try{const r=await api("/api/assist","POST",{songId:s.id,question:q});addBubble(r.answer,"ai");if(typeof scheduleProgress==="function")scheduleProgress()}catch(err){$("aiError").textContent=err.message;notify(err.message,true)}finally{$("askButton").disabled=false;$("askButton").textContent="Ask Compass ✦"}};
+
+async function streamCompassReply(songId,question,mode,onEvent){
+ const response=await fetch("/api/assist/stream",{
+  method:"POST",credentials:"same-origin",headers:{"content-type":"application/json"},
+  body:JSON.stringify({songId,question,mode})
+ });
+ if(!response.ok){
+   let problem={};try{problem=await response.json()}catch(_){}
+   throw Error(problem.error||"Couldn't start the songwriting companion.");
+ }
+ if(!response.body)throw Error("Your browser does not support live responses.");
+ const reader=response.body.getReader(),decoder=new TextDecoder();
+ let pending="",done=false;
+ const handleLine=line=>{
+  if(!line.trim())return;
+  let event;try{event=JSON.parse(line)}catch(_){return;}
+  if(event.type==="error")throw Error(event.message||"The AI connection was interrupted.");
+  if(event.type==="done")done=true;
+  onEvent(event);
+ };
+ try{
+  while(true){
+   const chunk=await reader.read();
+   if(chunk.done)break;
+   pending+=decoder.decode(chunk.value,{stream:true});
+   let end;while((end=pending.indexOf("\n"))>=0){
+    const line=pending.slice(0,end);pending=pending.slice(end+1);
+    handleLine(line);
+   }
+  }
+  pending+=decoder.decode();if(pending.trim())handleLine(pending);
+  if(!done)throw Error("The AI connection ended early. Please try again.");
+ }finally{try{await reader.cancel()}catch(_){}}
+}
+$("aiForm").onsubmit=async e=>{
+ e.preventDefault();
+ const question=$("aiQuestion").value.trim(),song=currentSong();
+ if(!question||!song)return;
+ const mode=$("aiMode").value==="deep"?"deep":"quick";
+ const status=$("aiLiveStatus"),label=$("aiLiveStatusText"),button=$("askButton");
+ $("aiError").textContent="";
+ status.classList.remove("hidden");
+ label.textContent="Preparing your songwriting request…";
+ button.disabled=true;button.textContent="Responding…";
+ let bubble=null,received=false;
+ try{
+  // Only wait for an outstanding autosave, rather than saving unchanged songs for every question.
+  if(state.songTimer||state.songBusy){
+   label.textContent="Saving the latest lyrics…";
+   await saveSong(false);
+  }
+  addBubble(question,"you");
+  $("aiQuestion").value="";
+  const start=Date.now();
+  await streamCompassReply(song.id,question,mode,event=>{
+   if(event.type==="status"){label.textContent=event.message||"Working on your song…";}
+   if(event.type==="delta"){
+    if(!bubble){bubble=document.createElement("div");bubble.className="bubble ai";$("aiMessages").appendChild(bubble);}
+    received=true;
+    bubble.textContent+=event.text;
+    label.textContent="Writing your feedback live… "+(Math.round((Date.now()-start)/100)/10).toFixed(1)+"s";
+    $("aiMessages").scrollTop=$("aiMessages").scrollHeight;
+   }
+   if(event.type==="done"){
+    label.textContent="✓ Finished in "+(event.totalMs/1000).toFixed(1)+"s"+
+      (typeof event.firstTokenMs==="number"?" · First words in "+(event.firstTokenMs/1000).toFixed(1)+"s":"");
+   }
+  });
+  if(!received)throw Error("No answer was received.");
+  if(typeof scheduleProgress==="function")scheduleProgress();
+ }catch(error){
+  const msg=error.message||"Something went wrong with the AI connection.";
+  $("aiError").textContent=msg;
+  label.textContent="Response interrupted — your song is saved.";
+  if(!bubble){bubble=document.createElement("div");bubble.className="bubble ai";bubble.textContent="I couldn't finish that reply. Please try again.";$("aiMessages").appendChild(bubble);}
+ }finally{
+  button.disabled=false;button.textContent="Ask Compass ✦";
+  if(!received)status.classList.add("hidden");
+ }
+};
+
 (async()=>{try{const d=await api("/api/me");await openWorkspace(d.user)}catch(_){showAuth()}})();
 </script>
 <div id="achievementToast" role="status" aria-live="polite"><div class="award">✦</div><h3>Compass milestone!</h3><div id="achievementToastTitle"></div></div>
