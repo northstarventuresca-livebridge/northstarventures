@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#060e1c">
+<meta name="robots" content="noindex,nofollow">
+<title>POLARIS | North Star Ventures</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<style>
+:root{--bg:#030915;--panel:rgba(12,27,49,.78);--line:rgba(107,184,255,.19);--cyan:#63e9ff;--blue:#428cff;--violet:#9771ff;--ink:#e9f7ff;--muted:#829cb5;--green:#46efc0;--orange:#ffbb72}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:14px;min-height:100vh;overflow-x:hidden}
+body:before{content:"";position:fixed;inset:0;z-index:-2;background:radial-gradient(ellipse at 50% 15%,#102748 0,transparent 43%),radial-gradient(ellipse at 92% 58%,#161c45 0,transparent 31%),linear-gradient(180deg,#040d1d 0%,#030815 100%)}
+body:after{content:"";position:fixed;inset:0;z-index:-1;background-image:linear-gradient(rgba(93,149,212,.044) 1px,transparent 1px),linear-gradient(90deg,rgba(93,149,212,.044) 1px,transparent 1px);background-size:40px 40px;mask-image:linear-gradient(to bottom,transparent 0%,black 20%,black 80%,transparent 100%);pointer-events:none}
+button,input,select,textarea{font:inherit}button{cursor:pointer}a{color:inherit;text-decoration:none}button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}
+.app{max-width:1200px;margin:0 auto;padding:0 18px 110px}.top{height:78px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);gap:10px}
+.brand{display:flex;align-items:center;gap:11px}.emblem{height:38px;width:38px;border:1px solid #66d9ff99;box-shadow:0 0 24px #20aafa36,inset 0 0 16px #41aaff30;display:grid;place-items:center;border-radius:11px;transform:rotate(45deg);background:#0b2c4a}.emblem span{font-size:22px;line-height:1;color:var(--cyan);transform:rotate(-45deg);font-weight:900}.brandname{font-size:20px;letter-spacing:.25em;font-weight:800;line-height:1}.brandhint{font-size:9px;letter-spacing:.18em;color:#83b1d9;margin-top:6px;font-weight:650}
+.topright{display:flex;align-items:center;gap:12px}.clock{text-align:right;font-size:12px;font-variant-numeric:tabular-nums;color:#b9d1e7}.clock small{display:block;font-size:9px;color:var(--muted);letter-spacing:.09em;margin-top:3px}.indicator{display:flex;align-items:center;gap:6px;border:1px solid #3ee7b05b;background:#06392c4d;color:#7efcdc;border-radius:30px;padding:8px 10px;font-size:10px;white-space:nowrap;letter-spacing:.08em}.dot{width:6px;height:6px;background:#40ffc8;border-radius:50%;box-shadow:0 0 8px #3dffb9;display:inline-block}
+.hero{position:relative;padding-top:23px;text-align:center}.eyebrow{letter-spacing:.29em;font-size:10px;color:#73bcf4;font-weight:750}.hero h1{font-size:clamp(25px,5vw,44px);margin:9px 0 3px;font-weight:700;letter-spacing:-.045em}.hero p{color:#93b1ca;max-width:520px;margin:0 auto;line-height:1.7;font-size:13px}
+.orb-wrap{width:min(84vw,430px);height:min(84vw,430px);margin:12px auto 1px;position:relative;display:grid;place-items:center;isolation:isolate}
+.orb-wrap:before{content:"";position:absolute;inset:2%;border-radius:50%;background:radial-gradient(circle,#05a5ef28,transparent 68%);filter:blur(27px)}
+.orbit{position:absolute;border-radius:50%;pointer-events:none}.orbit-one{inset:6%;border:1px solid #2a6baa79;box-shadow:0 0 16px #146cab1d,inset 0 0 12px #348bee1d;animation:rotate 22s linear infinite}.orbit-one:before,.orbit-one:after{content:"";position:absolute;width:5px;height:5px;border-radius:50%;background:#65eaff;box-shadow:0 0 15px 5px #47ceff80;left:50%;top:-3px}.orbit-one:after{left:auto;right:3%;top:82%;height:3px;width:3px;background:#b390ff}
+.orbit-two{inset:13%;border:2px dashed rgba(89,176,238,.32);animation:rotate 42s linear infinite reverse}.orbit-three{inset:19%;border:2px solid transparent;border-top-color:#71d9ff;border-bottom-color:#497fff;filter:drop-shadow(0 0 8px #37afff);animation:rotate 8s linear infinite}.orbit-four{inset:24%;border:1px solid #65c8ff50;box-shadow:inset 0 0 32px #197fe51a,0 0 25px #117aef2b}
+.orb-core{position:absolute;inset:30%;border-radius:50%;background:radial-gradient(circle at 38% 30%,#2965a0d9,#081c35 61%,#020912 100%);border:1px solid #66d6ffb5;box-shadow:inset 0 0 30px #32a8ff51,0 0 34px #21a6ff5b,0 0 75px #208ffb34;display:flex;justify-content:center;align-items:center;flex-direction:column;transition:.4s;overflow:hidden}
+.orb-core:before{content:"";position:absolute;inset:0;background:repeating-radial-gradient(circle at 55% 44%,transparent 0,transparent 12px,#b1ebff13 13px,#b1ebff13 14px);opacity:.7}
+.orb-core b{font-size:clamp(20px,6vw,32px);font-weight:800;letter-spacing:.12em;text-shadow:0 0 20px #60d9ff;font-variant:small-caps;position:relative;z-index:1}
+.orb-core span{font-size:clamp(7px,1.6vw,9px);font-weight:700;letter-spacing:.25em;color:#83e2ff;margin-top:9px;position:relative;z-index:1}
+.orb-mark{font-size:24px!important;letter-spacing:0!important;margin-bottom:0!important;color:#9bf2ff!important}
+.orb-wrap.activated .orb-core{box-shadow:inset 0 0 35px #17ecfb65,0 0 47px #17deff8c,0 0 100px #1c8bff66}
+.orb-wrap.listening .orb-core{animation:listenPulse 1.6s ease-in-out infinite}.orb-wrap.listening .orbit-three{animation-duration:3s}
+@keyframes listenPulse{50%{transform:scale(1.055);box-shadow:inset 0 0 40px #16e8ff88,0 0 60px #23e4ffbb,0 0 100px #1b7cfb55}}
+@keyframes rotate{to{transform:rotate(360deg)}}@keyframes glow{50%{opacity:.38;transform:scaleY(.42)}}
+.coord{position:absolute;font-size:9px;letter-spacing:.17em;color:#81b3d4;top:50%;pointer-events:none}.coord.left{left:-6px;transform:translateY(-50%)}.coord.right{right:-6px;transform:translateY(-50%)}
+.voice-center{position:relative;text-align:center;margin:-5px auto 0;max-width:640px}.wave{height:30px;display:flex;align-items:center;justify-content:center;gap:3px}.wave i{display:block;background:#4ceaff;border-radius:8px;width:3px;height:7px;opacity:.5;box-shadow:0 0 8px #49dfff70}.voice-center.live .wave i{animation:glow .75s ease-in-out infinite alternate}.voice-center.live .wave i:nth-child(3n){animation-delay:.28s;height:23px}.voice-center.live .wave i:nth-child(4n){animation-delay:.12s;height:16px}
+.voice-hint{color:#9bc5e3;font-size:12px;line-height:1.5;min-height:18px}.primary-row{display:flex;justify-content:center;gap:8px;margin:14px auto 11px;flex-wrap:wrap}.btn{border:1px solid #3987c78c;background:linear-gradient(180deg,#163e65,#0e2746);border-radius:10px;color:#dbf6ff;padding:12px 17px;font-weight:650;font-size:12px;min-height:43px;display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:.2s}.btn:hover{border-color:#5de1ff;box-shadow:0 0 20px #18a4e928}.btn.primary{background:linear-gradient(125deg,#2398da,#4d67e9);border-color:#69ceff;color:white;box-shadow:0 0 24px #247de537}.btn.ghost{background:rgba(9,28,51,.45);border-color:#4b77975e}.btn.tiny{min-height:31px;padding:7px 10px;font-size:11px}.btn.active{border-color:#47ffc4;color:#7cfbd7}
+.command{display:flex;align-items:center;gap:7px;border:1px solid #4d8cb078;background:#071a30e6;padding:7px;border-radius:12px;box-shadow:inset 0 0 25px #2475ae13;margin:12px auto 0;max-width:580px}.command input{background:transparent;color:var(--ink);width:100%;flex:1;border:0;outline:0;font-size:13px;padding:8px;min-width:0}.command input::placeholder{color:#6085a5}.command button{background:#155683;border:1px solid #42bfff77;border-radius:8px;color:#dcfaff;padding:10px 12px;font-size:12px;font-weight:700}
+.status-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:28px 0 24px}.metric{border:1px solid var(--line);border-radius:12px;background:#0a1930a9;padding:15px 12px}.metric small{display:block;text-transform:uppercase;letter-spacing:.12em;font-size:9px;color:#8db4d2}.metric strong{font-size:18px;font-weight:750;display:block;margin-top:7px}.metric em{display:block;font-style:normal;font-size:10px;color:#7598b8;margin-top:4px}
+.section-head{display:flex;align-items:end;justify-content:space-between;gap:10px;margin:30px 0 13px}.section-head h2{font-size:16px;letter-spacing:.09em;font-weight:800;margin:0}.section-head p{font-size:11px;color:#7b9cba;margin:5px 0 0}.section-head .aside{color:#659ac2;font-size:10px;white-space:nowrap}
+.modules{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.module{border:1px solid var(--line);background:linear-gradient(145deg,#10243ce5,#081729db);min-height:119px;border-radius:12px;padding:16px 12px;position:relative;overflow:hidden}.module:after{content:"";position:absolute;width:65px;height:65px;border:1px solid #3ca9e52b;border-radius:50%;right:-24px;top:-22px}.module-icon{width:32px;height:32px;border:1px solid #368ddc50;border-radius:10px;background:#143a615c;display:grid;place-items:center;font-size:16px;color:#9deaff}.module b{display:block;margin-top:11px;font-size:12px}.module span{display:block;font-size:10px;color:#8ba9c2;margin-top:5px;line-height:1.45}
+.section-controls{display:flex;align-items:center;gap:7px;justify-content:space-between;flex-wrap:wrap}.pills{display:flex;gap:5px}.pill{background:#0b2036;color:#8bb1d0;border:1px solid #3f6f9360;border-radius:7px;padding:8px 12px;font-size:11px}.pill.selected{background:#123f62;color:#9ceaff;border-color:#3dbee6}
+.project-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:11px}.project{background:linear-gradient(145deg,#0b213ae6,#091426de);border:1px solid rgba(100,169,228,.19);border-radius:13px;padding:15px;min-height:151px;position:relative;overflow:hidden}.project:before{content:"";height:2px;position:absolute;left:0;right:0;top:0;background:linear-gradient(90deg,var(--accent,#2cbaff),transparent)}.projecttop{display:flex;align-items:center;gap:10px}.projecticon{width:40px;height:40px;border:1px solid #5aa5e84b;background:#1c3a587a;border-radius:11px;display:grid;place-items:center;font-size:19px;flex-shrink:0}.projecttop b{font-size:13px;display:block}.projecttop small{display:block;font-size:10px;color:#8aabc6;margin-top:5px}.pmeta{display:flex;align-items:center;justify-content:space-between;margin-top:20px;gap:7px}.pmeta span{font-size:10px;color:#8da9c2}.track{height:4px;background:#193d5b;border-radius:3px;margin-top:8px;overflow:hidden}.track i{display:block;height:100%;background:linear-gradient(90deg,#29bfea,#8f7eff);box-shadow:0 0 8px #39bfff;width:0;transition:width .35s}.pactions{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:13px}.pactions button{background:none;border:0;color:#8cdfff;padding:4px 0;font-size:11px;font-weight:650}.pactions small{color:#6a8aaa;font-size:10px}
+.bottom-grid{display:grid;grid-template-columns:1.25fr .75fr;gap:12px;margin-top:11px}.glass{border:1px solid var(--line);background:#0b1a30a6;border-radius:13px;padding:17px}.glass h3{font-size:13px;margin:0 0 13px;letter-spacing:.06em}.event{border-left:1px solid #316997;padding:0 0 16px 15px;position:relative;color:#b7cbdc;font-size:12px;line-height:1.5}.event:last-child{padding-bottom:0}.event:before{content:"";position:absolute;width:7px;height:7px;background:#69daff;border-radius:50%;left:-4px;top:3px;box-shadow:0 0 9px #3ad8ff}.event small{font-size:10px;color:#6389ab;display:block;margin-top:3px}.glass p{font-size:12px;color:#83a3bb;line-height:1.65;margin:0}.quick{display:flex;flex-wrap:wrap;gap:7px;margin-top:15px}.quick button{border:1px solid #4274968c;color:#bbd9ee;border-radius:7px;padding:8px 11px;background:#1131506e;font-size:11px}
+.footer{color:#5c7e9d;text-align:center;font-size:10px;letter-spacing:.09em;margin:37px 0 0}.footer span{color:#77daf2}
+.toast{position:fixed;left:50%;bottom:26px;transform:translate(-50%,20px);opacity:0;pointer-events:none;background:#153e60;color:#dffaff;border:1px solid #42a2e0;border-radius:12px;padding:12px 16px;width:max-content;max-width:calc(100vw - 40px);font-size:12px;z-index:120;transition:.3s;box-shadow:0 15px 45px #0009}.toast.show{opacity:1;transform:translate(-50%,0)}
+.dialogbg{position:fixed;inset:0;background:#020813d6;z-index:100;display:none;align-items:center;justify-content:center;padding:17px;backdrop-filter:blur(7px)}.dialogbg.show{display:flex}.dialog{width:min(100%,470px);border:1px solid #3e88bb7a;border-radius:16px;padding:21px;background:linear-gradient(165deg,#132845,#071526);box-shadow:0 30px 90px #000c;max-height:95vh;overflow:auto}.dialog h2{font-size:18px;margin:0 0 6px}.dialog p{color:#96b3cb;font-size:12px;line-height:1.6;margin:0 0 16px}.field{display:block;color:#a7c9df;font-size:11px;letter-spacing:.07em;margin:13px 0 5px}.dialog input,.dialog select,.dialog textarea{width:100%;border:1px solid #3b6481;background:#09182c;border-radius:9px;color:#edf9ff;padding:12px;outline:0}.dialog textarea{height:72px;resize:vertical}.dialog input[type="range"]{padding:0}.dialogfoot{display:flex;justify-content:space-between;gap:8px;margin-top:18px}.hintline{font-size:10px;color:#6f93b1;margin-top:9px}
+@media(max-width:900px){.modules{grid-template-columns:repeat(2,1fr)}.project-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:600px){.app{padding:0 14px 100px}.top{height:70px}.emblem{height:33px;width:33px}.brandname{font-size:16px;letter-spacing:.2em}.brandhint{font-size:8px;letter-spacing:.1em}.clock{font-size:11px}.indicator{font-size:0;padding:9px}.indicator .dot{width:7px;height:7px}.hero{padding-top:25px}.hero p{font-size:12px}.orb-wrap{width:min(91vw,360px);height:min(91vw,360px);margin:2px auto -4px}.coord{display:none}.status-row{gap:6px;margin-top:21px}.metric{padding:11px 9px}.metric small{font-size:8px}.metric strong{font-size:15px}.metric em{font-size:9px}.section-head{margin-top:28px}.modules{gap:8px}.module{min-height:112px;padding:12px}.module b{font-size:11px}.project-grid{grid-template-columns:1fr;gap:8px}.project{min-height:0}.bottom-grid{grid-template-columns:1fr}.section-head h2{font-size:14px}.section-controls{gap:10px}.pills{flex:1}.pill{padding:8px 10px}.btn{padding:12px 14px}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+<main class="app">
+<header class="top">
+ <div class="brand"><div class="emblem"><span>✦</span></div><div><div class="brandname">POLARIS</div><div class="brandhint">NORTH STAR VENTURES · AI COMMAND</div></div></div>
+ <div class="topright"><div class="clock"><strong id="timeNow">--:--</strong><small id="dateNow">SYSTEM TIME</small></div><div class="indicator" title="Polaris web interface is online"><span class="dot"></span> INTERFACE ONLINE</div></div>
+</header>
+<section class="hero" id="home">
+ <div class="eyebrow">PERSONAL INTELLIGENCE NETWORK / V1.0</div>
+ <h1>Welcome to your command center.</h1>
+ <p>Your projects, tools, and next actions in one intelligent workspace. Voice control is beginning here.</p>
+ <div class="orb-wrap" id="orb"><div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><div class="orbit orbit-three"></div><div class="orbit orbit-four"></div><div class="orb-core"><span class="orb-mark">✦</span><b>POLARIS</b><span id="coreState">AWAITING ACTIVATION</span></div><span class="coord left">NSV / 01</span><span class="coord right">CORE / READY</span></div>
+ <div class="voice-center" id="voiceCenter">
+  <div class="wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+  <div class="voice-hint" id="voiceHint">Tap Activate, or enable your microphone and say “Hey Polaris, activate.”</div>
+  <div class="primary-row">
+   <button class="btn primary" id="activateBtn">✦ &nbsp; ACTIVATE POLARIS</button>
+   <button class="btn" id="micBtn">🎙 &nbsp; ENABLE VOICE</button>
+   <button class="btn ghost" id="logoutBtn">LOCK</button>
+  </div>
+  <form class="command" id="commandForm"><input id="commandText" autocomplete="off" aria-label="Enter Polaris command" placeholder="Ask Polaris to open a project, refresh, show status..."><button type="submit">SEND ↗</button></form>
+ </div>
+</section>
+<section class="status-row" aria-label="System status">
+ <div class="metric"><small>Interface</small><strong style="color:#6fffc8">ONLINE</strong><em>Cloudflare secured</em></div>
+ <div class="metric"><small>Voice link</small><strong id="voiceStat">STANDBY</strong><em id="voiceDetail">Not connected</em></div>
+ <div class="metric"><small>AI engine</small><strong style="color:#ffcc8d">PENDING</strong><em>Integration next</em></div>
+</section>
+<section id="systems">
+ <div class="section-head"><div><h2>◈ SYSTEM MODULES</h2><p>The foundation for your future JARVIS-style assistant</p></div><span class="aside">SYSTEMS / 04</span></div>
+ <div class="modules">
+  <div class="module"><div class="module-icon">◉</div><b>Voice Control</b><span id="moduleVoice">Tap to enable · foreground only</span></div>
+  <div class="module"><div class="module-icon">⌘</div><b>Project Network</b><span>Personal project shortcuts · local tracking</span></div>
+  <div class="module"><div class="module-icon">◇</div><b>Vision &amp; Screen</b><span>Camera and screen control · coming next</span></div>
+  <div class="module"><div class="module-icon">✧</div><b>AI Reasoning</b><span>OpenAI tools connection · coming next</span></div>
+ </div>
+</section>
+<section id="projects">
+ <div class="section-head"><div><h2>⌁ ACTIVE PROJECT NETWORK</h2><p id="projectSub">Project progress shown only when you've entered it.</p></div><span class="aside" id="projectCount"></span></div>
+ <div class="section-controls" style="margin-bottom:12px"><div class="pills"><button class="pill selected" data-filter="all">All</button><button class="pill" data-filter="active">Active</button><button class="pill" data-filter="unsynced">Not synced</button></div><button class="btn tiny" id="newProject">+ ADD PROJECT</button></div>
+ <div class="project-grid" id="projectGrid"></div>
+</section>
+<div class="bottom-grid">
+ <section class="glass" id="activity"><h3>◴ RECENT ACTIVITY</h3><div id="activityList"><div class="event">Polaris mobile command center initialized.<small>System event · this device</small></div></div></section>
+ <section class="glass"><h3>◎ QUICK COMMANDS</h3><p>Start with “Hey Polaris, activate.” Voice works only while this page stays open and your microphone permission is granted.</p><div class="quick"><button data-cmd="show my projects">Show projects</button><button data-cmd="open north star ventures">Open NSV admin</button><button data-cmd="system status">System status</button><button data-cmd="refresh dashboard">Refresh</button></div><p style="margin-top:15px;font-size:10px">Security: no account passwords or API keys are stored in your browser. Project notes and progress currently save on this device only.</p></section>
+</div>
+<div class="footer"><span>✦ POLARIS</span> · POWERED BY NORTH STAR VENTURES · MOBILE FOUNDATION v1.0</div>
+</main>
+<div class="toast" id="toast" role="status"></div>
+<div class="dialogbg" id="editBg"><form class="dialog" id="editForm">
+ <h2 id="editTitle">Edit project</h2><p>Track projects manually for now. Live GitHub and Cloudflare progress sync is a later integration.</p>
+ <label class="field" for="editName">PROJECT NAME</label><input id="editName" required maxlength="70">
+ <label class="field" for="editStatus">STATUS</label><select id="editStatus"><option value="not-connected">Not connected</option><option value="active">Active</option><option value="paused">Paused</option><option value="completed">Completed</option></select>
+ <label class="field" for="editProgress">MANUALLY RECORDED PROGRESS: <b id="progressLabel">Not set</b></label><input id="editProgress" type="range" min="0" max="100" step="5" value="0"><label style="display:flex;align-items:center;gap:8px;font-size:11px;color:#86abc9;margin-top:7px"><input id="progressKnown" type="checkbox" style="width:auto"> Track progress manually</label>
+ <label class="field" for="editUrl">WEBSITE / ADMIN LINK (OPTIONAL)</label><input id="editUrl" type="url" placeholder="https://...">
+ <label class="field" for="editNotes">NOTES (OPTIONAL)</label><textarea id="editNotes" maxlength="400" placeholder="Your next step..."></textarea>
+ <div class="dialogfoot"><button class="btn ghost" id="cancelEdit" type="button">CANCEL</button><button class="btn primary" type="submit">SAVE PROJECT</button></div><div class="hintline">Saved privately in this phone browser, not synchronized to the cloud yet.</div>
+</form></div>
+<script>
+(function(){
+"use strict";
+var KEY="polaris-projects-mobile-v1", ACT="polaris-events-mobile-v1";
+var defaults=[
+{id:"nsv",name:"North Star Ventures",kind:"Command Center",icon:"✦",color:"#56d9ff",status:"not-connected",progress:null,url:"https://northstarventures.ca/admin",notes:""},
+{id:"hoh",name:"HOH HUB",kind:"Home of Hope",icon:"♡",color:"#b88aff",status:"not-connected",progress:null,url:"",notes:""},
+{id:"livebridge",name:"LiveBridge",kind:"Communications",icon:"◉",color:"#64f3d8",status:"not-connected",progress:null,url:"",notes:""},
+{id:"tapbin",name:"TapBin",kind:"Inventory Platform",icon:"▧",color:"#ffc170",status:"not-connected",progress:null,url:"",notes:""},
+{id:"compass",name:"Songwriters Compass",kind:"Songwriting AI",icon:"♫",color:"#f08fcd",status:"not-connected",progress:null,url:"",notes:""},
+{id:"x32",name:"X32 AI Engineer",kind:"Audio Engineering",icon:"≋",color:"#77a1ff",status:"not-connected",progress:null,url:"",notes:""}
+];
+function load(key,fallback){try{var raw=JSON.parse(localStorage.getItem(key));return Array.isArray(raw)?raw:fallback}catch(e){return fallback}}
+var projects=load(KEY,defaults),events=load(ACT,[]),filter="all",editing=null,active=false,listenWanted=false,recognition=null,micEnabled=false,spokenAt=0,speaking=false,toastTimer=0;
+var el=function(id){return document.getElementById(id)};
+var safe=function(s){return String(s||"").replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]})};
+function save(){localStorage.setItem(KEY,JSON.stringify(projects))}
+function notify(t){el("toast").textContent=t;el("toast").classList.add("show");clearTimeout(toastTimer);toastTimer=setTimeout(function(){el("toast").classList.remove("show")},3800)}
+function record(t){events.unshift({text:t,time:new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})});events=events.slice(0,8);localStorage.setItem(ACT,JSON.stringify(events));renderEvents()}
+function renderEvents(){var data=events.length?events:[{text:"Polaris mobile command center initialized.",time:"System event"}];el("activityList").innerHTML=data.map(function(e){return '<div class="event">'+safe(e.text)+'<small>'+safe(e.time)+' · this device</small></div>'}).join("")}
+function renderProjects(){var filtered=projects.filter(function(p){return filter==="all"||filter==="active"&&p.status==="active"||filter==="unsynced"&&p.progress===null});el("projectCount").textContent=projects.length+" TRACKED";el("projectGrid").innerHTML="";filtered.forEach(function(p){var card=document.createElement("article");card.className="project";card.style.setProperty("--accent",p.color||"#69cbff");var pct=typeof p.progress==="number"?Math.max(0,Math.min(100,p.progress)):null;var state=({active:"Active",paused:"Paused",completed:"Completed","not-connected":"Not connected"})[p.status]||"Not connected";card.innerHTML='<div class="projecttop"><div class="projecticon">'+safe(p.icon||"✦")+'</div><div><b>'+safe(p.name)+'</b><small>'+safe(p.kind||state)+'</small></div></div><div class="pmeta"><span>'+safe(state)+'</span><span>'+(pct===null?"Progress not synced":pct+"% manually entered")+'</span></div><div class="track"><i style="width:'+(pct===null?0:pct)+'%"></i></div><div class="pactions"><button class="project-edit" type="button">✎ EDIT DETAILS</button>'+(p.url?'<button class="project-open" type="button">OPEN ↗</button>':'<small>LINK NOT SET</small>')+'</div>';
+card.querySelector(".project-edit").addEventListener("click",function(){openEditor(p.id)});var btn=card.querySelector(".project-open");if(btn)btn.addEventListener("click",function(){openProject(p)});el("projectGrid").appendChild(card)});
+if(!filtered.length)el("projectGrid").innerHTML='<p style="color:#94b4cb">No projects in this filter.</p>'}
+function openProject(p){if(!p.url){notify("Add a website link for "+p.name+" first.");return}try{var u=new URL(p.url);if(!["https:","http:"].includes(u.protocol))throw 0;record("Opened "+p.name+" on this phone");location.assign(u.href)}catch(e){notify("Invalid project URL. Edit its link.")}}
+function openEditor(id){editing=id||null;var p=projects.find(function(x){return x.id===id})||{name:"",url:"",status:"not-connected",progress:null,notes:""};el("editTitle").textContent=id?"Edit project":"Add a project";el("editName").value=p.name;el("editStatus").value=p.status||"not-connected";el("editProgress").value=p.progress===null?0:p.progress;el("progressKnown").checked=p.progress!==null;el("progressLabel").textContent=p.progress===null?"Not set":p.progress+"%";el("editUrl").value=p.url||"";el("editNotes").value=p.notes||"";el("editBg").classList.add("show");el("editName").focus()}
+function closeEditor(){el("editBg").classList.remove("show")}
+el("cancelEdit").addEventListener("click",closeEditor);el("editBg").addEventListener("click",function(e){if(e.target===this)closeEditor()});
+el("editProgress").addEventListener("input",function(){el("progressLabel").textContent=this.value+"%";el("progressKnown").checked=true});
+el("progressKnown").addEventListener("change",function(){el("progressLabel").textContent=this.checked?el("editProgress").value+"%":"Not set"});
+el("editForm").addEventListener("submit",function(e){e.preventDefault();var name=el("editName").value.trim(),url=el("editUrl").value.trim();if(!name)return;if(url){try{var u=new URL(url);if(u.protocol!=="https:"&&u.protocol!=="http:")throw 0}catch(err){notify("Enter a valid https:// website link.");return}}var existing=projects.find(function(x){return x.id===editing});if(existing){existing.name=name;existing.status=el("editStatus").value;existing.progress=el("progressKnown").checked?Number(el("editProgress").value):null;existing.url=url;existing.notes=el("editNotes").value.trim()}else{projects.push({id:"custom-"+Date.now(),name:name,kind:"Custom Project",icon:"✦",color:"#62baff",status:el("editStatus").value,progress:el("progressKnown").checked?Number(el("editProgress").value):null,url:url,notes:el("editNotes").value.trim()})}save();renderProjects();record("Updated project: "+name);closeEditor();notify(name+" saved on this device.")});
+el("newProject").addEventListener("click",function(){openEditor(null)});
+document.querySelectorAll(".pill").forEach(function(b){b.addEventListener("click",function(){filter=b.dataset.filter;document.querySelectorAll(".pill").forEach(function(x){x.classList.toggle("selected",x===b)});renderProjects()})});
+function talk(message){if(!("speechSynthesis" in window))return;try{window.speechSynthesis.cancel();var u=new SpeechSynthesisUtterance(message);u.lang="en-CA";u.rate=1;u.pitch=.9;u.volume=.9;u.onstart=function(){speaking=true};u.onend=function(){speaking=false};u.onerror=function(){speaking=false};window.speechSynthesis.speak(u)}catch(e){}}
+function activate(){active=true;el("orb").classList.add("activated");el("coreState").textContent="CORE ACTIVE";el("activateBtn").textContent="✦ POLARIS ACTIVE";el("voiceHint").textContent="Polaris activated. Say “Hey Polaris, show my projects.”";record("Polaris activated");talk("Polaris online. Command center ready.");notify("POLARIS ACTIVATED")}
+function command(raw,fromVoice){var x=String(raw||"").trim();if(!x)return;var text=x.toLowerCase().replace(/[,.!?]/g," ").replace(/\s+/g," ").trim();if(fromVoice){var ix=text.indexOf("polaris");if(ix<0)return;text=text.slice(ix+7).trim();if(!text)return}
+record((fromVoice?"Voice":"Typed")+" command: "+x);
+if(/^(activate|wake up|online|start)$/.test(text)||text==="hey"||text==="activate polaris"){activate();return}
+if(/(show|open|go to|display|view).*(projects|project network)/.test(text)){el("projects").scrollIntoView({behavior:"smooth"});notify("Showing your project network.");talk("Showing your projects.");return}
+if(/(system status|status report|how are you|what is your status)/.test(text)){var msg="Polaris interface is online. "+projects.length+" projects are tracked on this phone. AI and camera integrations are not connected yet.";notify(msg);talk(msg);return}
+if(/(refresh|reload)/.test(text)){notify("Refreshing Polaris");location.reload();return}
+if(/(home|main screen|landing page|dashboard)/.test(text)&&!/(north star|nsv)/.test(text)){window.scrollTo({top:0,behavior:"smooth"});notify("Main command center.");talk("Opening the command center.");return}
+var p=projects.find(function(y){var name=y.name.toLowerCase();return text.includes(name)||y.id==="nsv"&&/(north ?star|northstar|nsv)/.test(text)||y.id==="hoh"&&/(home of hope|hoh hub)/.test(text)||y.id==="x32"&&/(x ?32|audio engineer)/.test(text)||y.id==="compass"&&/(songwriter|compass)/.test(text)});
+if(p&&/(open|show|go to|load|launch|take me)/.test(text)){if(p.url){talk("Opening "+p.name);openProject(p)}else{notify(p.name+" is listed. Edit it to add the website link.");talk("I can see "+p.name+" in your projects, but its website link is not configured yet.")}return}
+notify("Command received. AI reasoning is not connected yet.");talk("I heard your command. AI reasoning will be connected in a future update.")}
+el("activateBtn").addEventListener("click",activate);
+el("commandForm").addEventListener("submit",function(e){e.preventDefault();var text=el("commandText").value.trim();el("commandText").value="";command(text,false)});
+document.querySelectorAll("[data-cmd]").forEach(function(b){b.addEventListener("click",function(){command(b.dataset.cmd,false)})});
+el("logoutBtn").addEventListener("click",async function(){try{await fetch("/api/logout",{method:"POST"});location.reload()}catch(e){notify("Unable to lock. Try again.")}});
+var Rec=window.SpeechRecognition||window.webkitSpeechRecognition;
+function displayVoice(){el("orb").classList.toggle("listening",listenWanted&&micEnabled);el("voiceCenter").classList.toggle("live",listenWanted&&micEnabled);el("voiceStat").textContent=listenWanted?"LISTENING":"STANDBY";el("voiceDetail").textContent=listenWanted?"Foreground microphone":"Wake phrase required";el("micBtn").classList.toggle("active",listenWanted);el("micBtn").textContent=listenWanted?"◉ VOICE ON":"🎙 ENABLE VOICE";el("moduleVoice").textContent=listenWanted?"Listening for “Hey Polaris”":"Tap to enable · foreground only"}
+function setListen(on){if(!Rec){notify("Voice recognition is unavailable in this browser. Use Chrome on Android or type a command.");el("voiceHint").textContent="Voice recognition unavailable here; type a command below.";return}listenWanted=on;if(!recognition){recognition=new Rec();recognition.lang="en-CA";recognition.continuous=true;recognition.interimResults=false;recognition.maxAlternatives=1;recognition.onstart=function(){micEnabled=true;displayVoice()};recognition.onresult=function(e){for(var i=e.resultIndex;i<e.results.length;i++){if(e.results[i].isFinal){var phrase=e.results[i][0].transcript;el("voiceHint").textContent="Heard: "+phrase;if(phrase.toLowerCase().includes("polaris"))command(phrase,true)}}};recognition.onerror=function(e){if(e.error==="not-allowed"||e.error==="service-not-allowed"){listenWanted=false;micEnabled=false;notify("Microphone permission denied. Enable microphone access in browser settings.")}else if(e.error==="network"){notify("Speech service unavailable; type commands instead.")}displayVoice()};recognition.onend=function(){micEnabled=false;displayVoice();if(listenWanted&&document.visibilityState==="visible")setTimeout(function(){try{recognition.start()}catch(e){}},900)}}if(on){try{recognition.start()}catch(e){}}else{try{recognition.stop()}catch(e){}}displayVoice()}
+el("micBtn").addEventListener("click",function(){setListen(!listenWanted)});
+document.addEventListener("visibilitychange",function(){if(document.visibilityState==="hidden"){if(recognition)try{recognition.stop()}catch(e){};micEnabled=false;displayVoice()}else if(listenWanted&&recognition){try{recognition.start()}catch(e){}}});
+function clock(){var now=new Date();el("timeNow").textContent=now.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});el("dateNow").textContent=now.toLocaleDateString([],{weekday:"short",month:"short",day:"numeric"}).toUpperCase()}clock();setInterval(clock,15000);renderProjects();renderEvents();displayVoice();
+})();
+</script>
+</body>
+</html>
