@@ -33,12 +33,15 @@ async function sessionFor(req,db){
   const match=(req.headers.get("cookie")||"").match(/(?:^|;\s*)sc_session=([a-f0-9]{64})(?:;|$)/);
   if(!match)return null;
   const tokenHash=await sha256(match[1]);
-  const user=await db.prepare("SELECT users.id, users.email, users.display_name, users.created_at FROM sessions JOIN users ON sessions.user_id=users.id WHERE sessions.token_hash=? AND sessions.expires_at>?").bind(tokenHash,now()).first();
+  const user=await db.prepare("SELECT users.id, users.email, users.display_name, users.created_at, users.role, users.suspended FROM sessions JOIN users ON sessions.user_id=users.id WHERE sessions.token_hash=? AND sessions.expires_at>? AND users.suspended=0").bind(tokenHash,now()).first();
   return user||null;
 }
 async function createSession(db,userId){
  const token=random(32);
- await db.prepare("INSERT INTO sessions (token_hash,user_id,created_at,expires_at) VALUES(?,?,?,?)").bind(await sha256(token),userId,now(),now()+SESSION_TTL).run();
+ const tokenHash=await sha256(token),t=now();
+ await db.prepare("INSERT INTO sessions (token_hash,user_id,created_at,expires_at,last_seen) VALUES(?,?,?,?,?)").bind(tokenHash,userId,t,t+SESSION_TTL,t).run();
+ await db.prepare("INSERT INTO session_history(token_hash,user_id,started_at,last_seen) VALUES(?,?,?,?)").bind(tokenHash,userId,t,t).run();
+ await eventLog(db,userId,"login");
  return token;
 }
 async function bodyJson(req){
@@ -68,7 +71,7 @@ const AUTH_LIMIT=8;
 const safeEmail = s => typeof s === "string" && s.length<255 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
 async function logout(req,db){
  const match=(req.headers.get("cookie")||"").match(/(?:^|;\s*)sc_session=([a-f0-9]{64})(?:;|$)/);
- if(match) await db.prepare("DELETE FROM sessions WHERE token_hash=?").bind(await sha256(match[1])).run();
+ if(match){const h=await sha256(match[1]); await db.prepare("UPDATE session_history SET ended_at=? WHERE token_hash=? AND ended_at IS NULL").bind(now(),h).run();await db.prepare("DELETE FROM sessions WHERE token_hash=?").bind(h).run();}
  return reply({ok:true},200,{"set-cookie":clearCookie()});
 }
 async function handleApi(req,env,url){
@@ -86,6 +89,7 @@ async function handleApi(req,env,url){
     const allowed=await limit(db,"register:"+await sha256(ip),8,3600);
     if(!allowed)return reply({error:"Too many registrations from this connection. Try again later."},429);
     if(!safeEmail(email) || !validPassword(b.password))return reply({error:"Enter a valid email and a password of 8+ characters with a letter and number."},400);
+    if(email==="northstarventures.ca@gmail.com")return reply({error:"This administrator email is reserved. Contact support."},403);
     const name=str(b.name,75).trim()||email.split("@")[0];
     const existing=await db.prepare("SELECT id FROM users WHERE email=?").bind(email).first();
     if(existing)return reply({error:"An account already exists for that email. Please sign in."},409);
@@ -95,7 +99,8 @@ async function handleApi(req,env,url){
     try {await db.prepare("INSERT INTO users(id,email,display_name,salt,password_hash,created_at,updated_at) VALUES(?,?,?,?,?,?,?)").bind(id,email,name,salt,passwordHash,t,t).run();}
     catch(_){return reply({error:"Unable to create account. The email may already be in use."},409);}
     const token=await createSession(db,id);
-    return reply({ok:true,user:{id,email,display_name:name,created_at:t}},201,{"set-cookie":makeCookie(token)});
+    await eventLog(db,id,"register");
+    return reply({ok:true,user:{id,email,display_name:name,created_at:t,role:"member"}},201,{"set-cookie":makeCookie(token)});
  }
  if(path==="/api/auth/login" && req.method==="POST"){
     const b=await bodyJson(req);
@@ -105,16 +110,19 @@ async function handleApi(req,env,url){
     const allowed=await limit(db,key,AUTH_LIMIT,900);
     if(!allowed)return reply({error:"Too many sign-in attempts. Try again in 15 minutes."},429);
     if(!safeEmail(email) || typeof b.password!=="string")return reply({error:"Invalid email or password."},401);
-    const user=await db.prepare("SELECT id,email,display_name,password_hash,salt,created_at FROM users WHERE email=?").bind(email).first();
+    const user=await db.prepare("SELECT id,email,display_name,password_hash,salt,created_at,role,suspended FROM users WHERE email=?").bind(email).first();
     if(!user)return reply({error:"Invalid email or password."},401);
     const actual=await hashPassword(b.password,user.salt);
     if(!equal(actual,user.password_hash))return reply({error:"Invalid email or password."},401);
+    if(user.suspended)return reply({error:"This account has been disabled. Contact support."},403);
     const token=await createSession(db,user.id);
-    return reply({ok:true,user:{id:user.id,email:user.email,display_name:user.display_name,created_at:user.created_at}},200,{"set-cookie":makeCookie(token)});
+    return reply({ok:true,user:{id:user.id,email:user.email,display_name:user.display_name,created_at:user.created_at,role:user.role}},200,{"set-cookie":makeCookie(token)});
  }
  if(path==="/api/auth/logout" && req.method==="POST")return logout(req,db);
  const user=await sessionFor(req,db);
  if(!user)return reply({error:"Please sign in first."},401);
+ const ext=await featureApi(req,env,url,user);
+ if(ext)return ext;
  if(path==="/api/me" && req.method==="GET")return reply({user,aiConfigured:!!env.Songwritter});
  if(path==="/api/account" && req.method==="PATCH"){
     const b=await bodyJson(req),name=str(b.display_name,75).trim();
@@ -139,6 +147,7 @@ async function handleApi(req,env,url){
  if(path==="/api/songs" && req.method==="POST"){
     const b=songData(await bodyJson(req)),id=crypto.randomUUID(),t=now();
     await db.prepare("INSERT INTO songs(id,user_id,title,status,mission,lyrics,notes,scriptures,style_prompt,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)").bind(id,user.id,b.title,b.status,b.mission,b.lyrics,b.notes,b.scriptures,b.style_prompt,t,t).run();
+    await eventLog(db,user.id,"song_created");
     return reply({song:{...b,id,user_id:user.id,created_at:t,updated_at:t}},201);
  }
  const sm=path.match(/^\/api\/songs\/([a-f0-9-]{36})$/);
@@ -152,6 +161,7 @@ async function handleApi(req,env,url){
        const b=songData(await bodyJson(req));
        const result=await db.prepare("UPDATE songs SET title=?,status=?,mission=?,lyrics=?,notes=?,scriptures=?,style_prompt=?,updated_at=? WHERE id=? AND user_id=?").bind(b.title,b.status,b.mission,b.lyrics,b.notes,b.scriptures,b.style_prompt,now(),id,user.id).run();
        if(!result.meta?.changes)return reply({error:"Song not found."},404);
+       await eventLog(db,user.id,"song_edited");
        return reply({ok:true});
     }
     if(req.method==="DELETE"){
@@ -166,6 +176,7 @@ async function handleApi(req,env,url){
  if(path==="/api/journal" && req.method==="POST"){
     const b=await bodyJson(req),id=crypto.randomUUID(),t=now(),title=str(b.title,140).trim()||"Untitled note",content=str(b.body,30000);
     await db.prepare("INSERT INTO journal_entries(id,user_id,title,body,created_at,updated_at) VALUES(?,?,?,?,?,?)").bind(id,user.id,title,content,t,t).run();
+    await eventLog(db,user.id,"journal_created");
     return reply({entry:{id,user_id:user.id,title,body:content,created_at:t,updated_at:t}},201);
  }
  const jm=path.match(/^\/api\/journal\/([a-f0-9-]{36})$/);
@@ -210,6 +221,10 @@ async function handleApi(req,env,url){
     if(!response.ok)return reply({error:"AI service unavailable. Check your OpenAI API setup or try again.",status:response.status},502);
     const data=await response.json();
     const answer=str(data.choices?.[0]?.message?.content,9000);
+    const usage=data.usage||{},inTokens=Number(usage.prompt_tokens)||0,outTokens=Number(usage.completion_tokens)||0,cached=Math.min(inTokens,Number(usage.prompt_tokens_details?.cached_tokens)||0);
+    const estimate=((inTokens-cached)*0.40+cached*0.10+outTokens*1.60)/1000000;
+    await db.prepare("INSERT INTO ai_call_logs(id,user_id,model,prompt_tokens,completion_tokens,cached_tokens,cost_usd,created_at) VALUES(?,?,?,?,?,?,?,?)").bind(crypto.randomUUID(),user.id,String(data.model||"gpt-4.1-mini"),inTokens,outTokens,cached,estimate,now()).run();
+    await eventLog(db,user.id,"ai_used");
     if(!answer)return reply({error:"The AI returned an empty response. Please try again."},502);
     return reply({answer});
  }
