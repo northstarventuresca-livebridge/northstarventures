@@ -16,6 +16,13 @@ toggle.style.cssText="width:16px;height:16px;accent-color:#49d8b7";
 var toggleText=document.createElement("span");toggleText.textContent="AUTO SPEAK "+(autoEnabled?"ON":"OFF");
 toggleWrap.append(toggle,toggleText);
 if(options){options.style.flexWrap="wrap";options.style.rowGap="8px";options.append(toggleWrap)}
+// Legacy Echo Guard status refreshes must not rename the dictated-text button.
+var legacyDisplayVoice=displayVoice;
+displayVoice=function(){
+ legacyDisplayVoice();
+ var button=el("micBtn");
+ if(button&&!button.classList.contains("dictatingNow"))button.textContent="🎙 DICTATE";
+};
 var gen=0,active=null;
 function announce(message){
  var hint=el("voiceHint");if(hint)hint.textContent=message;
