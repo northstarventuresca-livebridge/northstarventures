@@ -27,6 +27,16 @@ updateOptions(fallback);
 fetch("/api/project-index",{cache:"no-store"}).then(function(r){if(!r.ok)throw Error("Unavailable");return r.json()}).then(function(data){
  if(Array.isArray(data.projects))updateOptions(data.projects);
 }).catch(function(){status.textContent="Cached project options · live registry unavailable"});
+fetch("/api/source-access",{cache:"no-store"}).then(function(r){if(!r.ok)return null;return r.json()}).then(function(data){
+ if(!data)return;
+ var active=[];
+ if(data.githubNSV)active.push("NSV GitHub");
+ if(data.githubChurch)active.push("Church GitHub");
+ if(data.githubPersonal)active.push("Personal GitHub");
+ if(data.cloudflareNSV)active.push("NorthStar Cloudflare");
+ status.textContent=active.length?"Read-only live: "+active.join(", "):"Project snapshots ready · private live sources need read-only credentials";
+}).catch(function(){});
+
 function setProject(name){
  current=name;
  selector.value=name;
