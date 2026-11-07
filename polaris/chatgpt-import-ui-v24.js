@@ -17,6 +17,11 @@ var box=document.createElement("div");
 box.id="polarisImportStatus";
 box.style.cssText="max-width:760px;margin:2px auto 8px;display:none;border:1px solid #256a8e90;background:#0a1d30;border-radius:9px;padding:10px 13px;font-size:11px;color:#b3dce8;line-height:1.5";
 host.parentNode.insertBefore(box,host.nextSibling);
+var clearButton=document.createElement("button");
+clearButton.type="button";clearButton.id="polarisDeleteImportedHistory";
+clearButton.textContent="DELETE IMPORTED CHATGPT HISTORY";
+clearButton.style.cssText="display:none;margin:4px auto 9px;border:1px solid #a84a597a;color:#f2bbc0;background:#37182788;border-radius:7px;padding:8px 11px;font-size:10px;cursor:pointer";
+box.parentNode.insertBefore(clearButton,box.nextSibling);
 var busy=false;
 function status(text){box.style.display="block";box.textContent=text}
 function classify(title,preview){
@@ -79,8 +84,22 @@ async function updateStatus(){
   var projects=d.projects||[];
   var num=projects.reduce(function(sum,x){return sum+Number(x.messages||0)},0);
   importButton.textContent=num?"CHATGPT HISTORY · "+num+" MESSAGES":"IMPORT CHATGPT HISTORY";
+  clearButton.style.display=num?"block":"none";
  }catch(e){}
 }
+clearButton.addEventListener("click",async function(){
+ if(busy)return;
+ if(!window.confirm("Permanently delete every ChatGPT conversation previously imported into Polaris? Your original ChatGPT account and export files will not be changed."))return;
+ busy=true;clearButton.disabled=true;
+ try{
+  var r=await fetch("/api/import-clear",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({confirm:"DELETE IMPORTED CHATGPT HISTORY"})});
+  var data=await r.json();
+  if(!r.ok||!data.ok)throw Error(data.error||"Delete failed");
+  status("Imported ChatGPT history has been deleted from Polaris.");
+  await updateStatus();
+ }catch(e){status("Could not delete imported history: "+String(e.message||e))}
+ finally{busy=false;clearButton.disabled=false}
+});
 importButton.addEventListener("click",function(){
  if(busy)return;
  status("Choose the conversations.json file from your ChatGPT data export. This creates an encrypted-in-transit private copy inside Polaris, not a live ChatGPT account connection. Only selected files are imported.");
