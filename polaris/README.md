@@ -1,5 +1,18 @@
 # POLARIS — North Star Ventures mobile AI command center
 
+## v2.4.2 — relational routing and optional ChatGPT history import (November 6, 2026)
+
+- A single conversational OpenAI assistant routes questions behind the scenes to one of five purposes: chat, project history, project website directory, GitHub/Cloudflare source, or read-only live application metrics. It continues streaming text and optional early-start voice.
+- New fixed-tool read-only production lookup for **LiveBridge organization counts** through an additional D1 binding `LIVEBRIDGE_METRICS_DB` pointing to the production `livebridge-db`. It executes a fixed aggregate SELECT and does not return IDs, email addresses or account records. This binding technically supports D1 access in the Worker; the implementation deliberately exposes only the count query.
+- Project history `project_memory` stores dated, sourced recollections of previous work. Some are historical summaries, *not* verified live facts. Explicitly avoid inventing exact lists, recent deployments or completion dates when the original chat has not been imported.
+- Prior Polaris dialogue is now tagged by project (`dialogue_turns.project`) to keep follow-up context from jumping between unrelated topics. Unnamed follow-ups use the last recognized project or the selected project.
+- ChatGPT's personal conversation history and ChatGPT-connected GitHub/Cloudflare plugins do **not** automatically transfer to the OpenAI API. A new **IMPORT CHATGPT HISTORY** control accepts an explicitly chosen `conversations.json` from the user's official ChatGPT data export. The user may import project chats only or opt into all chats. Text is stored in `imported_chat_messages`, searchable via `imported_chat_fts`, with a delete control. This is a snapshot; future ChatGPT work is not live-synced.
+- The importer and search are in `polaris/chatgpt-import-v24.js` and `polaris/chatgpt-import-ui-v24.js`; the router is in `polaris/relational-router-v24.js`. Each is embedded into `polaris/worker.js` when deploying.
+- Production source credentials are still scoped and separate: `POLARIS_GITHUB_NSV_READ_TOKEN` is connected; church Cloudflare/GitHub tokens and most live application data connectors remain unconfigured. Do not claim universal project access.
+- FTS5 index and project tables were created in Polaris D1. `dialogue_turns.project` was added once as a migration; do not repeat that ALTER on an existing database. Avoid public endpoints with import data. All import endpoints require the existing Polaris cookie authentication.
+
+
+
 ## v2.2 — faster Read Reply and read-only project sources (November 6, 2026)
 
 - Returned the **READ-ALOUD SPEED** slider, which controls the existing pitch-preserving audio renderer (0.85×–1.65×) without intentionally raising voice pitch.
