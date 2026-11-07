@@ -59,6 +59,6 @@ async function polarisProjectIndex(env){
    else if(r.source==="cloudflare-worker")groups[r.project].workers+=r.count||0;
   }
   for(const r of docs.results||[])if(groups[r.project])groups[r.project].documents=r.sections||0;
-  return {projects:Object.values(groups),source:"verified account snapshots",live_repo_content:false,live_cloudflare_access:false};
+  return {projects:Object.values(groups),source:"verified account snapshots",live_repo_content:Boolean(env.POLARIS_GITHUB_NSV_READ_TOKEN||env.POLARIS_GITHUB_CHURCH_READ_TOKEN||env.POLARIS_GITHUB_PERSONAL_READ_TOKEN),live_cloudflare_access:Boolean(env.POLARIS_CF_NSV_READ_TOKEN)};
  }catch(e){return {projects:[],error:"Unable to load project registry"}}
 }
