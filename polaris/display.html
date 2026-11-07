@@ -38,6 +38,27 @@ h2{font-size:clamp(28px,4.5vw,65px);line-height:1.08;letter-spacing:-.045em;marg
 .index{display:grid;place-items:center;flex:none;border:1px solid #46c6e45a;background:#0d38517d;width:25px;height:25px;border-radius:7px;font-size:10px;font-weight:800;color:#80eaff}.item strong{font-size:13px;font-weight:700}.item p{font-size:12px;color:#aac0cf;margin:2px 0 0}
 .empty{color:#698ca9;font-size:13px;padding:16px 0}
 .links{display:flex;flex-wrap:wrap;gap:9px;margin-top:12px}.links a{text-decoration:none;border:1px solid #337daf99;background:#0d3053c2;padding:8px 12px;border-radius:9px;font-weight:650;font-size:12px}
+/* ChatGPT-controlled mission telemetry view */
+.telemetry{display:none;margin:20px 0;border:1px solid #42a6e579;background:linear-gradient(135deg,#071f39ef,#071223f5);border-radius:18px;padding:clamp(15px,2.5vw,26px);box-shadow:0 0 45px #1d8df215,inset 0 1px #ffffff12}
+body.mission-mode .telemetry{display:block}
+.teleHead{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:22px}
+.teleTitle{display:flex;align-items:center;gap:10px;font-size:13px;font-weight:800;letter-spacing:.13em;color:#8feaff}
+.teleDot{width:8px;height:8px;border-radius:50%;background:#50e9be;box-shadow:0 0 8px #50e9be;animation:blink 2.3s ease-in-out infinite}
+.teleTag{padding:6px 10px;border:1px solid #337a94;background:#0b2b36;border-radius:22px;color:#a3d7e6;font-size:10px;font-weight:700;letter-spacing:.08em}
+@keyframes blink{50%{opacity:.26}}
+.teleBars{display:grid;grid-template-columns:repeat(14,minmax(0,1fr));gap:clamp(4px,.9vw,13px);align-items:end;height:186px;padding:9px 0 0;border-bottom:1px solid #2d729b77}
+.teleBarButton{display:flex;flex-direction:column;align-items:center;justify-content:end;gap:7px;height:100%;cursor:pointer;border:0;background:none;padding:0;min-width:0;color:#7eaac2}
+.teleBarBar{display:block;width:min(100%,33px);min-width:6px;height:var(--bar-height,5%);min-height:4px;max-height:150px;position:relative;background:linear-gradient(180deg,#6de9fb,#2982c7 70%,#12365e);box-shadow:0 0 12px #2ba8e733;border:1px solid #73dfff66;border-radius:5px 5px 1px 1px;transform-origin:bottom center;animation:raise .8s both ease-out;animation-delay:var(--delay,0ms);transition:background .2s,filter .2s}
+.teleBarButton[aria-pressed="true"] .teleBarBar{background:linear-gradient(#8effde,#27b49a 72%,#145f70);box-shadow:0 0 19px #49eacf72}
+.teleBarLabel{font-size:9px;letter-spacing:-.02em;overflow:hidden;white-space:nowrap;max-width:100%}
+@keyframes raise{from{transform:scaleY(.04);opacity:.1}to{transform:scaleY(1);opacity:1}}
+.teleInfo{display:flex;justify-content:space-between;flex-wrap:wrap;gap:7px;margin-top:13px;color:#a5c8de;font-size:11px}
+.teleInfo strong{color:#6af4cd}
+.telemini{color:#7fabc4;font-size:10px;margin-top:6px}
+.missionPill{display:none;gap:7px;align-items:center;border:1px solid #61d6f977;padding:6px 10px;border-radius:25px;color:#8beafe;background:#0a3442ab;font-size:10px;letter-spacing:.08em;font-weight:700}
+body.mission-mode .missionPill{display:inline-flex}
+@media(max-width:600px){.teleBars{height:133px;gap:3px}.teleBarBar{max-height:102px}.teleBarLabel{font-size:8px}.telemetry{padding:12px}.teleTag{font-size:9px}}
+@media(prefers-reduced-motion:reduce){.teleBarBar,.teleDot{animation:none}}
 .websitePanel{display:none;margin:16px 0 20px;background:#071b31e8;border:1px solid #429bd374;border-radius:16px;overflow:hidden;box-shadow:0 0 35px #1b92d61a}
 .websiteHead{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;border-bottom:1px solid #488cc052;padding:11px 15px}
 .websiteName{font-size:12px;letter-spacing:.12em;color:#93e8ff;font-weight:800}.websiteHint{font-size:11px;color:#9ab9ce;margin:0;padding:9px 15px;background:#0e2336}
@@ -73,6 +94,12 @@ body.website-mode h2{font-size:clamp(24px,3.1vw,43px);margin:10px 0}body.website
 <div class="smallcap">LIVE INTELLIGENCE · <span id="viewName">PROJECT OVERVIEW</span></div>
 <section class="metrics" id="metrics" aria-label="Key metrics">
  <div class="metric"><div class="smallcap">STATUS</div><div class="value">Ready</div><div class="note">Waiting for a display command</div></div>
+</section>
+<section id="telemetry" class="telemetry" aria-label="Broadcast activity timeline">
+ <div class="teleHead"><div class="teleTitle"><span class="teleDot" aria-hidden="true"></span>LIVEBRIDGE SIGNAL INTELLIGENCE</div><div id="teleRange" class="teleTag">LAST 14 DAYS · UTC</div></div>
+ <div id="teleBars" class="teleBars" role="group" aria-label="Tap any day to inspect broadcast activity"></div>
+ <div class="teleInfo"><span id="teleSelected">Select a bar to inspect that day</span><strong id="teleTotal">0 SESSIONS</strong></div>
+ <div id="teleNote" class="telemini">Read-only snapshot from production Cloudflare D1. Counts show recorded sessions, not current broadcasts.</div>
 </section>
 <section class="columns">
  <article class="panel"><div class="panelTitle"><h3 id="firstTitle">CURRENT PRIORITIES</h3><span class="smallcap">CHATGPT BRIDGE</span></div><div id="items"><p class="empty">Tell ChatGPT what you want to see on Polaris. The display will update automatically.</p></div></article>
@@ -122,6 +149,35 @@ function render(data){
   try{var target=new URL(websiteAddress);websiteAllowed=target.protocol==="https:"&&["livebridge.ca","www.livebridge.ca"].includes(target.hostname)}catch(e){}
  }
  document.body.classList.toggle("website-mode",websiteMode);
+ var missionMode=data.view==="mission";
+ document.body.classList.toggle("mission-mode",missionMode);
+ if(missionMode){
+  var entries=arr(p.activity,14).filter(function(x){return x&&typeof x.day==="string"});
+  var maxSessions=Math.max(1,...entries.map(function(x){return Math.max(0,Number(x.sessions)||0)}));
+  var graph=id("teleBars");graph.replaceChildren();
+  entries.forEach(function(x,i){
+   var btn=document.createElement("button");btn.type="button";btn.className="teleBarButton";btn.setAttribute("aria-pressed","false");
+   var count=Math.max(0,Number(x.sessions)||0),peak=Math.max(0,Number(x.peak)||0);
+   var height=Math.max(3,Math.round(100*count/maxSessions));
+   btn.title=x.day+": "+count+" recorded broadcast sessions, peak listeners "+peak;
+   btn.setAttribute("aria-label",btn.title);
+   var bar=document.createElement("span");bar.className="teleBarBar";bar.style.setProperty("--bar-height",height+"%");bar.style.setProperty("--delay",(i*35)+"ms");
+   var date=document.createElement("span");date.className="teleBarLabel";date.textContent=String(x.day).slice(8,10);
+   btn.append(bar,date);
+   btn.addEventListener("click",function(){
+    graph.querySelectorAll("button").forEach(function(b){b.setAttribute("aria-pressed","false")});
+    btn.setAttribute("aria-pressed","true");
+    text("teleSelected",x.day+" (UTC) · "+count+" recorded "+(count===1?"session":"sessions")+" · max peak listeners "+peak);
+   });
+   graph.appendChild(btn);
+  });
+  var total=entries.reduce(function(sum,x){return sum+Math.max(0,Number(x.sessions)||0)},0);
+  text("teleTotal",total+" SESSIONS / 14 DAYS");
+  text("teleRange",str(p.activityLabel||"LAST 14 DAYS · UTC",80));
+  text("teleSelected","Tap a date bar to inspect recorded sessions");
+  text("teleNote",str(p.activityNote||"Read-only snapshot. Broadcast session counts are not current live listener numbers.",230));
+ }
+
  if(websiteMode){
   text("websiteLabel",websiteAllowed?"LIVEBRIDGE · PRODUCTION WEBSITE":"PROJECT WEBSITE");
   var link=id("websiteLink");
