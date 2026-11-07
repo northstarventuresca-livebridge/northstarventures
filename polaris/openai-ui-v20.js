@@ -27,6 +27,7 @@ function newId(){return crypto.randomUUID?crypto.randomUUID():"polaris-"+Date.no
 async function sendToOpenAI(question,source){
  if(requestBusy){queue.push({question,source});notify("Message queued until Polaris finishes answering.");return}
  requestBusy=true;
+ if(window.polarisAutoSpeech)window.polarisAutoSpeech.start();
  lastRequestText=question;
  var id=newId();
  var label=el("aiDetail"),state=el("aiStat"),output=el("replyText");
@@ -53,11 +54,13 @@ async function sendToOpenAI(question,source){
    var evt;try{evt=JSON.parse(raw)}catch(e){return}
    if(evt.type==="delta"){
     reply+=evt.text||"";
+    if(window.polarisAutoSpeech)window.polarisAutoSpeech.delta(evt.text||"");
     output.textContent=reply;
     if(answerText)answerText.textContent=reply;
     state.textContent="ANSWERING";label.textContent="GPT-6.1 Sol · writing live";
    }else if(evt.type==="done"){
     gotDone=true;reply=evt.reply||reply;
+    if(window.polarisAutoSpeech)window.polarisAutoSpeech.done(reply);
     output.textContent=reply;
     if(answerText)answerText.textContent=reply;
     state.textContent="OPENAI";label.textContent=evt.engine||"GPT-6.1 Sol";
@@ -80,6 +83,7 @@ async function sendToOpenAI(question,source){
   if(buffer.trim())processEvent(buffer);
   if(!gotDone)throw Error("Response ended before completion. Please retry.");
  }catch(e){
+  if(window.polarisAutoSpeech)window.polarisAutoSpeech.fail();
   var msg=String(e.message||e);
   if(!reply){output.textContent="OpenAI connection issue: "+msg;if(answerText)answerText.textContent="OpenAI connection issue: "+msg}
   else{output.textContent=reply+"\n\n[The connection ended early]";if(answerText)answerText.textContent=reply+"\n\n[The connection ended early]"}
@@ -90,6 +94,6 @@ async function sendToOpenAI(question,source){
  }
 }
 askAI=function(question,source){sendToOpenAI(question,source||(lastInputWasVoice?"microphone":"typed"))};
-var headline=document.querySelector(".eyebrow");if(headline)headline.textContent="PERSONAL INTELLIGENCE NETWORK / V2.0";
-var footer=document.querySelector(".footer");if(footer)footer.innerHTML='<span>✦ POLARIS</span> · NORTH STAR VENTURES · OPENAI GPT-6.1 SOL v2.0';
+var headline=document.querySelector(".eyebrow");if(headline)headline.textContent="PERSONAL INTELLIGENCE NETWORK / V2.3";
+var footer=document.querySelector(".footer");if(footer)footer.innerHTML='<span>✦ POLARIS</span> · NORTH STAR VENTURES · OPENAI GPT-6.1 SOL v2.3';
 })();
