@@ -2,7 +2,7 @@
 (function(){
 "use strict";
 var Dictate=window.SpeechRecognition||window.webkitSpeechRecognition;
-var dictation=null,dictating=false,draftBefore="",lastReply="",useNativeMic=false;
+var dictation=null,dictating=false,acceptDictation=false,draftBefore="",lastReply="",useNativeMic=false;
 var originalSpeech=talk;
 // Default to quiet text answers; a button can still read the complete reply aloud.
 talk=function(message){showReply(String(message||""));return Promise.resolve()};
@@ -49,24 +49,50 @@ css.textContent=".command{align-items:flex-end}.command textarea{background:tran
 document.head.append(css);
 function dictationStatus(message){hint.textContent=message;el("voiceDetail").textContent=message}
 function endDictation(){
- dictating=false;micButton.classList.remove("dictatingNow");micButton.textContent="🎙 DICTATE";
+ acceptDictation=false;dictating=false;micButton.classList.remove("dictatingNow");micButton.textContent="🎙 DICTATE";
  if(input.value.trim())dictationStatus("Your words are ready. Edit them if needed, then tap SEND.");
  else dictationStatus("Tap DICTATE or the keyboard microphone, then tap SEND.");
 }
+
+function cleanSpeechText(s){return String(s||"").replace(/\s+/g," ").trim()}
+function speechWordKey(s){return String(s||"").toLowerCase().replace(/[.,?!:;'"“”‘’]/g,"")}
+function stitchSpeechFragments(fragments){
+ var full=[];
+ fragments.forEach(function(fragment){
+  var phrase=cleanSpeechText(fragment);
+  if(!phrase)return;
+  var incoming=phrase.split(" "),keys=incoming.map(speechWordKey),
+      existing=full.map(speechWordKey),na=existing.length,nb=keys.length;
+  if(!na){full=incoming;return}
+  var equalAt=function(a,b,count){for(var k=0;k<count;k++)if(existing[a+k]!==keys[b+k])return false;return true};
+  // Chrome/Android may emit the growing sentence as several successive final results.
+  // Replace a prefix hypothesis with its fuller successor, not append it.
+  if(nb>=na&&equalAt(0,0,na)){full=incoming;return}
+  if(na>=nb&&equalAt(0,0,nb))return;
+  for(var start=0;start<=na-nb;start++)if(equalAt(start,0,nb))return;
+  var overlap=0;
+  for(var n=Math.min(na,nb);n>=2;n--)if(equalAt(na-n,0,n)){overlap=n;break}
+  full=full.concat(incoming.slice(overlap));
+ });
+ return full.join(" ").replace(/\s+([,.!?;:])/g,"").trim();
+}
+
 function startDictation(){
  if(!Dictate){input.focus();dictationStatus("Use your phone keyboard's microphone to dictate into this box.");return}
  if(dictating){try{dictation.stop()}catch(e){}return}
  if(!dictation){
   dictation=new Dictate();
   dictation.lang="en-CA";dictation.continuous=true;dictation.interimResults=true;dictation.maxAlternatives=1;
-  dictation.onstart=function(){dictating=true;micButton.classList.add("dictatingNow");micButton.textContent="■ STOP DICTATING";dictationStatus("Listening to you. Tap STOP when finished, then SEND.")};
+  dictation.onstart=function(){acceptDictation=true;dictating=true;micButton.classList.add("dictatingNow");micButton.textContent="■ STOP DICTATING";dictationStatus("Listening to you. Tap STOP when finished, then SEND.")};
   dictation.onresult=function(evt){
+   if(!acceptDictation)return;
    var finals=[],interim=[];
    for(var i=0;i<evt.results.length;i++){
-    var text=evt.results[i][0].transcript||"";
-    if(evt.results[i].isFinal)finals.push(text);else interim.push(text);
+    var item=evt.results[i],phrase=item&&item[0]&&item[0].transcript||"";
+    if(!phrase.trim())continue;
+    if(item.isFinal)finals.push(phrase);else interim.push(phrase);
    }
-   var transcript=finals.concat(interim).join(" ").trim();
+   var transcript=stitchSpeechFragments(finals.concat(interim));
    var joined=[draftBefore,transcript].filter(Boolean).join(" ").trim();
    input.value=joined;
    showHeard(joined||"Listening...");
@@ -79,7 +105,7 @@ function startDictation(){
    if(dictating){endDictation()}
   };
  }
- draftBefore=input.value.trim();
+ draftBefore=input.value.trim();acceptDictation=true;
  try{dictation.start()}catch(e){endDictation();dictationStatus("Microphone unavailable here. Use the keyboard microphone to dictate.")}
 }
 micButton.addEventListener("click",startDictation);
@@ -95,6 +121,7 @@ input.addEventListener("keydown",function(e){
  }
 });
 commandForm.addEventListener("submit",function(){
+ acceptDictation=false;
  if(dictating&&dictation)try{dictation.stop()}catch(e){}
  draftBefore="";
 });
