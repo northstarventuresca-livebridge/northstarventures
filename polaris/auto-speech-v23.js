@@ -15,7 +15,7 @@ var toggle=document.createElement("input");toggle.type="checkbox";toggle.checked
 toggle.style.cssText="width:16px;height:16px;accent-color:#49d8b7";
 var toggleText=document.createElement("span");toggleText.textContent="AUTO SPEAK "+(autoEnabled?"ON":"OFF");
 toggleWrap.append(toggle,toggleText);
-if(options)options.append(toggleWrap);
+if(options){options.style.flexWrap="wrap";options.style.rowGap="8px";options.append(toggleWrap)}
 var gen=0,active=null;
 function announce(message){
  var hint=el("voiceHint");if(hint)hint.textContent=message;
@@ -130,6 +130,7 @@ async function pump(c){
    if(!audioContext||audioContext.state!=="running")throw Error("Audio requires a tap to unlock.");
    announce("Polaris speaking · "+speechRate.toFixed(2)+"× · part "+(c.index+1));
    speaking=true;
+   if(c.index===0)record("Auto Speak first audio prepared after "+(Date.now()-c.started)+" ms");
    await playPcmAudio(audio);
    speaking=false;
    c.index++;prefetch(c);
@@ -141,8 +142,8 @@ async function pump(c){
  }catch(e){
   if(c.alive){announce("Auto Speak unavailable · tap READ REPLY to retry.");record("Auto Speak: "+String(e.message||e).slice(0,120))}
  }finally{
-  speaking=false;c.playing=false;
-  if(active===c){active=null;setReadButton(false)}
+  c.playing=false;
+  if(active===c){speaking=false;active=null;setReadButton(false)}
  }
 }
 function start(){
