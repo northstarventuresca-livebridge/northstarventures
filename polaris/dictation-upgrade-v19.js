@@ -30,7 +30,18 @@ oldMic.replaceWith(micButton);
 var oldActivate=el("activateBtn");if(oldActivate)oldActivate.style.display="none";
 var oldSpeaker=el("speakerBtn");if(oldSpeaker)oldSpeaker.style.display="none";
 var oldTest=el("voiceTestBtn");if(oldTest)oldTest.style.display="none";
-var speed= document.querySelector(".voice-settings");if(speed)speed.style.display="none";
+var speed=document.querySelector(".voice-settings");
+if(speed){
+ speed.style.display="flex";
+ var speedLabel=speed.querySelector('label[for="speedSlider"]');
+ if(speedLabel)speedLabel.textContent="READ-ALOUD SPEED";
+ var interruptions=speed.querySelector(".echo-label");
+ if(interruptions)interruptions.style.display="none";
+ var speedHint=document.createElement("small");
+ speedHint.textContent="Faster speech · natural voice pitch";
+ speedHint.style.cssText="color:#7dcddc;font-size:10px;line-height:1.4";
+ speed.appendChild(speedHint);
+}
 var readButton=document.createElement("button");
 readButton.type="button";readButton.className="btn ghost";readButton.id="polarisReadReply";
 readButton.textContent="▶ READ REPLY";
@@ -109,10 +120,75 @@ function startDictation(){
  try{dictation.start()}catch(e){endDictation();dictationStatus("Microphone unavailable here. Use the keyboard microphone to dictate.")}
 }
 micButton.addEventListener("click",startDictation);
-readButton.addEventListener("click",function(){
+var fastReadId=0,fastReadBusy=false,readAudioStart=0;
+function splitVoiceReply(content){
+ var value=String(content||"").replace(/\*\*/g,"").replace(/\u0060/g,"").replace(/^\s*[-#*]\s+/gm,"").replace(/\s+/g," ").trim();
+ var parts=[];
+ while(value.length){
+  var threshold=parts.length===0?185:380;
+  if(value.length<=threshold){parts.push(value);break}
+  var cut=-1;
+  for(var k=Math.min(threshold,value.length-1);k>=Math.round(threshold*.45);k--){
+   if(/[.!?;:]/.test(value[k])&&/\s/.test(value[k+1]||"")){cut=k+1;break}
+  }
+  if(cut<0){cut=value.lastIndexOf(" ",threshold);if(cut<threshold*.55)cut=threshold}
+  parts.push(value.slice(0,cut).trim());value=value.slice(cut).trim();
+ }
+ return parts;
+}
+function stopReadAloud(){
+ fastReadId++;
+ if(activeAudio){try{
+  if(typeof activeAudio.stop==="function")activeAudio.stop();
+  else if(typeof activeAudio.polarisStop==="function")activeAudio.polarisStop();
+  else if(typeof activeAudio.pause==="function")activeAudio.pause();
+ }catch(e){}}
+ fastReadBusy=false;readButton.textContent="▶ READ REPLY";
+}
+readButton.addEventListener("click",async function(){
+ if(fastReadBusy){stopReadAloud();return}
  var reply=el("replyText").textContent||"";
- if(!reply.trim()||reply==="Awaiting your command."){notify("No reply to read yet.");return}
- primeAudio(false).then(function(){originalSpeech(reply)}).catch(function(){notify("Tap SPEAKER READY or check phone volume to enable read aloud.")});
+ if(!reply.trim()||reply==="Awaiting your command."||/^Polaris is thinking/.test(reply)){
+  notify("No finished reply to read.");return;
+ }
+ fastReadBusy=true;var run=++fastReadId,parts=splitVoiceReply(reply);
+ readButton.textContent="■ STOP READING";
+ var pending={};
+ function load(index){
+  if(index>=parts.length)return Promise.resolve(null);
+  if(pending[index])return pending[index];
+  pending[index]=(async function(){
+   var response=await fetch("/api/tts",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({text:parts[index]})});
+   if(!response.ok)throw new Error("Voice service returned "+response.status);
+   var buf=await response.arrayBuffer();
+   if(buf.byteLength<1000)throw new Error("Voice audio was empty");
+   return buf;
+  })();
+  return pending[index];
+ }
+ try{
+  // Prepare the first short sentence and the next passage at the same time.
+  var unlock=primeAudio(false);
+  var first=load(0);if(parts.length>1)load(1);
+  await unlock;await first;
+  if(run!==fastReadId)return;
+  for(var i=0;i<parts.length&&run===fastReadId;i++){
+   if(i+2<parts.length)load(i+2);
+   el("voiceHint").textContent="Reading reply · part "+(i+1)+" of "+parts.length+" · "+speechRate.toFixed(2)+"×";
+   var buffer=await load(i);
+   if(run!==fastReadId)break;
+   readAudioStart=Date.now();
+   speaking=true;await playPcmAudio(buffer);speaking=false;
+  }
+  if(run===fastReadId){
+   setAudioStatus("SPEAKER READY · "+speechRate.toFixed(2)+"× NATURAL PITCH","ready");
+   el("voiceHint").textContent="Read aloud complete. Tap DICTATE for your next message.";
+  }
+ }catch(e){
+  if(run===fastReadId){notify("Read aloud: "+String(e.message||e));record("Fast speech error: "+String(e.message||e));}
+ }finally{
+  if(run===fastReadId){speaking=false;fastReadBusy=false;readButton.textContent="▶ READ REPLY";}
+ }
 });
 input.addEventListener("keydown",function(e){
  if(e.key==="Enter"&&!e.shiftKey){
