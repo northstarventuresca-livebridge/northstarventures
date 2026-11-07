@@ -38,7 +38,7 @@ async function sendToOpenAI(question,source){
  try{
   var res=await fetch("/api/ask-stream",{
    method:"POST",headers:{"content-type":"application/json"},
-   body:JSON.stringify({request_id:id,message:question,source:source||"typed",projects:projects.slice(0,12).map(function(p){return {name:p.name,status:p.status,progress:p.progress}})})
+   body:JSON.stringify({request_id:id,message:question,source:source||"typed",project:window.polarisProjectSelection||"",projects:projects.slice(0,12).map(function(p){return {name:p.name,status:p.status,progress:p.progress}})})
   });
   if(!res.ok){
    var bad={};try{bad=await res.json()}catch(e){}
