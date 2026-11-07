@@ -388,10 +388,6 @@ export default {
           .replace('class="menu-item hidden admin-shortcut" id="adminNav"','class="menu-item admin-shortcut" id="adminNav"')
           .replace('class="btn gold small hidden" type="button" id="topAdmin"','class="btn gold small" type="button" id="topAdmin"')
           .replace('id="homeAdminBanner" class="panel hidden"','id="homeAdminBanner" class="panel"');
-        if(url.pathname==="/admin" || url.searchParams.get("view")==="admin"){
-          // Works even if the usual dashboard initialization is delayed.
-          html=html.replace("</body></html>",'<script>Promise.resolve().then(function(){try{if(typeof navigate==="function")navigate("admin");if(typeof switchAdminPane==="function")switchAdminPane("overview");}catch(e){console.error("Admin view:",e)}});</script></body></html>');
-        }
       }
       return new Response(html,{headers:{...pageHeaders,"cache-control":"private, no-store, max-age=0","vary":"Cookie"}});
    }
