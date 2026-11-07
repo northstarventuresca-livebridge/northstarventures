@@ -19,14 +19,14 @@ function runPolarisCommand(raw,fromVoice){
  var original=String(raw||"").trim();if(!original)return;
  var source=fromVoice?"microphone":"typed",text=original.replace(/[!?.,]+/g," ").replace(/\s+/g," ").trim();
  var hasWake=/^(?:hey\s+)?polaris\b/i.test(text);
- if(fromVoice&&hasWake)armedUntil=Date.now()+90000;
+ if(fromVoice&&hasWake)armedUntil=Date.now()+300000;
  if(fromVoice&&!hasWake&&Date.now()>armedUntil){
   showHeard(original);showReply("Say Hey Polaris to begin.");return;
  }
  if(hasWake)text=text.replace(/^(?:hey\s+)?polaris\b/i,"").trim();
  if(!text){
-  if(!active)activate();
-  else{armedUntil=Date.now()+90000;showReply("I'm listening.");statusLine("Polaris is listening. Continue speaking.");}
+  if(!active){activate();armedUntil=Date.now()+300000;}
+  else{armedUntil=Date.now()+300000;showReply("I'm listening.");statusLine("Polaris is listening. Continue speaking.");}
   return;
  }
  var key=normalized(text),now=Date.now();
@@ -35,6 +35,7 @@ function runPolarisCommand(raw,fromVoice){
   if(typeof polaris17DuplicateVoice==="function"&&polaris17DuplicateVoice(text))return;
  }
  lastSubmitted=key;lastSubmittedAt=now;
+ if(fromVoice)armedUntil=Date.now()+300000;
  lastInputWasVoice=!!fromVoice;
  showHeard(original);
  if(/^(activate|wake up|go online|turn on|start)$/i.test(key)){
@@ -129,7 +130,7 @@ function aggregateFinal(phrase){
  }
  pendingLast=Date.now();
  if(pendingTimer)clearTimeout(pendingTimer);
- pendingTimer=setTimeout(flushSpeech,1250);
+ pendingTimer=setTimeout(flushSpeech,1150);
  showHeard(pendingWords);
  statusLine("Listening... "+pendingWords);
 }
@@ -166,7 +167,7 @@ logButton.className="btn ghost";logButton.id="dialogueLogBtn";logButton.type="bu
 logButton.textContent="▤ CONVERSATION LOG";
 var controls=document.querySelector(".primary-row");if(controls)controls.insertBefore(logButton,el("logoutBtn"));
 var mask=document.createElement("div");mask.className="p18-mask";mask.id="polarisLogMask";
-mask.innerHTML='<section class="p18-panel" role="dialog" aria-modal="true" aria-label="Polaris dialogue journal"><div class="p18-head"><strong>▤ POLARIS · CONVERSATION JOURNAL</strong><button class="btn tiny ghost p18-close" id="p18Close">CLOSE ✕</button></div><div class="p18-privacy">Private authenticated log · spoken transcripts + Polaris replies only · no audio recordings · automatically expires after 30 days</div><div class="p18-actions"><button id="p18Refresh">REFRESH</button><button id="p18Export">EXPORT LOG</button><button id="p18Clear">DELETE LOG</button></div><div class="p18-body" id="p18Entries">Loading journal...</div></section>';
+mask.innerHTML='<section class="p18-panel" role="dialog" aria-modal="true" aria-label="Polaris dialogue journal"><div class="p18-head"><strong>▤ POLARIS · CONVERSATION JOURNAL</strong><button class="btn tiny ghost p18-close" id="p18Close">CLOSE ✕</button></div><div class="p18-privacy">Private authenticated log · spoken transcripts + Polaris replies only · no audio recordings · older entries are cleared on use</div><div class="p18-actions"><button id="p18Refresh">REFRESH</button><button id="p18Export">EXPORT LOG</button><button id="p18Clear">DELETE LOG</button></div><div class="p18-body" id="p18Entries">Loading journal...</div></section>';
 document.body.appendChild(mask);
 function showJournal(){mask.classList.add("visible");logOpen=true;loadJournal()}
 function closeJournal(){mask.classList.remove("visible");logOpen=false}
