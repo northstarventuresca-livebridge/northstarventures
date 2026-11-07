@@ -1,0 +1,82 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="#061021"><title>POLARIS · OPERATIONS</title><style>
+:root{color-scheme:dark;--bg:#030912;--panel:#0a1e34e8;--line:#4f9cce44;--accent:#67e5ff;--ink:#eaf7ff;--muted:#8aacc5;--green:#68f6c3;--amber:#ffce77;--red:#ff898c}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 50% 0,#122f57 0,transparent 45%),radial-gradient(ellipse at 92% 85%,#19103a 0,transparent 42%),var(--bg);color:var(--ink);font:14px/1.55 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+body:before{content:"";position:fixed;inset:0;pointer-events:none;background-image:linear-gradient(#69aae509 1px,transparent 1px),linear-gradient(90deg,#69aae509 1px,transparent 1px);background-size:38px 38px}
+button,a{font:inherit}a{color:var(--accent)}main{max-width:1440px;margin:0 auto;padding:clamp(15px,3vw,32px);position:relative}
+header{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;border-bottom:1px solid var(--line);padding-bottom:16px}.brand{display:flex;align-items:center;gap:12px}
+.logo{height:46px;width:46px;display:grid;place-items:center;border:1px solid #51cdf59c;border-radius:13px;color:#a3efff;font-size:31px;box-shadow:0 0 24px #31b5ec30;background:#0b2845}
+.name{font-size:21px;letter-spacing:.19em;font-weight:900;line-height:1.05}.eyebrow{color:#84bdd9;font-size:10px;letter-spacing:.15em;font-weight:750;margin-top:7px}
+.nav{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.nav a{text-decoration:none;border:1px solid #427ea67a;border-radius:9px;padding:8px 12px;background:#09213c;color:#c4e7fd;font-size:12px;font-weight:700}.status{border:1px solid #3bc5ac7b;border-radius:25px;background:#0a2d30;padding:7px 10px;color:#9ef8df;font-size:10px;font-weight:800;letter-spacing:.11em}
+h1{font-size:clamp(27px,4.8vw,55px);letter-spacing:-.045em;margin:22px 0 8px;line-height:1.15}.lead{color:var(--muted);font-size:13px;max-width:900px;margin:0 0 20px}.tag{font-size:10px;color:var(--accent);letter-spacing:.16em;font-weight:800}
+.miniGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px;margin-bottom:18px}.mini{background:linear-gradient(145deg,#143451bd,#09192ccf);border:1px solid var(--line);border-radius:14px;padding:16px}.mini strong{display:block;font-size:clamp(23px,3vw,37px);letter-spacing:-.05em;line-height:1.1;margin:8px 0 5px}.mini span{color:#95bfd7;font-size:10px;letter-spacing:.07em;font-weight:800}.mini small{color:#7fa2b9;font-size:11px}
+.grid{display:grid;grid-template-columns:1.12fr 1fr;gap:14px}.pane{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:clamp(15px,2.2vw,23px);margin-bottom:14px;min-width:0}.panelhead{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:15px;padding-bottom:12px;border-bottom:1px solid #417fa644}.panelhead h2{font-size:13px;letter-spacing:.11em;color:#a1e9ff;margin:0;font-weight:850}.hint{font-size:10px;color:#90b7c9}
+.project{padding:13px 0;border-bottom:1px solid #407da935}.project:last-child{border-bottom:0}.prhead{display:flex;align-items:center;justify-content:space-between;gap:7px}.prname{font-size:14px;font-weight:800}.pill{font-size:9px;border-radius:30px;padding:5px 8px;border:1px solid #4e9da67b;color:#90e8d3;background:#0f3044;white-space:nowrap;font-weight:800;letter-spacing:.03em}.pill.warn{color:var(--amber);border-color:#b58e4f88}.pill.bad{color:var(--red);border-color:#cb596587}.project p{font-size:12px;line-height:1.5;color:#a1bcce;margin:6px 0}.project .next{color:#bde7e9;font-size:12px;margin-top:9px}.project .next b{color:var(--accent)}.project a{text-decoration:none;font-weight:700;font-size:11px}
+.kpis{display:flex;gap:7px;flex-wrap:wrap;margin:8px 0}.kpis span{border:1px solid #37688977;border-radius:7px;background:#08192d;padding:4px 7px;font-size:10px;color:#b2d2e6}
+.task{display:flex;gap:12px;padding:12px 0;border-bottom:1px solid #407da935;align-items:flex-start}.task:last-child{border:0}.number{flex:none;color:#92e7ff;border-radius:8px;background:#0b3350;border:1px solid #56b2db50;padding:5px 7px;min-width:32px;text-align:center;font-size:11px;font-weight:800}.tasktitle{font-weight:750;font-size:12px}.taskdetail{color:#8eacc1;font-size:11px;margin:4px 0}.taskfoot{display:flex;align-items:center;gap:7px;flex-wrap:wrap;font-size:10px;color:#76a7c4}.dot{height:7px;width:7px;border-radius:50%;background:#69e4a9;box-shadow:0 0 11px #49dda578}.dot.bad{background:#fa8795;box-shadow:0 0 11px #fc718c78}.dot.warn{background:#eac379}.healthline{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #407da935}.healthline:last-child{border:0}.statusname{display:flex;gap:9px;align-items:center;font-size:12px;font-weight:700}.sublabel{font-size:10px;color:#85abc6}.briefing{white-space:normal;line-height:1.6;font-size:12px;color:#afd1e3}.briefing strong{font-size:15px;color:#b5f1ff}.briefing .point{padding:8px 0;border-bottom:1px solid #407da935}.briefing .point:last-child{border-bottom:0}.footer{font-size:10px;color:#688ea7;border-top:1px solid var(--line);padding-top:13px;margin-top:12px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.error{color:#ffc7c7;border:1px solid #c96d7b79;border-radius:10px;padding:12px;display:none;margin:10px 0}.empty{color:#789eb6;font-size:12px}.stamp{color:#7091a8;font-size:10px;white-space:nowrap}
+@media(max-width:900px){.grid{grid-template-columns:1fr}.miniGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:490px){.mini{padding:12px}.name{font-size:17px}.logo{height:40px;width:40px}main{padding:14px}.pill{font-size:9px}h1{font-size:30px}}
+</style></head><body><main>
+<header><div class="brand"><div class="logo">✦</div><div><div class="name">POLARIS</div><div class="eyebrow">NORTH STAR VENTURES · OPERATIONS</div></div></div><div class="nav"><span id="connection" class="status">CONNECTING</span><a href="/display">LIVE DISPLAY</a><a href="/">DASHBOARD</a></div></header>
+<div class="tag" style="margin-top:21px">◉ PROJECT INTELLIGENCE · REUSABLE COMMAND CENTRE</div><h1>NorthStar Operations</h1><p class="lead">Persistent project knowledge, verified monitoring, task progress, diagnostics and your morning briefing—all in one display. ChatGPT remains your interactive assistant.</p>
+<div id="error" class="error"></div>
+<div class="miniGrid"><div class="mini"><span>TRACKED PROJECTS</span><strong id="numProjects">—</strong><small>Permanent project records</small></div><div class="mini"><span>OUTSTANDING TASKS</span><strong id="numTasks">—</strong><small>Across all workstreams</small></div><div class="mini"><span>RESPONDING SITES</span><strong id="numResponding">—</strong><small>Based on latest checks</small></div><div class="mini"><span>OPEN DIAGNOSTICS</span><strong id="numErrors">—</strong><small>Captured errors and alerts</small></div></div>
+<div class="grid"><section>
+<div class="pane"><div class="panelhead"><h2>◈ PROJECT INTELLIGENCE</h2><span class="hint">SAVED IN CLOUDFLARE D1</span></div><div id="projects" class="empty">Loading projects…</div></div>
+<div class="pane"><div class="panelhead"><h2>☷ DEVELOPMENT QUEUE</h2><span class="hint">PRIORITY ORDER</span></div><div id="tasks" class="empty">Loading work items…</div></div>
+</section><section>
+<div class="pane"><div class="panelhead"><h2>◉ AUTOMATIC MONITORING</h2><span id="monitorTime" class="hint">CHECKS PENDING</span></div><div id="health" class="empty">Waiting for scheduled monitor data…</div><p class="hint" style="margin-bottom:0">HTTP status is a connectivity check—not a test of sign-in, checkout, or live streaming. Numbers are timestamped snapshots.</p></div>
+<div class="pane"><div class="panelhead"><h2>☀ MORNING BRIEFING</h2><span id="briefDate" class="hint">7 AM ALBERTA</span></div><div id="briefing" class="briefing">Preparing the first scheduled briefing.</div></div>
+<div class="pane"><div class="panelhead"><h2>⚠ ERROR DIAGNOSTICS</h2><span class="hint">OPEN ISSUES ONLY</span></div><div id="errors" class="empty">No error events captured.</div><p class="hint">Polaris and website availability events are connected. Deep application error capture for other products requires separate consent-based instrumentation.</p></div>
+</section></div><div class="footer"><span>CHATGPT IS YOUR ASSISTANT · POLARIS IS YOUR DISPLAY</span><span id="lastUpdated">WAITING FOR FIRST DATA</span></div>
+</main><script>
+(function(){
+"use strict";
+const byId=id=>document.getElementById(id);
+const set=(id,s)=>{byId(id).textContent=String(s==null?"":s)};
+const el=(tag,cls,txt)=>{const x=document.createElement(tag);if(cls)x.className=cls;if(txt!=null)x.textContent=String(txt);return x};
+const when=d=>{if(!d)return"Not yet checked";try{return new Date(d).toLocaleString([],{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}catch(e){return String(d)}};
+const statusName=x=>x==="responding"?"Responding":x==="unreachable"?"Unreachable":x==="degraded"?"Restricted/degraded":"Not checked";
+const label=(text,kind)=>{const x=el("span","pill"+(kind?" "+kind:""),text);return x};
+function metrics(x){return x&&typeof x==="object"&&!Array.isArray(x)?Object.entries(x).filter(([k])=>k!=="error").slice(0,4):[]}
+function render(data){
+ const projects=data.projects||[],tasks=data.tasks||[],health=data.health||[],errors=data.errors||[];
+ const statuses=new Map(health.map(x=>[x.project_key,x]));
+ set("numProjects",projects.length);set("numTasks",tasks.filter(x=>x.status!=="done").length);set("numResponding",health.filter(x=>x.state==="responding").length+"/"+(health.length||"—"));set("numErrors",errors.length);
+ set("connection","● CONNECTED");
+ const projectBox=byId("projects");projectBox.replaceChildren();
+ projects.forEach(p=>{
+  const item=el("article","project");const top=el("div","prhead"),title=el("div","prname",p.project_name),h=statuses.get(p.project_key);
+  top.append(title,label(h?statusName(h.state):"Tracked",h?.state==="unreachable"?"bad":h?.state==="degraded"?"warn":""));item.append(top);
+  item.append(el("p","",p.context_summary||"Project details being indexed"));
+  const verified=el("p","",p.verified_summary||"No verified details yet");verified.style.color="#7de8c5";item.append(verified);
+  if(h&&metrics(h.metrics).length){const kpis=el("div","kpis");metrics(h.metrics).forEach(([k,v])=>kpis.append(el("span","",k.replace(/_/g," ")+": "+v)));item.append(kpis)}
+  if(p.next_step){const next=el("p","next");next.append(el("b","","Next: "));next.append(document.createTextNode(p.next_step));item.append(next)}
+  if(p.site_url){try{const url=new URL(p.site_url);if(url.protocol==="https:"){const a=el("a","","OPEN SITE ↗");a.href=url.href;a.target="_blank";a.rel="noopener noreferrer";item.append(a)}}catch(e){}}
+  projectBox.append(item);
+ });
+ const tbox=byId("tasks");tbox.replaceChildren();
+ tasks.filter(x=>x.status!=="done").slice(0,16).forEach((t,i)=>{
+  const item=el("div","task");item.append(el("div","number",String(i+1).padStart(2,"0")));
+  const body=el("div");body.append(el("div","tasktitle",t.title));
+  body.append(el("div","taskdetail",t.details));const foot=el("div","taskfoot");foot.append(label(t.project_key));foot.append(label(t.status));foot.append(el("span","","Priority "+t.priority));body.append(foot);item.append(body);tbox.append(item);
+ });if(!tbox.children.length)tbox.append(el("p","empty","No outstanding tasks."));
+ const hb=byId("health");hb.replaceChildren();
+ health.forEach(h=>{const row=el("div","healthline"),left=el("div"),nm=el("div","statusname");nm.append(el("span","dot"+(h.state==="unreachable"?" bad":h.state==="degraded"?" warn":"")));nm.append(el("span","",h.project_key));left.append(nm);left.append(el("div","sublabel",statusName(h.state)+(h.http_status?" · HTTP "+h.http_status:"")+" · "+when(h.sampled_at)));row.append(left,el("div","stamp",h.latency_ms==null?"":h.latency_ms+" ms"));hb.append(row)});
+ if(!health.length)hb.append(el("p","empty","First monitoring cycle pending."));
+ set("monitorTime",data.monitor?.completed_at?"LAST CHECK "+when(data.monitor.completed_at):"FIRST CHECK PENDING");
+ const brief=byId("briefing");brief.replaceChildren();
+ if(data.briefing){const b=data.briefing;brief.append(el("strong","",b.headline||"Morning summary"));(b.priorities||[]).slice(0,5).forEach(x=>brief.append(el("div","point","• "+x.project_key+": "+x.title)));set("briefDate",b.date+" · 7 AM")}else{brief.append(el("p","empty","The first automated 7 AM Alberta briefing has not run yet."));set("briefDate","7 AM ALBERTA")}
+ const eb=byId("errors");eb.replaceChildren();
+ if(!errors.length)eb.append(el("p","empty","No diagnostic events recorded yet."));
+ errors.slice(0,8).forEach(e=>{const line=el("div","task");const marker=el("span","dot"+(e.severity==="warning"?" warn":" bad"));const b=el("div");b.append(el("div","tasktitle",e.project_key+" · "+e.summary));b.append(el("div","sublabel",when(e.last_seen)+" · "+e.occurrences+" occurrence(s)"));line.append(marker,b);eb.append(line)});
+ set("lastUpdated","RENDERED "+when(data.updated));
+}
+async function refresh(){
+ try{const response=await fetch("/api/command-centre",{credentials:"same-origin",cache:"no-store"});if(!response.ok)throw Error("Data unavailable");render(await response.json());byId("error").style.display="none"}
+ catch(e){set("connection","OFFLINE");const err=byId("error");err.style.display="block";err.textContent="Unable to load Polaris operations. Verify you are signed in."}
+}
+refresh();setInterval(()=>{if(!document.hidden)refresh()},30000);
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)refresh()});
+})();
+</script></body></html>
