@@ -80,12 +80,17 @@ function stitchSpeechFragments(fragments){
   // Replace a prefix hypothesis with its fuller successor, not append it.
   if(nb>=na&&equalAt(0,0,na)){full=incoming;return}
   if(na>=nb&&equalAt(0,0,nb))return;
+  // Some Android recognizers resend an expanded FINAL with one corrected word.
+  // Replace the earlier incomplete hypothesis; do not concatenate near-duplicates.
+  var shared=0;while(shared<Math.min(na,nb)&&existing[shared]===keys[shared])shared++;
+  var previousEnded=/[.!?]$/.test(full.join(" ").trim());
+  if(!previousEnded&&shared>=5&&shared/Math.min(na,nb)>=.45&&nb>=na-2){full=incoming;return}
   for(var start=0;start<=na-nb;start++)if(equalAt(start,0,nb))return;
   var overlap=0;
   for(var n=Math.min(na,nb);n>=2;n--)if(equalAt(na-n,0,n)){overlap=n;break}
   full=full.concat(incoming.slice(overlap));
  });
- return full.join(" ").replace(/\s+([,.!?;:])/g,"").trim();
+ return full.join(" ").replace(/\s+([,.!?;:])/g,"").replace(/\btap\s+(?:been|bin|bean)\b/gi,"TapBin").trim();
 }
 
 function startDictation(){
