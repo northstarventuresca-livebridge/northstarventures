@@ -124,12 +124,14 @@ async function refreshThread(){
 }
 refreshThread();
 var lastVisible="";
+var refreshTimer=null;
 var observer=new MutationObserver(function(){
  var text=el("replyText").textContent||"";
  if(text===lastVisible)return;
  lastVisible=text;
- if(!text.trim()||/^Thinking|^Awaiting|^Unable to/.test(text))return;
- setTimeout(refreshThread,550);
+ if(!text.trim()||/^Thinking|^Awaiting|^Unable to|^Polaris is thinking/.test(text))return;
+ if(refreshTimer)clearTimeout(refreshTimer);
+ refreshTimer=setTimeout(refreshThread,1600);
 });
 observer.observe(el("replyText"),{childList:true,characterData:true,subtree:true});
 // Do not automatically start microphone on reload.
