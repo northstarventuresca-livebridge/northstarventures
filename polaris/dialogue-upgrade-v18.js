@@ -290,4 +290,6 @@ el("p18Clear").addEventListener("click",async function(){
   logEntries=[];conversation=[];await loadJournal();notify("Polaris conversation journal deleted.");
  }catch(e){notify(e.message)}
 });
+var versionLabel=document.querySelector(".eyebrow");if(versionLabel)versionLabel.textContent="PERSONAL INTELLIGENCE NETWORK / V1.8";
+var footerLabel=document.querySelector(".footer");if(footerLabel)footerLabel.innerHTML='<span>✦ POLARIS</span> · POWERED BY NORTH STAR VENTURES · MOBILE FOUNDATION v1.8';
 })();
