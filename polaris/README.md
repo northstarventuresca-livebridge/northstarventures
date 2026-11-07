@@ -1,5 +1,17 @@
 # POLARIS — North Star Ventures mobile AI command center
 
+## v2.0 — OpenAI-connected text-first Polaris (November 6, 2026)
+
+- The **live Worker** `polaris-mobile` uses `Polaris_open_ai` (Cloudflare secret) to call the OpenAI **Responses API** with model `gpt-6.1-sol`; it never exposes the API key to the phone or GitHub.
+- User messages stream through authenticated `POST /api/ask-stream` as progressively rendered text. Legacy `POST /api/ask` also uses OpenAI with a regular JSON response. **Cloudflare Workers AI is no longer used for text chat**; it remains connected for optional Deepgram read-aloud speech.
+- Responses are stored in private D1 `POLARIS_DB` with source, time, model, feedback and recent context. The current interface supports dictated text, manual review + Send, streaming conversation output, optional Read Aloud, and private conversation log.
+- OpenAI key existence and deployed binding were verified, and the mobile UI was rendered successfully. **Full authenticated first-call billing/availability verification must be completed in the phone session**. If a request fails, the UI reports errors about API key access or OpenAI billing; it must not silently switch to a less capable model.
+- **Important:** OpenAI's API does **not** inherit the user's ChatGPT account conversation history or Projects. Direct project history import and retrieval are not yet connected. Do not claim the user is speaking to this very same ChatGPT session.
+- Source modules: `openai-engine-v20.js` and `openai-ui-v20.js` are embedded into `polaris/worker.js` for deployment, in addition to the older frontend patches. A standalone change to those modules must be re-embedded in the Worker and deployed.
+- Costs are charged by OpenAI API tokens, separate from ChatGPT Plus; verify the OpenAI project billing and spending limits.
+
+
+
 **Live:** https://polaris.northstarventures.ca  
 **Worker:** `polaris-mobile` (Northstar Cloudflare account)  
 **Source:** `polaris/index.html`, `polaris/worker.js`, `polaris/voice-upgrade-v17.js`, `polaris/dialogue-upgrade-v18.js`.
