@@ -1,5 +1,23 @@
 # POLARIS — North Star Ventures mobile AI command center
 
+## v2.2 — faster Read Reply and read-only project sources (November 6, 2026)
+
+- Returned the **READ-ALOUD SPEED** slider, which controls the existing pitch-preserving audio renderer (0.85×–1.65×) without intentionally raising voice pitch.
+- Read Reply now breaks the first passage at a shorter sentence boundary and prefetches audio for the next passage in parallel. It may still take a few seconds to synthesize the first passage; do not claim live-phone latency without a real device test.
+- Added project context picker and natural-language switching. Polaris sources are organized by verified project, with an indexed **snapshot of 25 distinct GitHub repos, 47 NorthStar Cloudflare Worker names, and 7 README documents (11 excerpt sections)**. Snapshot records must never be presented as live status or complete code coverage.
+- Project registry stored in private D1 `POLARIS_DB` tables `project_registry` and `project_documents`. OpenAI receives only relevant project context for project-related queries, with short excerpts for normal questions.
+- Built an **optional read-only on-demand source reader**, with no write, deploy, update or delete endpoints. Tokens are absent as of this release, and private code access remains disconnected.
+- To enable live source reading later, add one or more scoped secrets to the `polaris-mobile` Worker:
+  - `POLARIS_GITHUB_NSV_READ_TOKEN`: fine-grained GitHub token with repository Contents **Read-only** permission for needed repositories under `northstarventuresca-livebridge`.
+  - `POLARIS_GITHUB_CHURCH_READ_TOKEN`: similarly scoped token for `globalconnectionschurch-eng`.
+  - `POLARIS_GITHUB_PERSONAL_READ_TOKEN`: similarly scoped token for `rwyers`.
+  - `POLARIS_CF_NSV_READ_TOKEN`: Cloudflare API token for the NorthStar account with **Workers Scripts Read** only.
+- The live reader restricts GitHub reads to verified repository identities, excludes suspicious file paths, redacts obvious credentials, truncates sources and caps requested files. Cloudflare Worker source is accessed only by exact verified script name. Even with tokens, this is selective on-demand reading, **not a full indexed copy of every file, ChatGPT history, deployment status or operational database**. Never infer production resource dependencies from script names.
+- Future Worker deployments must preserve *all* configured secret bindings, including read-only source tokens once added.
+- Read-only access to church Cloudflare resources requires a separate authorized church-account token; the NorthStar API token cannot read a different account.
+
+
+
 ## v2.0 — OpenAI-connected text-first Polaris (November 6, 2026)
 
 - The **live Worker** `polaris-mobile` uses `Polaris_open_ai` (Cloudflare secret) to call the OpenAI **Responses API** with model `gpt-6.1-sol`; it never exposes the API key to the phone or GitHub.
