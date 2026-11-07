@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="#030b18">
+<title>POLARIS · LIVE DISPLAY</title>
+<style>
+:root{--ink:#eaf9ff;--dim:#86a9c3;--cyan:#60e3ff;--blue:#378dfa;--violet:#9e8aff;--green:#56edc5;--line:#4c9bd340;--panel:#0a1e36db}
+*{box-sizing:border-box}
+html{height:100%;background:#020913}body{margin:0;min-height:100%;color:var(--ink);font:14px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;background:radial-gradient(ellipse at 50% 10%,#13325a 0,transparent 48%),radial-gradient(ellipse at 92% 73%,#16173a 0,transparent 40%),#030915}
+body:before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;background-image:linear-gradient(#57a1e00b 1px,transparent 1px),linear-gradient(90deg,#57a1e00b 1px,transparent 1px);background-size:38px 38px;mask-image:linear-gradient(to bottom,transparent,black 13%,black 88%,transparent)}
+button,a{font:inherit}a{color:#83dfff}button{cursor:pointer}main{position:relative;z-index:1;max-width:1440px;margin:0 auto;padding:clamp(14px,3vw,36px);padding-bottom:40px}
+.head{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:16px}
+.brand{display:flex;align-items:center;gap:12px}.symbol{display:grid;place-items:center;width:46px;height:46px;border-radius:14px;border:1px solid #42c2ee88;background:#071b34;box-shadow:0 0 26px #3cc7ff22}
+.brand h1{font-size:20px;letter-spacing:.20em;line-height:1;margin:0;font-weight:850}.micro{font-size:10px;letter-spacing:.16em;font-weight:650;color:#8eacc4}.brand .micro{margin-top:8px}
+.actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.status{display:flex;align-items:center;gap:7px;border:1px solid #3de0c450;background:#082c2c91;padding:7px 11px;border-radius:40px;color:#8cf9da;font-size:10px;letter-spacing:.10em;font-weight:750}
+.dot{height:6px;width:6px;border-radius:50%;background:#71fac8;box-shadow:0 0 9px #71fac8}
+.ghost{border:1px solid #5e91bd72;background:#0a1f36d5;padding:8px 11px;border-radius:9px;color:#c9eeff;font-weight:700;font-size:12px;text-decoration:none}
+.ghost:hover{border-color:var(--cyan)}.hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(230px,35%);align-items:center;gap:clamp(8px,3vw,36px);margin:26px 0 14px;min-height:240px}
+.kicker{font-size:10px;color:var(--cyan);letter-spacing:.22em;font-weight:800}
+h2{font-size:clamp(28px,4.5vw,65px);line-height:1.08;letter-spacing:-.045em;margin:18px 0 14px;font-weight:800;text-wrap:balance}
+.desc{font-size:clamp(13px,1.6vw,18px);line-height:1.6;color:#a7c4d9;max-width:780px;margin:0}
+.projectline{display:inline-flex;gap:9px;align-items:center;margin-top:17px;color:#8deee2;font-size:11px;border:1px solid #34a9b65c;padding:6px 11px;border-radius:22px;background:#0b3b4642}
+.orbit{justify-self:center;width:min(100%,330px);aspect-ratio:1;position:relative;display:grid;place-items:center}
+.orbit:before{content:"";position:absolute;inset:4%;border-radius:50%;background:radial-gradient(circle,#00bde841 0,#1774c81a 38%,transparent 67%);filter:blur(11px)}
+.ring{position:absolute;border:1px solid #40c5f66b;border-radius:50%;box-shadow:inset 0 0 14px #42abfc17,0 0 17px #1e87e817}
+.ring.one{inset:9%;border-style:dashed;animation:rotate 46s linear infinite}.ring.two{inset:22%;border-width:2px;border-left-color:transparent;border-right-color:#72f5ff;animation:rotate 17s linear infinite reverse}.ring.three{inset:33%;border-color:#9feeffbc;animation:pulse 3.8s ease-in-out infinite}
+.core{width:31%;aspect-ratio:1;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle at 32% 27%,#215687,#06152f 75%);border:2px solid #7eeaf4;box-shadow:0 0 40px #38c9f877,inset 0 0 20px #168de844;font-size:clamp(29px,5vw,58px);color:#a8f4ff;text-shadow:0 0 17px #85ddff}
+.orbit:after{content:"";position:absolute;inset:1%;border:1px dashed #428bcc44;border-radius:50%}
+@keyframes rotate{to{transform:rotate(360deg)}}@keyframes pulse{50%{opacity:.48;transform:scale(1.035)}}
+.smallcap{font-size:10px;font-weight:750;letter-spacing:.14em;color:#88bedf}
+.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:16px 0 18px}.metric{min-height:115px;background:linear-gradient(155deg,#123454c7,#08172ae6);border:1px solid var(--line);border-radius:15px;padding:16px;position:relative;overflow:hidden}.metric:after{content:"";position:absolute;bottom:0;left:0;right:60%;height:2px;background:linear-gradient(to right,var(--cyan),transparent)}
+.metric .value{font-weight:850;font-size:clamp(24px,3.5vw,42px);line-height:1.2;margin:12px 0 5px;letter-spacing:-.03em}.metric .note{font-size:11px;color:#84aec6}
+.columns{display:grid;grid-template-columns:1.35fr 1fr;gap:14px}
+.panel{border:1px solid var(--line);background:var(--panel);border-radius:16px;padding:20px;min-height:180px;box-shadow:inset 0 1px #ffffff09}
+.panelTitle{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-bottom:12px;border-bottom:1px solid #42799d40;margin-bottom:12px}.panelTitle h3{font-size:12px;margin:0;letter-spacing:.13em;color:#93ddf8;font-weight:800}.panelTitle .smallcap{font-size:9px}
+.item{display:flex;gap:12px;padding:10px 0;align-items:flex-start;border-bottom:1px solid #39688a25}.item:last-child{border-bottom:none}
+.index{display:grid;place-items:center;flex:none;border:1px solid #46c6e45a;background:#0d38517d;width:25px;height:25px;border-radius:7px;font-size:10px;font-weight:800;color:#80eaff}.item strong{font-size:13px;font-weight:700}.item p{font-size:12px;color:#aac0cf;margin:2px 0 0}
+.empty{color:#698ca9;font-size:13px;padding:16px 0}
+.links{display:flex;flex-wrap:wrap;gap:9px;margin-top:12px}.links a{text-decoration:none;border:1px solid #337daf99;background:#0d3053c2;padding:8px 12px;border-radius:9px;font-weight:650;font-size:12px}
+.foot{margin-top:16px;border-top:1px solid var(--line);padding-top:13px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:10px;color:#728da9;letter-spacing:.05em}
+#eventFlash{position:fixed;right:16px;bottom:14px;background:#0b3546;border:1px solid #4af1d7a0;color:#b1fff0;border-radius:12px;padding:11px 15px;z-index:3;box-shadow:0 12px 35px #0008;transition:opacity .5s;opacity:0;pointer-events:none}
+@media(max-width:780px){.hero{grid-template-columns:1fr 110px;min-height:0;margin:18px 0 4px}.orbit{width:120px}.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.columns{grid-template-columns:1fr}.metric{min-height:100px}.head{align-items:flex-start}h2{font-size:clamp(25px,5.8vw,42px)}}
+@media(max-width:460px){.hero{grid-template-columns:1fr 82px}.orbit{width:94px}.core{font-size:24px}.brand h1{font-size:17px}.brand .micro{font-size:8px}.metrics{gap:9px}.metric{padding:13px}.panel{padding:15px}.ghost{padding:7px 9px}.actions{gap:6px}}
+@media(min-width:1250px){.hero{min-height:305px}.metrics{margin:24px 0}.panel{min-height:260px}}
+@media(prefers-reduced-motion:reduce){.ring{animation:none!important}*{scroll-behavior:auto!important}}
+</style></head>
+<body><main>
+<header class="head">
+ <div class="brand">
+  <div class="symbol"><svg viewBox="0 0 44 44" width="28" height="28" aria-hidden="true"><path d="M22 2L27 17L42 22L27 27L22 42L17 27L2 22L17 17Z" fill="#7ce9ff"/></svg></div>
+  <div><h1>POLARIS</h1><div class="micro">NORTH STAR VENTURES · LIVE DISPLAY</div></div>
+ </div>
+ <div class="actions"><div id="status" class="status"><span class="dot"></span><span id="statusText">CONNECTING</span></div><a class="ghost" href="/" title="Existing Polaris dashboard">Dashboard</a><a class="ghost" href="https://chatgpt.com" target="_blank" rel="noopener noreferrer">ChatGPT</a><button id="full" class="ghost" title="Fullscreen display">⛶</button></div>
+</header>
+<section class="hero" aria-live="polite">
+ <div>
+  <div class="kicker">◉ COMMAND INTERFACE <span id="revision"></span></div>
+  <h2 id="title">POLARIS COMMAND CENTRE</h2>
+  <p id="subtitle" class="desc">Your ChatGPT-driven project display is ready.</p>
+  <div class="projectline"><span class="dot"></span><span id="project">NORTH STAR VENTURES</span></div>
+ </div>
+ <div class="orbit" aria-hidden="true"><div class="ring one"></div><div class="ring two"></div><div class="ring three"></div><div class="core">✦</div></div>
+</section>
+<div class="smallcap">LIVE INTELLIGENCE · <span id="viewName">PROJECT OVERVIEW</span></div>
+<section class="metrics" id="metrics" aria-label="Key metrics">
+ <div class="metric"><div class="smallcap">STATUS</div><div class="value">Ready</div><div class="note">Waiting for a display command</div></div>
+</section>
+<section class="columns">
+ <article class="panel"><div class="panelTitle"><h3 id="firstTitle">CURRENT PRIORITIES</h3><span class="smallcap">CHATGPT BRIDGE</span></div><div id="items"><p class="empty">Tell ChatGPT what you want to see on Polaris. The display will update automatically.</p></div></article>
+ <article class="panel"><div class="panelTitle"><h3>PROJECT DETAILS</h3><span class="smallcap">CONNECTED DISPLAY</span></div><div id="details"><p class="empty">Ready for project information.</p></div><div class="links" id="links"></div></article>
+</section>
+<footer class="foot"><span>POLARIS / CHATGPT CONTROLLED DISPLAY · READ-ONLY IN BROWSER</span><span id="updated">Waiting for first update</span><span id="clock">--:--</span></footer>
+</main><div id="eventFlash" role="status"></div>
+<script>
+(function(){
+"use strict";
+var lastRevision=-1,active=true,timer=null,pollMs=2500;
+function id(x){return document.getElementById(x)}
+function text(x,v){id(x).textContent=String(v==null?"":v)}
+function str(x,n){return String(x==null?"":x).slice(0,n)}
+function arr(x,n){return Array.isArray(x)?x.slice(0,n):[]}
+function status(ok,label){text("statusText",label);id("status").style.opacity=ok?"1":".58"}
+function flash(message){var e=id("eventFlash");e.textContent=message;e.style.opacity="1";clearTimeout(e._hide);e._hide=setTimeout(function(){e.style.opacity="0"},2700)}
+function makeMetric(o){
+ var el=document.createElement("div");el.className="metric";
+ var label=document.createElement("div");label.className="smallcap";label.textContent=str(o.label,60);
+ var value=document.createElement("div");value.className="value";value.textContent=str(o.value,60);
+ var note=document.createElement("div");note.className="note";note.textContent=str(o.note,150);
+ el.append(label,value,note);return el;
+}
+function makeItem(o,index){
+ var box=document.createElement("div");box.className="item";
+ var num=document.createElement("div");num.className="index";num.textContent=String(index+1).padStart(2,"0");
+ var info=document.createElement("div"),strong=document.createElement("strong"),para=document.createElement("p");
+ strong.textContent=typeof o==="string"?str(o,240):str(o.title,200);
+ para.textContent=typeof o==="string"?"":str(o.detail,700);
+ info.append(strong,para);box.append(num,info);return box;
+}
+function render(data){
+ if(!data||typeof data!=="object")return;
+ if(Number(data.revision)===lastRevision)return;
+ var hadState=lastRevision>=0;lastRevision=Number(data.revision)||0;
+ var p={};try{p=typeof data.payload==="string"?JSON.parse(data.payload):data.payload||{}}catch(e){}
+ text("title",str(data.title,180));text("subtitle",str(data.subtitle,900));
+ text("project",str(data.project,100).toUpperCase());text("revision","V."+lastRevision);
+ text("viewName",str(data.view||"overview",40).toUpperCase());
+ text("firstTitle",str(p.sectionTitle||"CURRENT PRIORITIES",75).toUpperCase());
+ var metrics=id("metrics");metrics.replaceChildren();
+ var records=arr(p.metrics,8);
+ if(!records.length)records=[{label:"DISPLAY",value:"READY",note:"Connected to ChatGPT command centre"}];
+ records.forEach(function(r){metrics.appendChild(makeMetric(r))});
+ var items=id("items");items.replaceChildren();
+ var priorities=arr(p.items||p.priorities,12);
+ if(!priorities.length){var p0=document.createElement("p");p0.className="empty";p0.textContent="No priorities supplied for this view.";items.appendChild(p0)}
+ else priorities.forEach(function(x,i){items.appendChild(makeItem(x,i))});
+ var details=id("details");details.replaceChildren();
+ var detailsData=arr(p.details||p.highlights,12);
+ if(!detailsData.length){var el=document.createElement("p");el.className="empty";el.textContent="No additional details supplied.";details.append(el)}
+ else detailsData.forEach(function(x,i){details.appendChild(makeItem(x,i))});
+ var links=id("links");links.replaceChildren();
+ arr(p.links,8).forEach(function(o){try{
+  var parsed=new URL(String(o.url||""));
+  if(parsed.protocol!=="https:")return;
+  var a=document.createElement("a");a.href=parsed.href;a.target="_blank";a.rel="noopener noreferrer";a.textContent=str(o.label||"Open link",70);
+  links.appendChild(a);
+ }catch(e){}});
+ text("updated","UPDATED "+str(data.updated_at||"",42).replace("T"," ").replace("Z"," UTC"));
+ if(hadState)flash("POLARIS UPDATED · "+str(data.project,50).toUpperCase());
+}
+async function poll(){
+ if(!active)return;
+ try{
+  var r=await fetch("/api/display-state",{credentials:"same-origin",cache:"no-store"});
+  if(r.status===401){status(false,"SIGN IN REQUIRED");return}
+  if(!r.ok)throw new Error("Read failed");
+  var result=await r.json();if(!result||!result.state)throw new Error("No state");
+  render(result.state);status(true,"DISPLAY CONNECTED");
+ }catch(e){status(false,"RECONNECTING")}
+ finally{timer=setTimeout(poll,pollMs)}
+}
+function clock(){
+ var d=new Date();text("clock",d.toLocaleString([],{weekday:"short",month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"}).toUpperCase())
+}
+id("full").addEventListener("click",function(){if(document.fullscreenElement)document.exitFullscreen();else document.documentElement.requestFullscreen().catch(function(){})});
+document.addEventListener("visibilitychange",function(){if(!document.hidden){clearTimeout(timer);poll()}});
+window.addEventListener("focus",function(){clearTimeout(timer);poll()});
+window.addEventListener("pagehide",function(){clearTimeout(timer)});
+clock();setInterval(clock,15000);poll();
+})();
+</script></body></html>
