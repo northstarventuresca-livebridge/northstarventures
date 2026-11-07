@@ -83,6 +83,7 @@ function runPolarisCommand(raw,fromVoice){
   }
  }
  // General requests—including reciting, teaching, planning and brainstorming—go straight to AI.
+ if(speaking)interruptSpeech();
  record((fromVoice?"Voice":"Typed")+" question: "+original);
  askAI(text,source);
 }
@@ -115,6 +116,70 @@ async function sendAI(message,source){
   if(inflightQueue.length){var next=inflightQueue.shift();sendAI(next.message,next.source)}
  }
 }
+
+// Read every part of a long conversational answer aloud, preserving pitch.
+var voiceEpoch=0;
+function dialogueSpeechParts(text){
+ var clean=String(text||"").replace(/\*\*/g,"").replace(/\u0060/g,"").replace(/^\s*[-#*]\s+/gm,"").trim(),parts=[];
+ while(clean.length){
+  if(clean.length<=610){parts.push(clean);break}
+  var candidate=clean.slice(0,610),split=-1;
+  for(var i=candidate.length-1;i>380;i--)if(/[.!?]/.test(candidate[i])&&/\s/.test(clean[i+1]||"")){split=i+1;break}
+  if(split<0){split=candidate.lastIndexOf(" ");if(split<340)split=610}
+  parts.push(clean.slice(0,split).trim());clean=clean.slice(split).trim();
+ }
+ return parts;
+}
+function interruptSpeech(){
+ voiceEpoch++;
+ if(activeAudio)try{
+  if(typeof activeAudio.polarisStop==="function")activeAudio.polarisStop();
+  else if(typeof activeAudio.stop==="function")activeAudio.stop();
+  else if(typeof activeAudio.pause==="function")activeAudio.pause();
+ }catch(e){}
+}
+var previousBarge=onBargeAudioFrame;
+onBargeAudioFrame=function(event){
+ var hadCapture=!!bargeCapture;
+ previousBarge(event);
+ if(!hadCapture&&bargeCapture)voiceEpoch++;
+};
+talk=function(message){
+ var full=String(message||"").trim();if(!full)return voiceQueue;
+ showReply(full);
+ var epoch=++voiceEpoch,chunks=dialogueSpeechParts(full);
+ if(activeAudio)try{
+  if(typeof activeAudio.polarisStop==="function")activeAudio.polarisStop();
+  else if(typeof activeAudio.stop==="function")activeAudio.stop();
+  else if(typeof activeAudio.pause==="function")activeAudio.pause();
+ }catch(e){}
+ voiceQueue=voiceQueue.catch(function(){}).then(async function(){
+  for(var i=0;i<chunks.length&&epoch===voiceEpoch;i++){
+   try{
+    if(audioContext&&audioContext.state!=="running")await audioContext.resume();
+    if(!audioContext||audioContext.state!=="running"){
+     setAudioStatus("SPEAKER LOCKED · TAP ENABLE AUDIO","error");return;
+    }
+    el("voiceHint").textContent="Generating speech"+(chunks.length>1?" · part "+(i+1)+" of "+chunks.length:"")+"...";
+    var response=await fetch("/api/tts",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({text:chunks[i]})});
+    if(!response.ok)throw new Error("Speech server "+response.status);
+    var bytes=await response.arrayBuffer();
+    if(epoch!==voiceEpoch)return;
+    if(bytes.byteLength<1000)throw new Error("Speech output empty");
+    speaking=true;await playPcmAudio(bytes);speaking=false;
+   }catch(e){
+    speaking=false;setAudioStatus("VOICE ERROR · "+String(e.message),"error");
+    record("Voice error: "+String(e.message).slice(0,140));return;
+   }
+  }
+  if(epoch===voiceEpoch){
+   setAudioStatus("SPEAKER READY · REPLY COMPLETE","ready");
+   if(listenWanted)el("voiceHint").textContent="Listening for your next question.";
+  }
+ });
+ return voiceQueue;
+};
+
 askAI=function(message,source){sendAI(message,source|| (lastInputWasVoice?"microphone":"typed"))};
 
 // Buffer final recognizer phrases and wait for an utterance pause before sending one question.
