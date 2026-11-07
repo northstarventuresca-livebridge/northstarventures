@@ -1,6 +1,15 @@
 // Polaris project knowledge v2.1 — read-only searchable snapshot of verified resources.
 // Only a repository and Worker inventory plus selected readme snapshots currently exist.
 // Live private resource access requires separate scoped read-only tokens.
+// Verified descriptions only. These are background facts, not a claim about live deployment state.
+const POLARIS_PROJECT_OVERVIEWS={
+ "TapBin":"PRODUCT OVERVIEW FROM THE TAPBIN SOURCE README: TapBin is North Star Ventures' multi-tenant inventory, storage and resale management system (tapbin.ca), initially built for Great Church and expanded for churches, businesses and personal inventory. It organises items into areas/rooms, bins and nested storage; supports search, adding or relocating items, NFC label/tap access, protected viewer PINs, organization administrators and moderators, invite-only onboarding, AI-assisted inventory entry, inventory reconciliation/re-inventory, and optional store/resale workflows. The primary GitHub codebase is northstarventuresca-livebridge/northstar-organizer, even though that repository name does not include TapBin. Features and security permissions are documented in its README; current production state needs fresh verification. When someone asks what TapBin is or how it works, describe this product directly rather than saying you only have its name.",
+ "X32 AI Engineer":"PROJECT OVERVIEW FROM VERIFIED DISCUSSIONS: A Behringer X32 mixer companion intended to analyze individual vocal microphones via Dante audio and offer/apply voice-specific EQ suggestions. Goals include recognizing singers or speakers by voiceprint, loading saved starting EQ per person, monitoring live voice, and checking mixer EQ through X32 OSC. Known deployed church Worker name: x32-ai-engineer-church, in the separate Global Connections Church Cloudflare account. A separate authorized church Cloudflare source connection is needed to inspect its live Worker, and status of the current mixer connection cannot be inferred from the project name.",
+ "HOH HUB":"PROJECT OVERVIEW: Home of Hope sponsorship administration and public sponsorship platform; child and microloan sponsorships, directory controls, staff/volunteers, sponsors and financial records, reports, marketing and approvals. Details and status are subject to source verification.",
+ "LiveBridge":"PROJECT OVERVIEW: North Star Ventures live voice translation, transcription and listener/broadcaster communications platform, with organizations, campuses and separate admin controls. Review actual LiveBridge repo and Worker state for implementation details.",
+ "Songwriters Compass":"PROJECT OVERVIEW: North Star Ventures AI-assisted songwriting workspace with theological guardrails for songwriters; source and active feature details require verification."
+};
+
 const POLARIS_KNOWN_PROJECTS=[
  "North Star Ventures","HOH HUB","LiveBridge","TapBin","Songwriters Compass",
  "X32 AI Engineer","Great Church","Healing The Heart","Northstar Organizer",
@@ -10,7 +19,7 @@ function polarisProjectName(text){
  const t=String(text||"").toLowerCase().replace(/^(?:hey|hi)\s+polaris[,\s]*/,"");
  if(/\b(?:hoh|home of hope|microloans?|sponsorships?)\b/.test(t))return "HOH HUB";
  if(t.includes("livebridge")||t.includes("live bridge"))return "LiveBridge";
- if(t.includes("tapbin")||t.includes("tap bin"))return "TapBin";
+ if(/\btap\s*(?:bin|been|bean|bend)\b/i.test(t)||t.includes("tapbin"))return "TapBin";
  if(t.includes("songwriters")||t.includes("songwriter")||t.includes("compass"))return "Songwriters Compass";
  if(/\bx32\b/.test(t)||t.includes("audio engineer"))return "X32 AI Engineer";
  if(t.includes("great church")||t.includes("greatchurch"))return "Great Church";
@@ -41,7 +50,7 @@ async function polarisProjectContext(env,project,query){
   ]);
   const resources=(found.results||[]).map(r=>r.source+": "+r.name+(r.visibility?" ["+r.visibility+"]":"")).join("\n");
   const refs=(documents.results||[]).map(r=>"[README snapshot "+r.repository+"/"+r.path+", section "+r.chunk_number+"]\n"+String(r.body).slice(0,1550)).join("\n\n");
-  const notes="PROJECT SOURCE INVENTORY (read-only snapshot, not live sync):\n"+resources.slice(0,detailed?5900:1700)+
+  const notes="VERIFIED PROJECT OVERVIEW:\n"+(POLARIS_PROJECT_OVERVIEWS[chosen]||"Project identity is recognized; consult source excerpts for verified details.")+"\n\nPROJECT SOURCE INVENTORY (read-only snapshot, not live sync):\n"+resources.slice(0,detailed?5900:1700)+
    "\n\nPROJECT DOCUMENT EXCERPTS (limited README snapshots, not entire codebase):\n"+refs.slice(0,detailed?8000:900)+
    "\n\nIMPORTANT: Do not claim files have been read live or that these are current deployments. For deeper or current analysis of private GitHub code and Cloudflare source, a separately authorized scoped read-only connection must be added.";
   return {name:chosen,notes};
