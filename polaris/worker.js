@@ -136,7 +136,7 @@ const POLARIS_KNOWN_PROJECTS=[
  "Polaris","Other / Client Projects"
 ];
 function polarisProjectName(text){
- const t=String(text||"").toLowerCase();
+ const t=String(text||"").toLowerCase().replace(/^(?:hey|hi)\s+polaris[,\s]*/,"");
  if(/\b(?:hoh|home of hope|microloans?|sponsorships?)\b/.test(t))return "HOH HUB";
  if(t.includes("livebridge")||t.includes("live bridge"))return "LiveBridge";
  if(t.includes("tapbin")||t.includes("tap bin"))return "TapBin";
@@ -145,7 +145,7 @@ function polarisProjectName(text){
  if(t.includes("great church")||t.includes("greatchurch"))return "Great Church";
  if(t.includes("healing the heart")||t.includes("hth"))return "Healing The Heart";
  if(t.includes("northstar organizer")||t.includes("northstar-organizer"))return "Northstar Organizer";
- if(t.includes("polaris"))return "Polaris";
+ if(/\bpolaris\b/.test(t)&&/\b(?:app|project|dashboard|worker|code|files?|settings|website|hub)\b/.test(t))return "Polaris";
  if(t.includes("north star ventures")||t.includes("northstar ventures"))return "North Star Ventures";
  return "";
 }
@@ -162,14 +162,16 @@ async function polarisProjectContext(env,project,query){
    return {name:"All tracked resources",notes:"Verified metadata snapshot (not live inventory); repo file contents are not indexed in full.\n"+desc.slice(0,6000)};
   }
   if(!chosen)return {name:"",notes:""};
+  const detailed=/\b(?:how|why|code|source|readme|file|repository|repo|detail|architecture|implementation|features|changes|built|build|develop|docs|inspect|review|what did|last)\b/i.test(text);
+  const maxDocSections=detailed?8:1;
   const [found,documents]=await Promise.all([
    env.POLARIS_DB.prepare("SELECT source,name,path,visibility,notes FROM project_registry WHERE project=? ORDER BY source,name LIMIT 45").bind(chosen).all(),
-   env.POLARIS_DB.prepare("SELECT repository,path,chunk_number,body,captured_at FROM project_documents WHERE project=? ORDER BY repository,path,chunk_number LIMIT 8").bind(chosen).all()
+   env.POLARIS_DB.prepare("SELECT repository,path,chunk_number,body,captured_at FROM project_documents WHERE project=? ORDER BY repository,path,chunk_number LIMIT ?").bind(chosen,maxDocSections).all()
   ]);
   const resources=(found.results||[]).map(r=>r.source+": "+r.name+(r.visibility?" ["+r.visibility+"]":"")).join("\n");
   const refs=(documents.results||[]).map(r=>"[README snapshot "+r.repository+"/"+r.path+", section "+r.chunk_number+"]\n"+String(r.body).slice(0,1550)).join("\n\n");
-  const notes="PROJECT SOURCE INVENTORY (read-only snapshot, not live sync):\n"+resources.slice(0,5900)+
-   "\n\nPROJECT DOCUMENT EXCERPTS (limited README snapshots, not entire codebase):\n"+refs.slice(0,8000)+
+  const notes="PROJECT SOURCE INVENTORY (read-only snapshot, not live sync):\n"+resources.slice(0,detailed?5900:1700)+
+   "\n\nPROJECT DOCUMENT EXCERPTS (limited README snapshots, not entire codebase):\n"+refs.slice(0,detailed?8000:900)+
    "\n\nIMPORTANT: Do not claim files have been read live or that these are current deployments. For deeper or current analysis of private GitHub code and Cloudflare source, a separately authorized scoped read-only connection must be added.";
   return {name:chosen,notes};
  }catch(e){return {name:chosen,notes:"Project registry could not be loaded at this time."}}
