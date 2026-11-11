@@ -46,3 +46,19 @@ Offline hunter's phone ↔ BLE ↔ ThinkNode M1 A
 5. Field tests in Alberta terrain, offline topo packages, encryption and reliability tuning.
 
 Never market this prototype as a replacement for an emergency satellite device.
+
+## Hunter identities, SOS and sighting alerts (2026-11-11)
+- The map now uses miniature walking hunter SVG characters instead of dots, with names above their heads and 8 selectable jacket colours.
+- Each authenticated team (currently team-secret-based beta) has a persistent `hunter_presence` record: latest GPS, last contact time, colour, and active help flag. Help remains active across page refreshes and message-history trimming until the same apparent hunter clears it. **Per-member authentication/cryptographic identities are still required** before treating SOS control as tamper-resistant.
+- With location sharing enabled (default on for newly joined users; browser prompts for permission), the **visible** web app watches the phone GPS and posts updates when movement reaches 30 m or the last transmitted fix is older than 45 seconds, subject to connectivity and OS constraints. It pauses tracking when the page is hidden.
+- Hunter cards and map popups show last reported GPS age. A request-location action sends a target-addressed event. A receiving **open, visible app with GPS sharing enabled** responds with a new fix if browser permission and GPS are available. It does not wake a closed or locked app.
+- A Need Help action posts a persistent server-side SOS status and triggers a blinking hunter/map banner, including "LOCATION UNKNOWN" when there is no usable position. Users can clear their own help status from their active browser. Delivery is subject to connectivity; not an emergency communication guarantee.
+- Fresh cow/bull moose sighting pins from other hunters, and Help events, trigger an interruptive in-app modal. Where supported, vibration repeats every ~2.2 seconds while the app is visible until dismissed. Users can test the alert under Setup. Browser notifications require permission and do not provide guaranteed closed-app delivery or indefinite lock-screen vibration.
+- Android-native follow-up: explicit foreground/background-location permissions, foreground service and consent, proper notification channel for important alerts, phone BLE connection, remote request routing across LoRa/cellular, autonomous radio GPS position broadcasts and reconciliation. Locked-screen delivery and vibration patterns must be tested against Android OS power/notification restrictions.
+- **Safety:** a device without power, GPS fix, radio connectivity, or cellular coverage cannot be remotely located on demand. Show last-known position with timestamp rather than a fake live location. This is not a satellite SOS replacement.
+
+## Validation
+- Deployed to NorthStar Cloudflare Worker `spectra-fieldlink`.
+- Mobile-sized browser test: 9/9 map tiles, 2 walking hunters with labels, 8 hunter colours, SOS blink/clear, moose alert dismiss.
+- Live cellular beta: team creation and pin write verified in the database; SOS event submitted and confirmed in `hunter_presence` with `needs_help=1`.
+- Two-user location request and closed-app notification not yet validated.
