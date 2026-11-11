@@ -113,7 +113,7 @@ if(path==="/api/push/pending"&&request.method==="POST"){
  if(!pushUrl(endpoint)||!/^[\w-]{12,160}$/.test(authValue))return fail("Invalid notification credentials",401);
  const sub=await env.DB.prepare("SELECT team,member FROM fieldlink_push_subscriptions WHERE endpoint=? AND auth_hash=?").bind(endpoint,await digest(authValue)).first();
  if(!sub)return fail("Notification subscription not found",401);
- const row=await env.DB.prepare("SELECT q.id AS queue_id,e.id,e.kind,e.marker_icon,e.author_name,e.body FROM fieldlink_push_outbox q JOIN events e ON e.id=q.event_id AND e.team=q.team WHERE q.endpoint=? AND q.team=? AND q.delivered=0 AND e.deleted=0 AND e.author<>? ORDER BY q.id LIMIT 1").bind(endpoint,sub.team,sub.member).first();
+ const row=await env.DB.prepare("SELECT q.id AS queue_id,e.id,e.kind,e.marker_icon,e.author_name,e.body FROM fieldlink_push_outbox q JOIN events e ON e.id=q.event_id AND e.team=q.team WHERE q.endpoint=? AND q.team=? AND q.delivered=0 AND e.deleted=0 AND e.is_private=0 AND e.author<>? ORDER BY q.id LIMIT 1").bind(endpoint,sub.team,sub.member).first();
  if(!row)return json({empty:true});
  await env.DB.prepare("UPDATE fieldlink_push_outbox SET delivered=1 WHERE id=? AND delivered=0").bind(row.queue_id).run();
  const title=row.kind==="help"?"🚨 HUNTER NEEDS HELP":row.kind==="pin"?(row.marker_icon==="bull"?"🫎 Bull moose spotted!":"🫎 Cow moose spotted!"):"💬 New team message";
@@ -200,6 +200,7 @@ if(path==="/api/markers"&&request.method==="POST"){
  const body=String(data.body||"").trim(),icon=String(data.marker_icon||""),color=String(data.marker_color||""),privateMarker=data.is_private===true?1:0;
  if(!body||body.length>80||!["cow","bull","buck","doe","hunter"].includes(icon)||!["#B7EA84","#F7B267","#F36C6C","#79B8FF","#B5A2FF","#FFFFFF","#F1D95C","#5ADBB5"].includes(color))return fail("Invalid marker details");
  await env.DB.prepare("UPDATE events SET body=?,marker_icon=?,marker_color=?,is_private=? WHERE id=? AND team=? AND author=? AND deleted=0").bind(body,icon,color,privateMarker,id,team,account.member_id).run();
+ if(privateMarker===1)await env.DB.prepare("DELETE FROM fieldlink_push_outbox WHERE team=? AND event_id=?").bind(team,id).run();
  return json({ok:true,updated:true})
 }
 return fail("Not found",404)
