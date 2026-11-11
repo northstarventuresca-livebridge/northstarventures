@@ -51,3 +51,10 @@
 - Registration API checks expiry at submission, not just at page display. Expired links are rejected.
 - Verified live against isolated QA data: two separate hunter registrations using identical URL both succeeded; after expiry the signup page disabled registration. Temporary QA team/accounts cleaned up.
 - **Security note:** Whoever possesses a reusable invite URL can join during the 24-hour period, including unintended recipients if forwarded. Do not post the link publicly.
+
+## GPS interval and permission controls — November 11, 2026
+- Under **Setup**, a persisted slider controls GPS sampling/possible location broadcasts: 15s, 30s, 1m (default), 2m, 5m, 10m, 15m, 20m, or 30m.
+- Optional (default on) stationary battery saver suppresses broadcasts when <30m movement until at least 15m has elapsed; updates only occur on the configured sampling interval. Manual location requests bypass the normal rate limit while open and permission granted.
+- GPS sampling uses one `getCurrentPosition` per selected interval instead of a continuous high-accuracy watch. Position polling pauses while the app is hidden. An in-flight GPS result cannot transmit after the app is hidden.
+- At startup and when returning to the foreground, the browser Permissions API is checked if available. When permission is absent/blocked, a visible in-app explanation prompts the user to allow location or change site settings. Granting permission starts live GPS if sharing is enabled. Sharing can be paused independently.
+- Real Android lock-screen/background GPS still requires native implementation. Web GPS availability, energy savings and permission behaviour vary by device and browser.
