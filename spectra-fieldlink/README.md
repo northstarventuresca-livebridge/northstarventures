@@ -15,8 +15,8 @@
 
 ## Invite-only hunter identities
 - Public team creation and shared-secret sign-in disabled. The demo UI remains publicly viewable; **actual private team data requires an individual registered member token**.
-- One founder registration invite was issued for the private `SPECTRAHUNT1` team, named `Spectra Hunting Team`. **Never put full unredeemed invite URL or bearer tokens in GitHub.**
-- Existing hunter can tap **Team → Invite another hunter** to create a one-time invitation link (7-day expiry). Invitee opens link in a phone browser, enters name (2–28 characters), selects one of eight hunter colours, then registers.
+- One founder registration invite (single-use for captain access) was issued for the private `SPECTRAHUNT1` team, named `Spectra Hunting Team`. **Never put full unredeemed invite URL or bearer tokens in GitHub.**
+- Existing hunter can tap **Team → Invite another hunter** to create a reusable 24-hour invitation link. Any number of invited hunters can register through that link before it expires. Invitee opens link in a phone browser, enters name (2–28 characters), selects one of eight hunter colours, then registers.
 - Registration persists a 192-bit random bearer token in browser storage; only its SHA-256 hash is in D1. Server validates that identity for every team event and ignores client-supplied author/name/colour for impersonation prevention.
 - The single-use invite token is only a bearer invitation: whoever opens it first can redeem it. There is not yet email/phone-based person verification, password recovery, or multiple-device login. Clearing browser app data may require reinvitation.
 - Server-only registered hunter can send messages, GPS, map pins and create invites; marker modification requires the registered author identity, not possession of the group link.
@@ -43,3 +43,11 @@
 - Not yet verified on real phones with radio hardware, outdoor GPS reception, actual closed-app/lock-screen reliability or end-to-end encrypted transport.
 
 **Safety:** This is a beta, not a substitute for a satellite SOS device or emergency communicator.
+
+## Invitation policy update — November 11, 2026
+- Team → Invite another hunter now generates a **reusable 24-hour invitation URL**. Anyone possessing the URL can register a distinct hunter name, colour, and bearer token before expiry.
+- A reused hunter invite **does not become invalid on first registration**. Each registration gets a unique `hunter_members.invite_hash` to satisfy the original unique index. `hunter_invites.used_at` stays NULL for hunter links.
+- The existing unredeemed invite for `SPECTRAHUNT1` was reset to a 24-hour expiry starting from the deployment (2026-11-11). The originally redeemed captain invite remains single-use to protect the captain role.
+- Registration API checks expiry at submission, not just at page display. Expired links are rejected.
+- Verified live against isolated QA data: two separate hunter registrations using identical URL both succeeded; after expiry the signup page disabled registration. Temporary QA team/accounts cleaned up.
+- **Security note:** Whoever possesses a reusable invite URL can join during the 24-hour period, including unintended recipients if forwarded. Do not post the link publicly.
