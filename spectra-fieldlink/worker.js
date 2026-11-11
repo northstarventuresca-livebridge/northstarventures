@@ -212,7 +212,8 @@ if(path==="/api/events"&&(request.method==="GET"||request.method==="POST")){
   if(kind==="position"&&geo&&stored.meta?.changes===1){
    const reportedAccuracy=Number(data.accuracy);
    const safeAccuracy=Number.isFinite(reportedAccuracy)&&reportedAccuracy>0&&reportedAccuracy<10000?reportedAccuracy:null;
-   await env.DB.prepare("INSERT OR IGNORE INTO gps_day_history(event_id,team,author,lat,lon,accuracy,created) VALUES (?,?,?,?,?,?,?)").bind(id,team,author,data.lat,data.lon,safeAccuracy,created).run();
+   const reportedAt=Number(data.created),recordedAt=Number.isSafeInteger(reportedAt)&&reportedAt<=created+5*60000&&reportedAt>=created-7*86400000?reportedAt:created;
+   await env.DB.prepare("INSERT OR IGNORE INTO gps_day_history(event_id,team,author,lat,lon,accuracy,created) VALUES (?,?,?,?,?,?,?)").bind(id,team,author,data.lat,data.lon,safeAccuracy,recordedAt).run();
    await recordMovingLocation(env,team,author,data.lat,data.lon,safeAccuracy,created);
   }
   const needs=kind==="help"?1:0;
