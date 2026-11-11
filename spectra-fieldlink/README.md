@@ -1,64 +1,45 @@
-# Spectra FieldLink — hybrid hunting communicator
+# Spectra FieldLink — hunting communication app
 
-## Current deployed preview (2026-11-11)
-- Preview URL: https://fieldlink.northstarventures.ca
-- Worker: `spectra-fieldlink` on NorthStar Cloudflare; isolated from existing apps.
-- D1 database: `spectra-fieldlink`; private teams, stored cellular events (messages, one-tap texts, GPS updates, shared pins).
-- Source: this repository's `feature/spectra-fieldlink` branch, `spectra-fieldlink/worker.js`.
-- Installable mobile PWA. Interactive Leaflet map, **online tiles only**; demo mode clearly distinguished from live cellular.
-- Strong random team secret (stored hashed in D1) required to read/write a group. Sharing that secret grants group access; individual accounts and end-to-end encryption are NOT yet implemented.
-- Browser client supports queued cellular events when offline, retried when internet returns.
-- Marker types: cow moose, bull moose, buck, doe, hunter; 8 selectable colours. Marker appearance and names can be edited later.
-- New pins require a cryptographically random per-marker capability, stored only in the creator browser; the server verifies a SHA-256 hash for edits and soft-deletion. Group secret alone does **not** authorize others to delete. Pending edits/deletes queue locally when offline.
-- Existing pins created before the per-marker key rollout cannot be securely attributed and remain read-only. Clearing browser storage loses marker editing capabilities. Future user accounts/device key recovery are needed for cross-device ownership.
-- UI demo browser smoke-tested: 5 icon choices, 8 colours, add, edit and delete all passed. Mobile map tiles loaded (9/9). Full two-user live permission test remains pending. Queued events are device-local until uploaded.
-- An online client polls events every seven seconds. No guarantee of timely delivery, radio retransmission, or emergency signaling.
-- The UI's LoRa option and relay are **not yet functional**; Android-native BLE and offline map packs require separate implementation.
-- Release check: Cloudflare deployment and D1 binding confirmed; browser rendering displays the Leaflet map and quick-message buttons. End-to-end two-device cellular sharing is not yet field-tested.
+## Deployed preview — November 11, 2026
+- Live: https://fieldlink.northstarventures.ca
+- Source: NorthStar GitHub `northstarventuresca-livebridge/northstarventures`, branch `feature/spectra-fieldlink`, file `spectra-fieldlink/worker.js`.
+- Cloudflare Worker `spectra-fieldlink`; separate D1 database `spectra-fieldlink`. Existing unrelated services were not modified.
+- Web PWA: browser installation / Add to Home Screen works where supported; native Android application has NOT been built.
 
-## Target hybrid architecture
-```
-Offline hunter's phone ↔ BLE ↔ ThinkNode M1 A
-                              ⇣ 915 MHz Meshtastic LoRa
-                       ThinkNode M1 B ↔ BLE ↔ Hunter B phone (internet)
-                                                ⇣ HTTPS
-                                         Cloudflare team API
-                                                ⇣ HTTPS
-                                        Remote hunter phones
-```
-- One team ID + identity, one event log, one map irrespective of transport.
-- Modes: AUTO (prefer available transport and dedupe), LORA ONLY, CELLULAR/INTERNET ONLY.
-- Gateway mode: a hunter's opted-in Android app, paired by BLE to an M1 while also online, translates LoRa events to secure Cloudflare API events and internet events back to the mesh.
-- **Gateway radio and Bluetooth must remain functional**; an internet-only hunter can send cellular independently if M1 battery dies.
-- Android foreground service + battery optimization guidance for BLE gateway; connectivity checks and explicit bridge status.
-- Use a canonical event ID across radio and internet and a persistent seen-ID cache to dedupe and prevent loops. Avoid repeat rebroadcast; enforce bounded retries, hop limit/TTL, and per-sender send limits for low LoRa airtime usage.
-- Privacy: default private Meshtastic channel and team secret; no public Meshtastic MQTT broker for private location tracking. Server-side D1 currently stores plaintext; add E2E encryption and proper individual identities prior to wide rollout.
-- If considering Meshtastic built-in MQTT proxy, it is an alternative radio-to-internet path (with phone network) that may reduce custom Bluetooth bridge complexity, but should be assessed carefully against FieldLink's unified per-team account/history requirements.
-- Offline map: licensed downloadable map vector/terrain pack stored on Android (e.g. MapLibre/MBTiles), not bulk downloading OSM's public raster tile service. GPS and local markers work without network. Marker synchronization goes across LoRa or cellular as available.
-- Radio protocol: compact `event_id`, event kind, author node ID, coordinates and short text in Meshtastic app data (within payload limits); do not send imagery/map tiles over LoRa.
-- Test with two ThinkNode M1 nRF52840/915 MHz devices, check Canadian ISED compliance, pair one M1 per Android phone.
+## Maps
+- Three persisted online map modes: **Hybrid** (Esri satellite imagery + Esri World Transportation roads and places reference layers), **Satellite**, and **Road map** (OpenStreetMap).
+- Site-specific cutlines and ATV/quad trails may be visible in satellite imagery but not every informal track is in the mapped road data.
+- GPS auto-centers the map on the first authorised GPS fix; later updates refresh hunter location without unexpectedly moving the map.
+- All satellite imagery, roads and labels are attributed. Esri World Transportation raster overlay is a legacy service scheduled for retirement in 2028; before wider commercial release, replace with an appropriately licensed vector map provider.
+- Online tiles only; **downloadable offline terrain/satellite maps are not yet supported**. Do not bulk-harvest OSM/Esri map tiles for offline use.
 
-## Next verified milestones
-1. Two-phone cellular team create/join, messages, map pins, GPS, and receipt tests on live site.
-2. Native Android application scaffolding for BLE and offline map packages.
-3. M1 BLE connection and Meshtastic packet send/receive.
-4. BLE + cellular gateway bidirectional sync, dedup, queue, battery failure tests.
-5. Field tests in Alberta terrain, offline topo packages, encryption and reliability tuning.
+## Invite-only hunter identities
+- Public team creation and shared-secret sign-in disabled. The demo UI remains publicly viewable; **actual private team data requires an individual registered member token**.
+- One founder registration invite was issued for the private `SPECTRAHUNT1` team, named `Spectra Hunting Team`. **Never put full unredeemed invite URL or bearer tokens in GitHub.**
+- Existing hunter can tap **Team → Invite another hunter** to create a one-time invitation link (7-day expiry). Invitee opens link in a phone browser, enters name (2–28 characters), selects one of eight hunter colours, then registers.
+- Registration persists a 192-bit random bearer token in browser storage; only its SHA-256 hash is in D1. Server validates that identity for every team event and ignores client-supplied author/name/colour for impersonation prevention.
+- The single-use invite token is only a bearer invitation: whoever opens it first can redeem it. There is not yet email/phone-based person verification, password recovery, or multiple-device login. Clearing browser app data may require reinvitation.
+- Server-only registered hunter can send messages, GPS, map pins and create invites; marker modification requires the registered author identity, not possession of the group link.
 
-Never market this prototype as a replacement for an emergency satellite device.
+## Field features
+- Hunter icons are small coloured walking figures with names and last known GPS ages. Server persists last location, hunter colour and current Need Help status.
+- While web app is active and permission is given, GPS updates on movement and periodically; **no reliable background/locked-phone GPS** until native app.
+- **Request GPS** sends a targeted event; the recipient's currently visible, permission-enabled app can answer, but a switched-off / unreachable phone or radio cannot be remotely located.
+- Map markers: cow moose, bull moose, buck, doe, hunter; eight colours; server owner-authorised edit/delete.
+- Messages, quick responses, GPS, SOS and map markers are stored in D1 for cellular-connected hunters.
+- Cow/bull moose and Help events from other hunters cause in-app alert with repeating supported vibration until dismissed, **only while web app is active**. Locked-screen alerts / wake behaviour are pending Android-native development.
+- Auto / LoRa / Cellular UI present, but LoRa and LoRa-to-cellular relay **are not functional yet**.
 
-## Hunter identities, SOS and sighting alerts (2026-11-11)
-- The map now uses miniature walking hunter SVG characters instead of dots, with names above their heads and 8 selectable jacket colours.
-- Each authenticated team (currently team-secret-based beta) has a persistent `hunter_presence` record: latest GPS, last contact time, colour, and active help flag. Help remains active across page refreshes and message-history trimming until the same apparent hunter clears it. **Per-member authentication/cryptographic identities are still required** before treating SOS control as tamper-resistant.
-- With location sharing enabled (default on for newly joined users; browser prompts for permission), the **visible** web app watches the phone GPS and posts updates when movement reaches 30 m or the last transmitted fix is older than 45 seconds, subject to connectivity and OS constraints. It pauses tracking when the page is hidden.
-- Hunter cards and map popups show last reported GPS age. A request-location action sends a target-addressed event. A receiving **open, visible app with GPS sharing enabled** responds with a new fix if browser permission and GPS are available. It does not wake a closed or locked app.
-- A Need Help action posts a persistent server-side SOS status and triggers a blinking hunter/map banner, including "LOCATION UNKNOWN" when there is no usable position. Users can clear their own help status from their active browser. Delivery is subject to connectivity; not an emergency communication guarantee.
-- Fresh cow/bull moose sighting pins from other hunters, and Help events, trigger an interruptive in-app modal. Where supported, vibration repeats every ~2.2 seconds while the app is visible until dismissed. Users can test the alert under Setup. Browser notifications require permission and do not provide guaranteed closed-app delivery or indefinite lock-screen vibration.
-- Android-native follow-up: explicit foreground/background-location permissions, foreground service and consent, proper notification channel for important alerts, phone BLE connection, remote request routing across LoRa/cellular, autonomous radio GPS position broadcasts and reconciliation. Locked-screen delivery and vibration patterns must be tested against Android OS power/notification restrictions.
-- **Safety:** a device without power, GPS fix, radio connectivity, or cellular coverage cannot be remotely located on demand. Show last-known position with timestamp rather than a fake live location. This is not a satellite SOS replacement.
+## Architecture / next milestones
+- Planned: Android app ↔ Bluetooth ↔ ThinkNode M1 ↔ 915 MHz Meshtastic LoRa ↔ other hunters; internet-connected hunter's paired Android app acts as an opt-in LoRa/cellular bridge with event IDs, dedup, acknowledgments and retries.
+- Planned: licensed offline satellite/topo vector/raster maps on Android, a secure account recovery method, robust background tracking, location request delivery in background, hardened notifications and end-to-end encryption.
+- Hardware field tests require the two ThinkNode M1 915 MHz nRF52840 units and Canadian-compliance verification.
 
-## Validation
-- Deployed to NorthStar Cloudflare Worker `spectra-fieldlink`.
-- Mobile-sized browser test: 9/9 map tiles, 2 walking hunters with labels, 8 hunter colours, SOS blink/clear, moose alert dismiss.
-- Live cellular beta: team creation and pin write verified in the database; SOS event submitted and confirmed in `hunter_presence` with `needs_help=1`.
-- Two-user location request and closed-app notification not yet validated.
+## Tests
+- New app loaded from root domain after cache refresh: 27/27 hybrid map tiles and road/label overlays loaded in mobile-sized browser; all three modes present.
+- Invite-only signup tested on temporary QA team: one hunter registered using link, generated a new invitation; second user registered separately with custom colour; both appeared on one team roster. QA records deleted.
+- Founder's private invite was validated against the live service without redeeming.
+- Previous tests: demo map pins created/edited/deleted, blinking SOS, test moose alert dismissed; cellular SOS persistence verified in D1.
+- Not yet verified on real phones with radio hardware, outdoor GPS reception, actual closed-app/lock-screen reliability or end-to-end encrypted transport.
+
+**Safety:** This is a beta, not a substitute for a satellite SOS device or emergency communicator.
