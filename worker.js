@@ -849,7 +849,20 @@ async function nsProcessPendingWebsiteBuilds(e){
  for(const x of jobs.slice(0,1))await nsAutoAdvanceOne(e,x.name);
 }
 
-export default{async scheduled(event,e,ctx){ctx.waitUntil((async()=>{try{await nsProcessWebsiteReadyEmails(e)}catch{}await nsProcessPendingWebsiteBuilds(e)})())},async fetch(r,e){const u=new URL(r.url);const projectsResponse=await handleProjects(r,e,u,auth);if(projectsResponse)return projectsResponse;const diagnosticsResponse=await handleDiagnostics(r,e,u,auth);if(diagnosticsResponse)return diagnosticsResponse;const recoveryResponse=await handleAdminPasswordRecovery(r,e,u);if(recoveryResponse)return recoveryResponse;const cardResponse=await handleCardAccessRequest(r,e,u,auth);if(cardResponse)return cardResponse;
+async function validateNorthStarInternalRoute(checkId){
+ if(checkId==="public-home"){
+   const ok=/<!doctype html/i.test(NS_HOME_HTML)&&/<html/i.test(NS_HOME_HTML);
+   return {status:ok?"passed":"failed"};
+ }
+ if(checkId==="admin-route"){
+   const response=page(),html=await response.text();
+   const ok=response.status===200&&/<!doctype html/i.test(html)&&
+     html.includes("nsv-projects-view")&&html.includes("ph-tab-diagnostics");
+   return {status:ok?"passed":"failed"};
+ }
+ return {status:"failed"};
+}
+export default{async scheduled(event,e,ctx){ctx.waitUntil((async()=>{try{await nsProcessWebsiteReadyEmails(e)}catch{}await nsProcessPendingWebsiteBuilds(e)})())},async fetch(r,e){const u=new URL(r.url);const projectsResponse=await handleProjects(r,e,u,auth);if(projectsResponse)return projectsResponse;const diagnosticsResponse=await handleDiagnostics(r,e,u,auth,{selfCheck:validateNorthStarInternalRoute});if(diagnosticsResponse)return diagnosticsResponse;const recoveryResponse=await handleAdminPasswordRecovery(r,e,u);if(recoveryResponse)return recoveryResponse;const cardResponse=await handleCardAccessRequest(r,e,u,auth);if(cardResponse)return cardResponse;
 if(u.pathname==="/api/internal/client-site-check"&&r.method==="POST")return nsInternalVerifyClientSite(r,e);
 if(u.pathname==="/admin/potential-websites"||u.pathname==="/admin/potential-websites/"){if(r.method!=="GET"&&r.method!=="HEAD")return new Response("Method not allowed",{status:405});return new Response(r.method==="HEAD"?null:NS_PROSPECT_HTML,{headers:{"content-type":"text/html; charset=utf-8","cache-control":"private,no-store","x-robots-tag":"noindex,nofollow","x-frame-options":"DENY","x-content-type-options":"nosniff"}})}
 if(u.pathname==="/admin/websites"||u.pathname==="/admin/websites/"){
