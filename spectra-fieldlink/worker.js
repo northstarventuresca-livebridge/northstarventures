@@ -6,21 +6,52 @@ function fail(message,status=400){return json({error:message},status)}
 function hex(bytes){return Array.from(bytes).map(x=>x.toString(16).padStart(2,"0")).join("")}
 async function digest(s){return hex(new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s))))}
 function token(){return hex(crypto.getRandomValues(new Uint8Array(24)))}
-async function auth(request,env,team){if(!team||!/^[A-Z0-9]{8,16}$/.test(team))return null;const secret=(request.headers.get("Authorization")||"").replace(/^Bearer\s+/i,"").trim();if(!/^[a-f0-9]{48}$/.test(secret))return null;const h=await digest(secret);return await env.DB.prepare("SELECT team_id, title FROM teams WHERE team_id=? AND secret_hash=?").bind(team,h).first()}
+async function auth(request,env,team){if(!team||!/^[A-Z0-9]{8,16}$/.test(team))return null;const token=(request.headers.get("Authorization")||"").replace(/^Bearer\s+/i,"").trim();if(!/^[a-f0-9]{48}$/.test(token))return null;const hash=await digest(token);const a=await env.DB.prepare("SELECT m.id AS member_id,m.hunter_name,m.hunter_color,m.role,t.team_id,t.title FROM hunter_members m JOIN teams t ON t.team_id=m.team WHERE m.team=? AND m.login_hash=?").bind(team,hash).first();return a||null}
 function securityHeaders(extra){return {...HEADERS,...extra}}
 export default {async fetch(request,env){
 const url=new URL(request.url),path=url.pathname;
 if(path==="/health")return json({ok:true,app:"Spectra FieldLink",cellular:true,lora:"pending native Android",hybrid:"planned"});
 if(path==="/manifest.webmanifest")return new Response(JSON.stringify({name:"Spectra FieldLink",short_name:"FieldLink",start_url:"/",scope:"/",display:"standalone",background_color:"#0d1714",theme_color:"#0d1714",icons:[{src:"/icon.svg",sizes:"any",type:"image/svg+xml",purpose:"any maskable"}]}),{headers:securityHeaders({"content-type":"application/manifest+json"})});
 if(path==="/icon.svg")return new Response('<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192"><rect width="192" height="192" rx="34" fill="#10251a"/><path d="M34 94l32-25 26 50 31-55 35 30" fill="none" stroke="#b7ea84" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/></svg>',{headers:{"content-type":"image/svg+xml"}});
-if(path==="/sw.js")return new Response('const C="fieldlink-shell-v8";self.addEventListener("install",e=>e.waitUntil(caches.open(C).then(c=>c.addAll(["/","/icon.svg"]))));self.addEventListener("fetch",e=>{let u=new URL(e.request.url);if(e.request.method!=="GET"||u.pathname.startsWith("/api/")||u.pathname==="/health"||u.origin!==location.origin)return;if(u.pathname==="/"){e.respondWith(fetch(e.request).then(r=>{let c=r.clone();caches.open(C).then(x=>x.put(e.request,c));return r}).catch(()=>caches.match("/")));}});',{headers:{"content-type":"application/javascript","Cache-Control":"no-cache"}});
+if(path==="/sw.js")return new Response('const C="fieldlink-shell-v9";self.addEventListener("install",e=>e.waitUntil(caches.open(C).then(c=>c.addAll(["/","/icon.svg"]))));self.addEventListener("fetch",e=>{let u=new URL(e.request.url);if(e.request.method!=="GET"||u.pathname.startsWith("/api/")||u.pathname==="/health"||u.origin!==location.origin)return;if(u.pathname==="/"){e.respondWith(fetch(e.request).then(r=>{let c=r.clone();caches.open(C).then(x=>x.put(e.request,c));return r}).catch(()=>caches.match("/")));}});',{headers:{"content-type":"application/javascript","Cache-Control":"no-cache"}});
 if(path==="/"||path==="/index.html")return new Response(PAGE,{headers:{"content-type":"text/html; charset=utf-8","Cache-Control":"no-cache","X-Content-Type-Options":"nosniff","Referrer-Policy":"strict-origin-when-cross-origin","X-Frame-Options":"DENY"}});
-if(path==="/api/team"&&request.method==="POST"){
- let data;try{data=await request.json()}catch{return fail("Invalid JSON")}
- const title=String(data.title||"FieldLink team").trim().slice(0,45);if(!title)return fail("Team name required");
- const team_id=token().slice(0,12).toUpperCase(),secret=token(),secret_hash=await digest(secret);
- await env.DB.prepare("INSERT INTO teams(team_id,secret_hash,title,created) VALUES (?,?,?,?)").bind(team_id,secret_hash,title,Date.now()).run();
- return json({team_id,secret,title},201);
+
+if(path==="/api/invite-info"&&request.method==="GET"){
+ const code=String(url.searchParams.get("code")||"");
+ if(!/^[a-f0-9]{48}$/.test(code))return fail("Invitation not valid",404);
+ const i=await env.DB.prepare("SELECT t.title,i.role FROM hunter_invites i JOIN teams t ON t.team_id=i.team WHERE i.code_hash=? AND i.used_at IS NULL AND i.expires>?").bind(await digest(code),Date.now()).first();
+ if(!i)return fail("This invitation has expired or has already been used",410);
+ return json({valid:true,team_name:i.title,role:i.role});
+}
+if(path==="/api/register"&&request.method==="POST"){
+ let data;try{data=await request.json()}catch{return fail("Invalid registration")}
+ const code=String(data.code||""),name=String(data.name||"").trim(),color=String(data.color||"");
+ if(!/^[a-f0-9]{48}$/.test(code)||name.length<2||name.length>28||!["#B7EA84","#F7B267","#F36C6C","#79B8FF","#B5A2FF","#FFFFFF","#F1D95C","#5ADBB5"].includes(color))return fail("Enter your name and choose a hunter colour");
+ const hash=await digest(code),now=Date.now(),login=token(),loginHash=await digest(login),id=token().slice(0,24);
+ const stmt=env.DB.prepare("INSERT INTO hunter_members(id,team,hunter_name,hunter_color,login_hash,invite_hash,role,created,last_seen) SELECT ?,i.team,?,?,?,i.code_hash,i.role,?,? FROM hunter_invites i WHERE i.code_hash=? AND i.used_at IS NULL AND i.expires>?").bind(id,name,color,loginHash,now,now,hash,now);
+ let result;
+ try{result=await stmt.run()}catch(e){return fail("Invitation has already been redeemed",410)}
+ if(result.meta?.changes!==1)return fail("Invitation is expired or already used",410);
+ await env.DB.prepare("UPDATE hunter_invites SET used_at=? WHERE code_hash=? AND used_at IS NULL").bind(now,hash).run();
+ const member=await env.DB.prepare("SELECT t.title,t.team_id,m.role FROM hunter_members m JOIN teams t ON t.team_id=m.team WHERE m.id=?").bind(id).first();
+ return json({member_id:id,token:login,member_name:name,member_color:color,role:member.role,team_id:member.team_id,title:member.title},201);
+}
+if(path==="/api/invite"&&request.method==="POST"){
+ const team=url.searchParams.get("team"),member=await auth(request,env,team);
+ if(!member)return fail("Hunter sign-in required",401);
+ const code=token(),now=Date.now(),expires=now+7*24*60*60*1000;
+ await env.DB.prepare("INSERT INTO hunter_invites(code_hash,team,created_by,role,created,expires,used_at) VALUES (?,?,?,?,?,?,NULL)").bind(await digest(code),team,member.member_id,"hunter",now,expires).run();
+ return json({invite_url:url.origin+"/?invite="+code,expires,team_name:member.title});
+}
+if(path==="/api/member-color"&&request.method==="POST"){
+ const team=url.searchParams.get("team"),member=await auth(request,env,team);
+ if(!member)return fail("Hunter sign-in required",401);
+ let data;try{data=await request.json()}catch{return fail("Invalid body")}
+ const color=String(data.color||"");
+ if(!["#B7EA84","#F7B267","#F36C6C","#79B8FF","#B5A2FF","#FFFFFF","#F1D95C","#5ADBB5"].includes(color))return fail("Invalid colour");
+ await env.DB.prepare("UPDATE hunter_members SET hunter_color=? WHERE id=? AND team=?").bind(color,member.member_id,team).run();
+ await env.DB.prepare("UPDATE hunter_presence SET hunter_color=? WHERE author=? AND team=?").bind(color,member.member_id,team).run();
+ return json({ok:true,color});
 }
 if(path==="/api/events"&&(request.method==="GET"||request.method==="POST")){
  const team=url.searchParams.get("team"),account=await auth(request,env,team);
@@ -28,12 +59,13 @@ if(path==="/api/events"&&(request.method==="GET"||request.method==="POST")){
  if(request.method==="GET"){
   const items=await env.DB.prepare("SELECT id,author,author_name,kind,body,lat,lon,created,marker_icon,marker_color,hunter_color FROM events WHERE team=? AND deleted=0 ORDER BY created DESC LIMIT 200").bind(team).all();
   const hunters=await env.DB.prepare("SELECT author,author_name,hunter_color,lat,lon,location_at,last_contact,needs_help,help_at FROM hunter_presence WHERE team=? LIMIT 50").bind(team).all();
-  return json({team:account.title,events:(items.results||[]).reverse(),hunters:hunters.results||[]});
+  const members=await env.DB.prepare("SELECT id,hunter_name,hunter_color,role,created,last_seen FROM hunter_members WHERE team=? LIMIT 50").bind(team).all();
+  return json({team:account.title,events:(items.results||[]).reverse(),hunters:hunters.results||[],members:members.results||[],you:account.member_id});
  }
  let data;try{data=await request.json()}catch{return fail("Invalid JSON")}
- const id=String(data.id||""),author=String(data.author||""),name=String(data.author_name||""),kind=String(data.kind||""),body=String(data.body||"").trim();const markerIcon=String(data.marker_icon||"buck"),markerColor=String(data.marker_color||"#F7B267"),markerToken=String(data.marker_token||"");
+ const id=String(data.id||""),author=account.member_id,name=account.hunter_name,kind=String(data.kind||""),body=String(data.body||"").trim();const markerIcon=String(data.marker_icon||"buck"),markerColor=String(data.marker_color||"#F7B267"),markerToken=String(data.marker_token||"");
  if(!/^[\w-]{8,64}$/.test(id)||!/^[\w-]{8,64}$/.test(author)||name.length<1||name.length>28||!["message","pin","position","help","help_clear","location_request"].includes(kind)||!body||body.length>160)return fail("Invalid event");
- const geo=(typeof data.lat==="number"&&typeof data.lon==="number"&&Number.isFinite(data.lat)&&Number.isFinite(data.lon)&&Math.abs(data.lat)<=90&&Math.abs(data.lon)<=180);const hunterColor=String(data.hunter_color||"#B7EA84");if(!["#B7EA84","#F7B267","#F36C6C","#79B8FF","#B5A2FF","#FFFFFF","#F1D95C","#5ADBB5"].includes(hunterColor))return fail("Invalid hunter colour");
+ const geo=(typeof data.lat==="number"&&typeof data.lon==="number"&&Number.isFinite(data.lat)&&Number.isFinite(data.lon)&&Math.abs(data.lat)<=90&&Math.abs(data.lon)<=180);const hunterColor=account.hunter_color;
  if(["position","pin"].includes(kind)&&!geo)return fail("GPS coordinates required");
  if(kind==="pin"&&(!/^[a-f0-9]{48}$/.test(markerToken)||!["cow","bull","buck","doe","hunter"].includes(markerIcon)||!["#B7EA84","#F7B267","#F36C6C","#79B8FF","#B5A2FF","#FFFFFF","#F1D95C","#5ADBB5"].includes(markerColor)))return fail("Invalid marker settings or owner key");
  let created=Date.now();
@@ -53,18 +85,17 @@ if(path==="/api/markers"&&request.method==="POST"){
  const id=String(data.id||""),token=String(data.token||""),action=String(data.action||"");
  if(!/^[\w-]{8,64}$/.test(id)||!/^[a-f0-9]{48}$/.test(token)||!["delete","update"].includes(action))return fail("Invalid marker request");
  const hash=await digest(token);
- const rec=await env.DB.prepare("SELECT id,delete_hash,deleted FROM events WHERE team=? AND id=? AND kind='pin'").bind(team,id).first();
+ const rec=await env.DB.prepare("SELECT id,author,delete_hash,deleted FROM events WHERE team=? AND id=? AND kind='pin'").bind(team,id).first();
  if(!rec)return fail("Marker not found",404);
- if(!rec.delete_hash)return fail("Legacy marker has no verifiable owner key; cannot modify it",409);
- if(rec.delete_hash!==hash)return fail("Only the marker owner can modify this pin",403);
+ if(rec.author!==account.member_id)return fail("Only the hunter who created this marker may modify it",403);
  if(rec.deleted===1)return json({ok:true,deleted:true});
  if(action==="delete"){
-  await env.DB.prepare("UPDATE events SET deleted=1 WHERE id=? AND team=? AND delete_hash=? AND deleted=0").bind(id,team,hash).run();
+  await env.DB.prepare("UPDATE events SET deleted=1 WHERE id=? AND team=? AND author=? AND deleted=0").bind(id,team,account.member_id).run();
   return json({ok:true,deleted:true})
  }
  const body=String(data.body||"").trim(),icon=String(data.marker_icon||""),color=String(data.marker_color||"");
  if(!body||body.length>80||!["cow","bull","buck","doe","hunter"].includes(icon)||!["#B7EA84","#F7B267","#F36C6C","#79B8FF","#B5A2FF","#FFFFFF","#F1D95C","#5ADBB5"].includes(color))return fail("Invalid marker details");
- await env.DB.prepare("UPDATE events SET body=?,marker_icon=?,marker_color=? WHERE id=? AND team=? AND delete_hash=? AND deleted=0").bind(body,icon,color,id,team,hash).run();
+ await env.DB.prepare("UPDATE events SET body=?,marker_icon=?,marker_color=? WHERE id=? AND team=? AND author=? AND deleted=0").bind(body,icon,color,id,team,account.member_id).run();
  return json({ok:true,updated:true})
 }
 return fail("Not found",404)
