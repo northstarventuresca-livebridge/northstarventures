@@ -7,7 +7,11 @@
 - Source: this repository's `feature/spectra-fieldlink` branch, `spectra-fieldlink/worker.js`.
 - Installable mobile PWA. Interactive Leaflet map, **online tiles only**; demo mode clearly distinguished from live cellular.
 - Strong random team secret (stored hashed in D1) required to read/write a group. Sharing that secret grants group access; individual accounts and end-to-end encryption are NOT yet implemented.
-- Browser client supports queued cellular events when offline, retried when internet returns. Queued events are device-local until uploaded.
+- Browser client supports queued cellular events when offline, retried when internet returns.
+- Marker types: cow moose, bull moose, buck, doe, hunter; 8 selectable colours. Marker appearance and names can be edited later.
+- New pins require a cryptographically random per-marker capability, stored only in the creator browser; the server verifies a SHA-256 hash for edits and soft-deletion. Group secret alone does **not** authorize others to delete. Pending edits/deletes queue locally when offline.
+- Existing pins created before the per-marker key rollout cannot be securely attributed and remain read-only. Clearing browser storage loses marker editing capabilities. Future user accounts/device key recovery are needed for cross-device ownership.
+- UI demo browser smoke-tested: 5 icon choices, 8 colours, add, edit and delete all passed. Mobile map tiles loaded (9/9). Full two-user live permission test remains pending. Queued events are device-local until uploaded.
 - An online client polls events every seven seconds. No guarantee of timely delivery, radio retransmission, or emergency signaling.
 - The UI's LoRa option and relay are **not yet functional**; Android-native BLE and offline map packs require separate implementation.
 - Release check: Cloudflare deployment and D1 binding confirmed; browser rendering displays the Leaflet map and quick-message buttons. End-to-end two-device cellular sharing is not yet field-tested.
