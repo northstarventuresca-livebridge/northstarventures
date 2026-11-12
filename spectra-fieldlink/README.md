@@ -122,3 +122,10 @@
 - Non-green markers, green hunter-person pins and markers hidden by **Hide others' marks** do not display the glow. Existing private-marker privacy remains server-enforced.
 - Sighting editor displays a short explanation when a green deer/moose marker combination is selected. Popup includes minutes since sighting and approximate illustrative radius.
 - Tested in isolated staging with temporary markers: 10-minute green moose radius 333m, 40-minute 1,333m, green deer 10-minute 417m; no glow after 46 minutes or for orange deer/green hunter or other hunters' hidden markers. Original marker remained visible after glow expiry. Both 390×844 phone and 733×1536 Fold passed. Production v31 verified maps, messages, notifications, private marker editor, Daily Trek, map fullscreen and no horizontal overflow.
+
+## Visible animal movement halos and red = shot — November 11, 2026 (FieldLink v32)
+- **All deer/moose marker colours except red (#F36C6C)** now show growing faded movement-area circles for 45 minutes from marker creation. The halo matches the selected pin colour. No halo for human/hunter-type pins.
+- Red deer/moose pins are labelled **Shot** in the picker, marker popups and marker list, and **never show a movement halo**; other marker and notification semantics are unchanged.
+- Fix for initially hard-to-see glow: dramatically increased ring visibility on hybrid satellite imagery and added a **26px soft screen-sized halo** around new animal sightings, even at wide map zoom. Geodesic area continues expanding with elapsed time based on illustrative walking pace (moose 2 km/h, deer 2.5 km/h); these are not predictive movement bounds.
+- Existing private marker and Hide others' marks permissions remain in effect. All rings and center glow stop at 45 minutes; the saved pin persists.
+- Isolated QA tested green bull, orange doe and blue buck (four visible SVG layers each), red shot (zero), >45min old pins (zero), human-type pin (zero), and hidden other-hunter pin (zero). Verified styling, colour, popup and editor on phone and Fold. Live v32 verification confirmed the loaded map, shot picker labels, chat, push, Daily Trek and full-screen controls.
