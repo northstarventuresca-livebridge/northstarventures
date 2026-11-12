@@ -9,7 +9,12 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
+
+# Only publish the latest tested native build to the stable, public download URL.
+concurrency:
+  group: spectra-fieldlink-android-beta
+  cancel-in-progress: true
 
 jobs:
   build-android:
@@ -42,3 +47,19 @@ jobs:
           name: Spectra-FieldLink-Android-debug
           path: spectra-fieldlink/android/app/build/outputs/apk/debug/*.apk
           retention-days: 14
+
+      - name: Publish stable public Android download link
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="spectra-fieldlink-android-beta"
+          FILE="spectra-fieldlink/android/app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$FILE"
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --target "$GITHUB_SHA" \
+              --title "Spectra FieldLink Android Beta" \
+              --notes "Android-only Spectra FieldLink test build. GPS tracking works while Android permits the location service to run. This is an unsigned-for-release debug beta, not an emergency locator." \
+              --prerelease
+          fi
+          gh release upload "$TAG" "$FILE#Spectra-FieldLink.apk" --clobber
+          echo "Public Spectra APK: https://github.com/${GITHUB_REPOSITORY}/releases/download/$TAG/Spectra-FieldLink.apk"
