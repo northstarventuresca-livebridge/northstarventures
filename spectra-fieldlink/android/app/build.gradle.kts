@@ -3,15 +3,23 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
+val embeddedInvite: String = (providers.gradleProperty("spectraTeamInvite").orNull ?: "").also {
+    require(it.isEmpty() || Regex("[a-f0-9]{48}").matches(it)) {
+        "Team invite must be empty or a valid 48-character invitation token"
+    }
+}
+
 android {
+    buildFeatures { buildConfig = true }
     namespace = "ca.northstarventures.spectra"
     compileSdk = 35
     defaultConfig {
         applicationId = "ca.northstarventures.spectra"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0-field-test"
+        versionCode = 2
+        versionName = "0.2.0-one-app-beta"
+        buildConfigField("String", "TEAM_INVITE", "\\"$embeddedInvite\\"")
     }
     buildTypes {
         release {
