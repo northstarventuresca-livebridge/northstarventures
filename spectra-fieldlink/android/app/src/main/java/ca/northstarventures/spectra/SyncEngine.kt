@@ -44,6 +44,7 @@ object SyncEngine {
                         .put("lon", fix.lon)
                         .put("accuracy", fix.accuracy)
                         .put("created", fix.capturedAt)
+                        .put("transport", "android-native")
                     val result = request(
                         "/api/events?team=" + fix.team, "POST", token, event
                     )
