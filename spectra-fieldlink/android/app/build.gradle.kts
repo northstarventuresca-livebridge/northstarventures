@@ -17,8 +17,8 @@ android {
         applicationId = "ca.northstarventures.spectra"
         minSdk = 26
         targetSdk = 35
-        versionCode = 3
-        versionName = "0.3.0-gps-status-beta"
+        versionCode = 4
+        versionName = "0.4.0-native-hunter-alerts-beta"
         buildConfigField("String", "TEAM_INVITE", "\"$embeddedInvite\"")
     }
     buildTypes {
