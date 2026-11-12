@@ -115,6 +115,28 @@ async function queuePush(env,ctx,team,sender,eventId,kind,target=null){
 
 export default {async fetch(request,env,ctx){
 const url=new URL(request.url),path=url.pathname;
+/* Public version-only endpoint. The Android APK is HTTPS-downloaded, hashed,
+   signed and installed by Android with explicit user approval; no team token is exposed. */
+if(path==="/api/android/latest"&&request.method==="GET"){
+ const api="https://api.github.com/repos/northstarventuresca-livebridge/northstarventures/releases/tags/spectra-fieldlink-android-beta";
+ let upstream;
+ try{
+  upstream=await fetch(api,{headers:{"Accept":"application/vnd.github+json","User-Agent":"Spectra-FieldLink-Version-Check"},cf:{cacheEverything:true,cacheTtl:180}});
+ }catch{return fail("Update service temporarily unavailable",503)}
+ if(!upstream.ok)return fail("Update service temporarily unavailable",503);
+ let release;
+ try{release=await upstream.json()}catch{return fail("Invalid update metadata",502)}
+ const text=String(release.body||""),code=Number((text.match(/versionCode=(\\d+)/)||[])[1]||0);
+ const match=text.match(/versionName=([a-zA-Z0-9._-]+)/),name=match?match[1]:"";
+ const item=(release.assets||[]).find(a=>a.name==="Spectra-FieldLink.apk");
+ const urlPrefix="https://github.com/northstarventuresca-livebridge/northstarventures/releases/download/spectra-fieldlink-android-beta/";
+ if(!Number.isSafeInteger(code)||code<6||!name||!item||!String(item.browser_download_url||"").startsWith(urlPrefix)||
+    !/^sha256:[a-f0-9]{64}$/.test(String(item.digest||""))||
+    !Number.isSafeInteger(item.size)||item.size<100000||item.size>65000000)
+  return fail("No verified signed Android update published yet",404);
+ return json({version_code:code,version_name:name,url:item.browser_download_url,
+   sha256:item.digest.slice(7),size:item.size,notes:"Stability, hunting-team features and native tracking improvements."});
+}
 if(path==="/install"&&request.method==="GET"){
  const code=String(url.searchParams.get("code")||"").trim().toUpperCase();
  const valid=/^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{12}$/.test(code);
