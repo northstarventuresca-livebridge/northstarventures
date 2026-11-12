@@ -27,6 +27,7 @@ object SyncEngine {
         val authorName: String,
         val body: String,
         val markerIcon: String,
+        val sosId: String,
         val created: Long
     )
 
@@ -146,11 +147,11 @@ object SyncEngine {
                     val created = item.optLong("created", 0)
                     val kind = item.optString("kind")
                     if (id.isEmpty() || created <= 0 || prefs.hasSeenAlert(team, id)) continue
-                    if (kind != "help" && kind != "help_clear" &&
+                    if (kind != "help" && kind != "help_clear" && kind != "sos_response" &&
                         !(kind == "pin" && item.optString("marker_icon") in listOf("cow", "bull"))) continue
                     alerts.add(HunterAlert(id, kind, item.optString("author"),
                         item.optString("author_name", "Hunter"), item.optString("body"),
-                        item.optString("marker_icon"), created))
+                        item.optString("marker_icon"), item.optString("sos_id"), created))
                 }
                 // When multiple teams are joined, don't ever deliver team A's
                 // alerts into team B's active app session.
