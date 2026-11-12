@@ -103,6 +103,7 @@ class MainActivity : Activity() {
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
                 if (url == null || !url.startsWith(origin + "/")) return
+                webView.evaluateJavascript("window.SpectraNativeShareReady = true;", null)
                 val team = prefs.activeTeam
                 if (team.isNotBlank()) prefs.session(team)?.let(::hydrateWebSession)
             }
