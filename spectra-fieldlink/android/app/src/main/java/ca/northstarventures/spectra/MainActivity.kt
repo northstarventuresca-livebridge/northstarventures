@@ -348,6 +348,11 @@ class MainActivity : Activity() {
         if (!::prefs.isInitialized) return
         uiHandler.removeCallbacks(statusTicker)
         uiHandler.post(statusTicker)
+        UpdateManager.resumeInstallIfAllowed(this)
+        // Check for signed, in-place updates when opened. Offline GPS is unaffected.
+        uiHandler.postDelayed({
+            if (!isFinishing && !isDestroyed) UpdateManager.check(this)
+        }, 3_000L)
         // An Android Task Manager stop can kill the service without calling onDestroy.
         // Verify the actual service on every foreground entry; never silently resume
         // location sharing after an explicit stop or use a stale 'enabled' preference.
