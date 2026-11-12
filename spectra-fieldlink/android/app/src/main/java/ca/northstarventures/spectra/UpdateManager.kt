@@ -49,15 +49,17 @@ object UpdateManager {
         Thread {
             try {
                 val response = open(VERSION_URL)
-                val code = response.responseCode
-                if (code == 404) return@Thread // Nothing permanently signed yet.
-                if (code !in 200..299) return@Thread
-                val release = response.inputStream.bufferedReader().use { input ->
-                    val obj = JSONObject(input.readText())
-                    Release(obj.getInt("version_code"), obj.getString("version_name"),
-                        obj.getString("url"), obj.getString("sha256"),
-                        obj.getLong("size"))
-                }
+                val release = try {
+                    val code = response.responseCode
+                    if (code == 404) return@Thread // Nothing permanently signed yet.
+                    if (code !in 200..299) return@Thread
+                    response.inputStream.bufferedReader().use { input ->
+                        val obj = JSONObject(input.readText())
+                        Release(obj.getInt("version_code"), obj.getString("version_name"),
+                            obj.getString("url"), obj.getString("sha256"),
+                            obj.getLong("size"))
+                    }
+                } finally { response.disconnect() }
                 if (release.version <= BuildConfig.VERSION_CODE ||
                     release.version == promptedVersion ||
                     release.url != TRUSTED_APK ||
@@ -101,14 +103,15 @@ object UpdateManager {
             try {
                 val dir = File(activity.cacheDir, "updates").apply { mkdirs() }
                 val ready = File(dir, "Spectra-FieldLink-v" + release.version + ".apk")
-                temp = File(dir, "spectra-pending.tmp")
+                val partial = File(dir, "spectra-pending.tmp")
+                temp = partial
                 val digest = MessageDigest.getInstance("SHA-256")
                 val connection = open(release.url)
                 try {
                     check(connection.responseCode in 200..299) { "Update download unavailable" }
                     var total = 0L
                     connection.inputStream.use { input ->
-                        FileOutputStream(temp).use { output ->
+                        FileOutputStream(partial).use { output ->
                             val buffer = ByteArray(64 * 1024)
                             while (true) {
                                 val count = input.read(buffer)
@@ -124,12 +127,12 @@ object UpdateManager {
                 } finally { connection.disconnect() }
                 val downloadedHash = digest.digest().joinToString("") { "%02x".format(it) }
                 check(downloadedHash == release.sha256) { "Update signature checksum mismatch" }
-                check(validatePackage(activity, temp, release.version)) {
+                check(validatePackage(activity, partial, release.version)) {
                     "This update has a different Android signing key. The current install " +
                     "cannot be updated in place."
                 }
                 if (ready.exists()) ready.delete()
-                check(temp.renameTo(ready)) { "Could not prepare update file" }
+                check(partial.renameTo(ready)) { "Could not prepare update file" }
                 temp = null
                 activity.runOnUiThread {
                     progress.dismiss()
