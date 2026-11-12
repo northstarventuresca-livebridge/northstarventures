@@ -222,7 +222,7 @@ if(path==="/api/sos/respond"&&request.method==="POST"){
  const current=await env.DB.prepare(
   "SELECT status,updated FROM sos_responses WHERE team=? AND sos_id=? AND responder=?"
  ).bind(team,sosId,member.member_id).first();
- return json({ok:true,changed,status:current?.status||status,sos_id:sosId,responder:member.member_id,responded_at:current?.updated||now});
+ return json({ok:true,changed,status:current?.status||status,sos_id:sosId,sos_author:sos.author,responder:member.member_id,responded_at:current?.updated||now});
 }
 
 if(path==="/api/native/pair/create"&&request.method==="POST"){
