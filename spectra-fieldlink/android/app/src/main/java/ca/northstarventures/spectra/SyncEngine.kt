@@ -157,8 +157,15 @@ object SyncEngine {
                 if (prefs.activeTeam != team || !prefs.enabled) return@execute
                 deliver(team, alerts)
                 val serverTime = parsed.optLong("server_time", now)
-                if (serverTime > 0 && serverTime <= System.currentTimeMillis() + 60_000L)
-                    prefs.setAlertCursor(team, maxOf(last, serverTime - 3_000L))
+                if (serverTime > 0 && serverTime <= System.currentTimeMillis() + 60_000L) {
+                    // A full page may have more alerts waiting. Never advance past
+                    // messages the server has not returned yet.
+                    val lastRecord = records.optJSONObject(records.length() - 1)
+                    val pageTime = if (records.length() >= 80)
+                        lastRecord?.optLong("created", serverTime) ?: serverTime
+                    else serverTime
+                    prefs.setAlertCursor(team, maxOf(last, pageTime - 3_000L))
+                }
             } catch (_: Exception) {
                 // Network or notification failure: cursor doesn't move, retry later.
             } finally { alertPolling.set(false) }
