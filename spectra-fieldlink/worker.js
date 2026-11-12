@@ -178,7 +178,7 @@ if(path==="/api/native/alerts"&&request.method==="GET"){
   "FROM events e JOIN fieldlink_app_members a ON a.team=e.team AND a.member=e.author "+
   "WHERE e.team=? AND e.deleted=0 AND e.is_private=0 AND e.author<>? "+
   "AND e.created>? AND e.created<=? "+
-  "AND e.kind IN ('help','help_clear','pin','message') "+
+  "AND (e.kind IN ('help','help_clear') OR (e.kind='pin' AND e.marker_icon IN ('cow','bull'))) "+
   "ORDER BY e.created ASC,e.id ASC LIMIT 80"
  ).bind(team,account.member_id,after,now).all();
  return json({alerts:data.results||[],server_time:now});
