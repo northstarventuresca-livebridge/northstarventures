@@ -50,6 +50,9 @@ class MainActivity : Activity() {
     }
     private data class PendingSos(val team: String, val sosId: String, val choice: String)
     private var pendingSos: PendingSos? = null
+    // Ignore an old WebView sharing=off value while an explicit SOS action
+    // is switching native GPS on. Reconcile the WebView as soon as it loads.
+    private var sosGpsSyncPending = false
     private val origin = "https://fieldlink.northstarventures.ca"
     private val preassignedTeamInvite = BuildConfig.TEAM_INVITE
     private lateinit var prefs: TrackingPrefs
@@ -119,9 +122,13 @@ class MainActivity : Activity() {
                 super.onPageFinished(view, url)
                 if (url == null || !url.startsWith(origin + "/")) return
                 webView.evaluateJavascript("window.SpectraNativeShareReady = true; window.SpectraNativeSosReady = true;", null)
-                if (prefs.enabled && prefs.sharing)
+                if (prefs.enabled && prefs.sharing) {
                     webView.evaluateJavascript(
-                        "if(typeof setLocationSharing==='function')setLocationSharing(true);", null)
+                        "if(typeof setLocationSharing==='function'){setLocationSharing(true);true;}else false;"
+                    ) { result ->
+                        if (result == "true") sosGpsSyncPending = false
+                    }
+                }
                 val team = prefs.activeTeam
                 if (team.isNotBlank()) prefs.session(team)?.let(::hydrateWebSession)
             }
@@ -200,7 +207,14 @@ class MainActivity : Activity() {
                     val oldTeam = prefs.activeTeam
                     prefs.saveAccount(team, member, token)
                     prefs.sharing = sharing
-                    if (!sharing) {
+                    if (!sharing && sosGpsSyncPending && prefs.enabled && prefs.sharing) {
+                        // Browser storage can still say OFF for a moment after
+                        // a hunter tapped Acknowledge + GPS from the lockscreen.
+                        webView.post {
+                            webView.evaluateJavascript(
+                                "if(typeof setLocationSharing==='function')setLocationSharing(true);", null)
+                        }
+                    } else if (!sharing) {
                         prefs.enabled = false
                         stopService(Intent(this, TrackingService::class.java))
                     } else if (prefs.enabled && oldTeam != team && hasFinePermission()) {
@@ -277,6 +291,7 @@ class MainActivity : Activity() {
                 else maybeAskNotificationsThenStart()
             } else {
                 pendingSos = null
+                sosGpsSyncPending = false
                 Toast.makeText(this, "Location permission is required to acknowledge an SOS and share GPS",
                     Toast.LENGTH_LONG).show()
             }
@@ -621,6 +636,7 @@ class MainActivity : Activity() {
         }
         if (pendingSos != null) return
         pendingSos = PendingSos(team, sosId, choice)
+        sosGpsSyncPending = true
         if (!hasFinePermission()) {
             requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION,
                 Manifest.permission.ACCESS_COARSE_LOCATION), 10)
@@ -639,6 +655,7 @@ class MainActivity : Activity() {
         if (!TrackingService.trackingActive) startTracker()
         uiHandler.postDelayed({
             if (!TrackingService.trackingActive || !prefs.enabled || !prefs.sharing) {
+                sosGpsSyncPending = false
                 Toast.makeText(this, "GPS could not start. SOS response was NOT sent. " +
                     "Enable location permission and tap the SOS action again.",
                     Toast.LENGTH_LONG).show()
