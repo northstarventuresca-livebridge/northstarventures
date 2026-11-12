@@ -102,6 +102,24 @@ class TrackingPrefs(context: Context) {
     fun setAlertCursor(team: String, value: Long) =
         prefs.edit().putLong("alert_cursor_" + team, value).apply()
 
+    /** A pending SOS notification action cannot be forged or replayed from another app. */
+    fun issueSosActionNonce(team: String, sosId: String, choice: String): String {
+        val key = "sos_notification_" + team + "_" + sosId + "_" + choice
+        val nonce = java.util.UUID.randomUUID().toString()
+        prefs.edit().putString(key, nonce)
+            .putLong(key + "_issued", System.currentTimeMillis()).apply()
+        return nonce
+    }
+
+    fun consumeSosActionNonce(team: String, sosId: String, choice: String, nonce: String): Boolean {
+        if (nonce.isBlank()) return false
+        val key = "sos_notification_" + team + "_" + sosId + "_" + choice
+        val valid = prefs.getString(key, "") == nonce &&
+            System.currentTimeMillis() - prefs.getLong(key + "_issued", 0L) in 0..86_400_000L
+        if (valid) prefs.edit().remove(key).remove(key + "_issued").apply()
+        return valid
+    }
+
     private fun key(): SecretKey {
         val store = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
         (store.getKey(alias, null) as? SecretKey)?.let { return it }
