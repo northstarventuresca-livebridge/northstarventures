@@ -1,6 +1,11 @@
 package ca.northstarventures.spectra
 
 import android.Manifest
+import android.app.AlertDialog
+import android.text.InputType
+import android.widget.EditText
+import java.net.HttpURLConnection
+import java.net.URL
 import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -133,7 +138,7 @@ class MainActivity : Activity() {
             return
         }
         if (prefs.activeTeam.isBlank() || prefs.token(prefs.activeTeam).isNullOrBlank()) {
-            Toast.makeText(this, "Join a hunting team first", Toast.LENGTH_LONG).show()
+            pairPhone()
             return
         }
         if (!prefs.sharing) {
@@ -189,12 +194,12 @@ class MainActivity : Activity() {
     private fun renderTracking() {
         val active = prefs.enabled && prefs.sharing
         status.text = when {
-            prefs.activeTeam.isBlank() -> "Pocket GPS: join a team"
+            prefs.activeTeam.isBlank() -> "Pocket GPS: pair existing hunter"
             active -> "Pocket GPS ON · screen-off tracking"
             else -> "Pocket GPS OFF · start before heading out"
         }
-        button.text = if (active) "Stop GPS" else "Start GPS"
-        button.isEnabled = prefs.activeTeam.isNotBlank()
+        button.text = if (prefs.activeTeam.isBlank()) "Pair phone" else if (active) "Stop GPS" else "Start GPS"
+        button.isEnabled = true
     }
 
     override fun onResume() {
@@ -218,6 +223,80 @@ class MainActivity : Activity() {
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
         if (webView.canGoBack()) webView.goBack() else super.onBackPressed()
+    }
+
+
+    private fun pairPhone() {
+        val code = EditText(this).apply {
+            hint = "8-digit phone link code"
+            inputType = InputType.TYPE_CLASS_NUMBER
+            filters = arrayOf(android.text.InputFilter.LengthFilter(8))
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Connect your existing hunter")
+            .setMessage("In Chrome, open Spectra → Setup → Connect native Android app → Generate phone link code. Enter it here; no duplicate hunter account is created.")
+            .setView(code)
+            .setNegativeButton("Cancel", null)
+            .setPositiveButton("Pair phone") { _, _ ->
+                val value = code.text.toString().trim()
+                if (value.length != 8) Toast.makeText(this, "Enter all 8 digits", Toast.LENGTH_LONG).show()
+                else redeemPhoneCode(value)
+            }
+            .show()
+    }
+
+    private fun redeemPhoneCode(code: String) {
+        Toast.makeText(this, "Linking Spectra phone…", Toast.LENGTH_SHORT).show()
+        Thread {
+            try {
+                val conn = URL(origin + "/api/native/pair/redeem").openConnection() as HttpURLConnection
+                val reply: JSONObject
+                try {
+                    conn.requestMethod = "POST"
+                    conn.connectTimeout = 10_000
+                    conn.readTimeout = 10_000
+                    conn.doOutput = true
+                    conn.setRequestProperty("Content-Type", "application/json")
+                    conn.outputStream.use {
+                        it.write(JSONObject().put("code", code).toString().toByteArray(Charsets.UTF_8))
+                    }
+                    val status = conn.responseCode
+                    val data = (if (status in 200..299) conn.inputStream else conn.errorStream)
+                        ?.bufferedReader()?.use { it.readText() } ?: "{}"
+                    reply = JSONObject(data)
+                    if (status !in 200..299) throw IllegalStateException(reply.optString("error", "Code not accepted"))
+                } finally { conn.disconnect() }
+                val team = reply.getString("team_id")
+                val member = reply.getString("member_id")
+                val token = reply.getString("token")
+                prefs.saveAccount(team, member, token)
+                prefs.sharing = true
+                runOnUiThread {
+                    val session = JSONObject()
+                        .put("team_id", team).put("member_id", member)
+                        .put("member_name", reply.getString("member_name"))
+                        .put("member_color", reply.getString("member_color"))
+                        .put("title", reply.getString("title"))
+                        .put("role", reply.getString("role")).put("token", token)
+                    val url = webView.url?.let { Uri.parse(it) }
+                    if (url?.scheme == "https" && url.host == "fieldlink.northstarventures.ca") {
+                        val quoted = JSONObject.quote(session.toString())
+                        webView.evaluateJavascript(
+                            "localStorage.setItem('fieldlink_session'," + quoted + ");" +
+                            "localStorage.setItem('fieldlink_sessions',JSON.stringify([" +
+                            quoted + "].map(JSON.parse)));" +
+                            "location.reload();", null
+                        )
+                    } else webView.loadUrl(origin + "/")
+                    renderTracking()
+                    Toast.makeText(this, "Hunter linked! Tap Start GPS.", Toast.LENGTH_LONG).show()
+                }
+            } catch (e: Exception) {
+                runOnUiThread {
+                    Toast.makeText(this, "Pairing failed: " + (e.message ?: "Try again"), Toast.LENGTH_LONG).show()
+                }
+            }
+        }.start()
     }
 
     private fun dp(n: Int) = (resources.displayMetrics.density * n).toInt()
