@@ -304,6 +304,31 @@ class TrackingService : Service() {
                 current.markAlertSeen(team, alert.id)
                 continue
             }
+            if (alert.kind == "sos_response") {
+                val onWay = alert.body == "on_my_way"
+                val title = (if (onWay) "🚶 On My Way · " else "✅ SOS acknowledged · ") +
+                    alert.authorName.take(28)
+                val body = if (onWay)
+                    alert.authorName.take(28) + " is coming to help and sharing GPS."
+                    else alert.authorName.take(28) + " acknowledged your SOS and started sharing GPS."
+                val open = PendingIntent.getActivity(this, alert.id.hashCode() and 0x7FFFFFFF,
+                    Intent(this, MainActivity::class.java),
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+                val note = NotificationCompat.Builder(this, ALERT_CHANNEL)
+                    .setSmallIcon(R.drawable.ic_spectra)
+                    .setContentTitle(title).setContentText(body)
+                    .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+                    .setContentIntent(open)
+                    .setPriority(NotificationCompat.PRIORITY_HIGH)
+                    .setAutoCancel(true)
+                    .build()
+                if (Build.VERSION.SDK_INT < 33 || ContextCompat.checkSelfPermission(
+                        this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
+                    manager.notify("spectra-sos-response-" + alert.id, 3, note)
+                    current.markAlertSeen(team, alert.id)
+                }
+                continue
+            }
             if (alert.kind == "help" || alert.kind == "pin") {
                 val urgent = alert.kind == "help"
                 val title = if (urgent) "🚨 NEED HELP · " + alert.authorName.take(28)
@@ -320,7 +345,7 @@ class TrackingService : Service() {
                     },
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
                 val channel = if (urgent) SOS_CHANNEL else MOOSE_CHANNEL
-                val note = NotificationCompat.Builder(this, channel)
+                val noteBuilder = NotificationCompat.Builder(this, channel)
                     .setSmallIcon(R.drawable.ic_spectra)
                     .setContentTitle(title)
                     .setContentText(body)
@@ -331,8 +356,27 @@ class TrackingService : Service() {
                     .setCategory(if (urgent) NotificationCompat.CATEGORY_ALARM
                                  else NotificationCompat.CATEGORY_EVENT)
                     .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-                    .setAutoCancel(true)
-                    .build()
+                    .setOngoing(urgent)
+                    .setAutoCancel(!urgent)
+                if (urgent) {
+                    for ((choice, label) in listOf(
+                        "acknowledged" to "Acknowledge + GPS",
+                        "on_my_way" to "On My Way + GPS")) {
+                        val act = Intent(this, MainActivity::class.java).apply {
+                            action = MainActivity.ACTION_SOS_RESPOND
+                            data = android.net.Uri.parse("spectra://sos/" + team + "/" + alert.id + "/" + choice)
+                            putExtra("sos_team", team)
+                            putExtra("sos_id", alert.id)
+                            putExtra("sos_choice", choice)
+                            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                        }
+                        val pi = PendingIntent.getActivity(this,
+                            (team + alert.id + choice).hashCode() and 0x7FFFFFFF,
+                            act, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+                        noteBuilder.addAction(R.drawable.ic_spectra, label, pi)
+                    }
+                }
+                val note = noteBuilder.build()
                 if (Build.VERSION.SDK_INT < 33 || ContextCompat.checkSelfPermission(
                         this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
                     if (urgent) manager.notify(tag, 1, note)
