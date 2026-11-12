@@ -119,6 +119,9 @@ class MainActivity : Activity() {
                 super.onPageFinished(view, url)
                 if (url == null || !url.startsWith(origin + "/")) return
                 webView.evaluateJavascript("window.SpectraNativeShareReady = true; window.SpectraNativeSosReady = true;", null)
+                if (prefs.enabled && prefs.sharing)
+                    webView.evaluateJavascript(
+                        "if(typeof setLocationSharing==='function')setLocationSharing(true);", null)
                 val team = prefs.activeTeam
                 if (team.isNotBlank()) prefs.session(team)?.let(::hydrateWebSession)
             }
@@ -686,8 +689,10 @@ class MainActivity : Activity() {
                             Intent(this, MainActivity::class.java),
                             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
                         .build()
-                    (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
-                        .notify("spectra-help-" + response.team + "-" + findSosAuthor(response.sosId), 1, note)
+                    val author = reply.optString("sos_author")
+                    if (Regex("[a-zA-Z0-9_-]{8,64}").matches(author))
+                        (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
+                            .notify("spectra-help-" + response.team + "-" + author, 1, note)
                     if (::webView.isInitialized)
                         webView.evaluateJavascript(
                             "if(typeof refresh==='function')refresh();", null)
@@ -701,10 +706,6 @@ class MainActivity : Activity() {
             }
         }.start()
     }
-
-    // The active SOS author is not present in a recovery token; leave previous
-    // notification untouched rather than erroneously cancelling another hunter's.
-    private fun findSosAuthor(sosId: String) = sosId
 
     private fun dp(n: Int) = (resources.displayMetrics.density * n).toInt()
 }
