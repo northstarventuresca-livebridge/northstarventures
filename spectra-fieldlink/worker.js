@@ -198,7 +198,7 @@ if(path==="/api/sos/respond"&&request.method==="POST"){
  if(!member)return fail("Hunter sign-in required",401);
  let payload;try{payload=await request.json()}catch{return fail("Invalid response",400)}
  const sosId=String(payload.sos_id||"").trim(),status=String(payload.status||"");
- if(!/^[\\w-]{8,64}$/.test(sosId)||!["acknowledged","on_my_way"].includes(status))
+ if(!/^[a-zA-Z0-9_-]{8,64}$/.test(sosId)||!["acknowledged","on_my_way"].includes(status))
   return fail("Choose Acknowledge or On My Way",400);
  const sos=await env.DB.prepare(
   "SELECT s.id,s.author,s.created FROM events s "+
