@@ -1,4 +1,4 @@
-name: Spectra Android test APK
+name: Spectra Android signed beta
 on:
   push:
     branches:
@@ -11,7 +11,7 @@ on:
 permissions:
   contents: write
 
-# Only publish the latest tested native build to the stable, public download URL.
+# Publish only the newest tested release. Never ship a new debug signing key.
 concurrency:
   group: spectra-fieldlink-android-beta
   cancel-in-progress: true
@@ -29,7 +29,6 @@ jobs:
           java-version: "17"
       - name: Install Android 35
         run: |
-          echo "SDK: $ANDROID_HOME"
           SDKMGR="$(find "$ANDROID_HOME/cmdline-tools" -path '*/bin/sdkmanager' -type f | head -1)"
           test -n "$SDKMGR"
           "$SDKMGR" "platforms;android-35" "build-tools;35.0.0"
@@ -39,29 +38,73 @@ jobs:
           gradle-version: "8.11.1"
       - name: Test adaptive tracking rules
         run: gradle -p spectra-fieldlink/android :app:testDebugUnitTest --no-daemon --stacktrace
-      - name: Compile debug APK
+      - name: Compile debug APK for CI only
         run: gradle -p spectra-fieldlink/android :app:assembleDebug --no-daemon --stacktrace
-      - name: Publish installable APK artifact
+      - name: Store internal debug build for CI logs
         uses: actions/upload-artifact@v4
         with:
-          name: Spectra-FieldLink-Android-debug
+          name: Spectra-FieldLink-Android-unsigned-for-release
           path: spectra-fieldlink/android/app/build/outputs/apk/debug/*.apk
+          retention-days: 7
+
+      - name: Restore permanent private signing key
+        id: signing
+        env:
+          SPECTRA_ANDROID_SIGNING_BUNDLE: ${{ secrets.SPECTRA_ANDROID_SIGNING_BUNDLE }}
+        run: |
+          if [ -z "$SPECTRA_ANDROID_SIGNING_BUNDLE" ]; then
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Permanent signing secret missing. Debug test built, but NO public APK will be published."
+            exit 0
+          fi
+          umask 077
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+          printf '%s' "$SPECTRA_ANDROID_SIGNING_BUNDLE" | base64 -d > /tmp/spectra-signing.zip
+          unzip -qq /tmp/spectra-signing.zip -d spectra-fieldlink/android
+          rm -f /tmp/spectra-signing.zip
+          test -s spectra-fieldlink/android/spectra-fieldlink-release.p12
+          test -s spectra-fieldlink/android/signing.properties
+          chmod 600 spectra-fieldlink/android/spectra-fieldlink-release.p12 spectra-fieldlink/android/signing.properties
+
+      - name: Build signed in-place-updatable release
+        if: steps.signing.outputs.ready == 'true'
+        run: gradle -p spectra-fieldlink/android :app:assembleRelease --no-daemon --stacktrace
+
+      - name: Verify installed-package signature
+        if: steps.signing.outputs.ready == 'true'
+        run: |
+          APK="spectra-fieldlink/android/app/build/outputs/apk/release/app-release.apk"
+          test -s "$APK"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose "$APK"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep 'package: name='
+
+      - name: Store signed beta APK artifact
+        if: steps.signing.outputs.ready == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Spectra-FieldLink-Android-signed
+          path: spectra-fieldlink/android/app/build/outputs/apk/release/app-release.apk
           retention-days: 14
 
-      - name: Publish stable public Android download link
+      - name: Publish permanent signed beta APK and update manifest metadata
+        if: steps.signing.outputs.ready == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG="spectra-fieldlink-android-beta"
-          FILE="spectra-fieldlink/android/app/build/outputs/apk/debug/app-debug.apk"
+          FILE="spectra-fieldlink/android/app/build/outputs/apk/release/app-release.apk"
           test -s "$FILE"
+          VERSION_CODE="$(sed -n 's/^ *versionCode = \([0-9][0-9]*\).*/\1/p' spectra-fieldlink/android/app/build.gradle.kts | head -1)"
+          VERSION_NAME="$(sed -n 's/^ *versionName = "\([^"]*\)".*/\1/p' spectra-fieldlink/android/app/build.gradle.kts | head -1)"
+          test -n "$VERSION_CODE"
+          test -n "$VERSION_NAME"
           if ! gh release view "$TAG" >/dev/null 2>&1; then
             gh release create "$TAG" --target "$GITHUB_SHA" \
-              --title "Spectra FieldLink Android Beta" \
-              --notes "Android-only Spectra FieldLink test build. GPS tracking works while Android permits the location service to run. This is an unsigned-for-release debug beta, not an emergency locator." \
-              --prerelease
+              --title "Spectra FieldLink signed Android beta" \
+              --notes "Signed Android beta" --prerelease
           fi
           cp "$FILE" "/tmp/Spectra-FieldLink.apk"
           gh release upload "$TAG" "/tmp/Spectra-FieldLink.apk" --clobber
-          gh release delete-asset "$TAG" "app-debug.apk" --yes 2>/dev/null || true
-          echo "Public Spectra APK: https://github.com/${GITHUB_REPOSITORY}/releases/download/$TAG/Spectra-FieldLink.apk"
+          gh release edit "$TAG" --title "Spectra FieldLink beta v$VERSION_NAME" \
+            --notes "$(printf 'versionCode=%s\nversionName=%s\n\nSigned, verified Spectra FieldLink Android update. Emergency features require a connection and are not a replacement for emergency communication.' "$VERSION_CODE" "$VERSION_NAME")"
+          echo "Published signed Android release versionCode=$VERSION_CODE"
