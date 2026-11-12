@@ -368,6 +368,7 @@ class TrackingService : Service() {
                             putExtra("sos_team", team)
                             putExtra("sos_id", alert.id)
                             putExtra("sos_choice", choice)
+                            putExtra("sos_nonce", current.issueSosActionNonce(team, alert.id, choice))
                             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
                         }
                         val pi = PendingIntent.getActivity(this,
