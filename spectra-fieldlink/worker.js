@@ -164,6 +164,26 @@ if(path==="/api/push/pending"&&request.method==="POST"){
 /* Create an independent team and captain account. No access to another team's data. */
 
 /* One-use Android pairing keeps the original Chrome sign-in unchanged. */
+/* Authenticated, mobile-only compact alert feed for native Android background notifications.
+   Cursor filtering avoids fetching the full GPS/chat map every few seconds. */
+if(path==="/api/native/alerts"&&request.method==="GET"){
+ const team=url.searchParams.get("team"),account=await auth(request,env,team);
+ if(!account)return fail("Hunter sign-in required",401);
+ const after=Number(url.searchParams.get("after"));
+ const now=Date.now();
+ if(!Number.isSafeInteger(after)||after<now-24*60*60*1000||after>now+60*1000)
+  return fail("Invalid alert cursor",400);
+ const data=await env.DB.prepare(
+  "SELECT e.id,e.kind,e.author,e.author_name,e.body,e.created,e.marker_icon "+
+  "FROM events e JOIN fieldlink_app_members a ON a.team=e.team AND a.member=e.author "+
+  "WHERE e.team=? AND e.deleted=0 AND e.is_private=0 AND e.author<>? "+
+  "AND e.created>? AND e.created<=? "+
+  "AND e.kind IN ('help','help_clear','pin','message') "+
+  "ORDER BY e.created ASC,e.id ASC LIMIT 80"
+ ).bind(team,account.member_id,after,now).all();
+ return json({alerts:data.results||[],server_time:now});
+}
+
 if(path==="/api/native/pair/create"&&request.method==="POST"){
  const team=url.searchParams.get("team"),member=await auth(request,env,team);
  if(!member)return fail("Join a hunting team first",401);
