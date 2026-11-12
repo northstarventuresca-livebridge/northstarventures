@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -6,7 +8,7 @@ plugins {
 // The release signing key lives only in the private GitHub Actions secret;
 // it is never checked into the source repository.
 val localSigningFile = rootProject.file("signing.properties")
-val releaseSigning = java.util.Properties()
+val releaseSigning = Properties()
 if (localSigningFile.exists()) localSigningFile.inputStream().use { releaseSigning.load(it) }
 
 val embeddedInvite: String = (providers.gradleProperty("spectraTeamInvite").orNull ?: "").also {
