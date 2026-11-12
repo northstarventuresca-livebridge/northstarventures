@@ -94,10 +94,10 @@ async function dispatchOnePush(env,endpoint,kind){
  }else if(!response.ok)console.warn("FieldLink push provider status",response.status);
  }catch(e){console.warn("FieldLink push attempt failed",String(e).slice(0,200))}
 }
-async function queuePush(env,ctx,team,sender,eventId,kind){
+async function queuePush(env,ctx,team,sender,eventId,kind,target=null){
  if(!env.VAPID_PRIVATE_JWK||!env.VAPID_PUBLIC)return;
  try{
-  const subs=await env.DB.prepare("SELECT DISTINCT endpoint FROM fieldlink_push_team_links WHERE team=? AND member<>? LIMIT 50").bind(team,sender).all();
+  const subs=await (target?env.DB.prepare("SELECT DISTINCT endpoint FROM fieldlink_push_team_links WHERE team=? AND member=? LIMIT 50").bind(team,target):env.DB.prepare("SELECT DISTINCT endpoint FROM fieldlink_push_team_links WHERE team=? AND member<>? LIMIT 50").bind(team,sender)).all();
   const endpoints=(subs.results||[]).map(row=>row.endpoint).filter(pushUrl);
   if(!endpoints.length)return;
   const now=Date.now();
@@ -114,7 +114,7 @@ if(path==="/health")return json({ok:true,app:"Spectra FieldLink",cellular:true,l
 if(path==="/manifest.webmanifest")return new Response(JSON.stringify({id:"/",name:"Spectra FieldLink",short_name:"FieldLink",start_url:"/",scope:"/",display:"standalone",background_color:"#0d1714",theme_color:"#0d1714",icons:[{src:"/notify/moose.png",sizes:"192x192",type:"image/png",purpose:"any"},{src:"/icon.svg",sizes:"any",type:"image/svg+xml",purpose:"any maskable"}],related_applications:[{platform:"webapp",url:"/manifest.webmanifest",id:"https://fieldlink.northstarventures.ca/"}]}),{headers:securityHeaders({"content-type":"application/manifest+json","Cache-Control":"no-store"})});
 if(path==="/icon.svg")return new Response("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 96 96\" width=\"192\" height=\"192\"><circle cx=\"48\" cy=\"48\" r=\"46\" fill=\"#236841\"/><g stroke=\"#fff2d2\" stroke-width=\"5\" stroke-linecap=\"round\" fill=\"none\"><path d=\"M42 46 L28 35 L16 24 L12 12 M28 35 L29 17 M28 35 L13 44 M54 46 L68 35 L80 24 L84 12 M68 35 L67 17 M68 35 L83 44\"/></g><path fill=\"#fff2d2\" d=\"M37 47Q48 43 59 47L60 62L57 76Q48 92 39 76L36 61Z\"/></svg>",{headers:{"content-type":"image/svg+xml","Cache-Control":"public, max-age=3600"}});
 if(path.startsWith("/notify/")&&path.endsWith(".png")){const kind=path.includes("help")?"help":path.includes("message")?"message":path.includes("moose")?"moose":null;if(!kind)return fail("Icon not found",404);return new Response(iconPNG(kind,path.includes("-badge")),{headers:{"content-type":"image/png","Cache-Control":"public, max-age=86400","X-Content-Type-Options":"nosniff"}})}
-if(path==="/sw.js")return new Response("\nconst C=\"fieldlink-shell-v35\";\nself.addEventListener(\"install\",event=>{event.waitUntil(caches.open(C).then(cache=>cache.addAll([\"/\",\"/icon.svg\",\"/notify/moose.png\",\"/notify/moose-badge.png\",\"/notify/help.png\",\"/notify/help-badge.png\",\"/notify/message.png\",\"/notify/message-badge.png\"])));self.skipWaiting()});\nself.addEventListener(\"activate\",event=>event.waitUntil(Promise.all([caches.keys().then(keys=>Promise.all(keys.filter(key=>key.startsWith(\"fieldlink-shell-\")&&key!==C).map(key=>caches.delete(key)))),self.clients.claim()])));\nself.addEventListener(\"fetch\",event=>{\n if(event.request.method!==\"GET\")return;\n const url=new URL(event.request.url);\n if(url.origin!==self.location.origin||url.pathname.startsWith(\"/api/\")||url.pathname===\"/health\")return;\n if(event.request.mode===\"navigate\")event.respondWith(fetch(event.request,{cache:\"no-store\"}).then(response=>{if(response.ok){const copy=response.clone();caches.open(C).then(cache=>cache.put(\"/\",copy))}return response}).catch(()=>caches.match(\"/\")));\n});\nself.addEventListener(\"push\",event=>event.waitUntil((async()=>{\n let alert=null;\n try{\n  const subscription=await self.registration.pushManager.getSubscription();\n  const sub=subscription?.toJSON();\n  if(sub?.endpoint&&sub?.keys?.auth){\n   const res=await fetch(\"/api/push/pending\",{method:\"POST\",headers:{\"content-type\":\"application/json\"},body:JSON.stringify({endpoint:sub.endpoint,auth:sub.keys.auth}),cache:\"no-store\"});\n   if(res.ok)alert=await res.json();\n  }\n }catch(e){}\n const kind=alert?.kind||\"generic\",title=alert?.title||\"Spectra FieldLink\",body=alert?.body||\"New hunting team activity. Open FieldLink to see details.\";\n const tab=kind===\"message\"?\"chat\":\"map\",art=kind===\"help\"?\"help\":kind===\"message\"?\"message\":\"moose\";\n await self.registration.showNotification(title,{body,icon:\"/notify/\"+art+\".png\",badge:\"/notify/\"+art+\"-badge.png\",tag:\"fieldlink-\"+(alert?.id||\"activity\"),requireInteraction:kind===\"help\",renotify:kind===\"help\",vibrate:kind===\"help\"?[500,180,500,180,700]:kind===\"pin\"?[320,150,320]:[180,90,180],data:{url:\"/?tab=\"+tab+\"&team=\"+encodeURIComponent(alert?.team||\"\")}});\n})()));\nself.addEventListener(\"notificationclick\",event=>{\n event.notification.close();event.waitUntil((async()=>{\n  const to=new URL(event.notification.data?.url||\"/?tab=map\",self.location.origin),open=await clients.matchAll({type:\"window\",includeUncontrolled:true});\n  for(const c of open){if(new URL(c.url).origin===to.origin){await c.focus();c.postMessage({type:\"fieldlink-notification-open\",tab:to.searchParams.get(\"tab\")||\"map\"});return}}\n  await clients.openWindow(to.href);\n })());\n});\n",{headers:{"content-type":"application/javascript","Cache-Control":"no-store"}});
+if(path==="/sw.js")return new Response("\nconst C=\"fieldlink-shell-v36\";\nself.addEventListener(\"install\",event=>{event.waitUntil(caches.open(C).then(cache=>cache.addAll([\"/\",\"/icon.svg\",\"/notify/moose.png\",\"/notify/moose-badge.png\",\"/notify/help.png\",\"/notify/help-badge.png\",\"/notify/message.png\",\"/notify/message-badge.png\"])));self.skipWaiting()});\nself.addEventListener(\"activate\",event=>event.waitUntil(Promise.all([caches.keys().then(keys=>Promise.all(keys.filter(key=>key.startsWith(\"fieldlink-shell-\")&&key!==C).map(key=>caches.delete(key)))),self.clients.claim()])));\nself.addEventListener(\"fetch\",event=>{\n if(event.request.method!==\"GET\")return;\n const url=new URL(event.request.url);\n if(url.origin!==self.location.origin||url.pathname.startsWith(\"/api/\")||url.pathname===\"/health\")return;\n if(event.request.mode===\"navigate\")event.respondWith(fetch(event.request,{cache:\"no-store\"}).then(response=>{if(response.ok){const copy=response.clone();caches.open(C).then(cache=>cache.put(\"/\",copy))}return response}).catch(()=>caches.match(\"/\")));\n});\nself.addEventListener(\"push\",event=>event.waitUntil((async()=>{\n let alert=null;\n try{\n  const subscription=await self.registration.pushManager.getSubscription();\n  const sub=subscription?.toJSON();\n  if(sub?.endpoint&&sub?.keys?.auth){\n   const res=await fetch(\"/api/push/pending\",{method:\"POST\",headers:{\"content-type\":\"application/json\"},body:JSON.stringify({endpoint:sub.endpoint,auth:sub.keys.auth}),cache:\"no-store\"});\n   if(res.ok)alert=await res.json();\n  }\n }catch(e){}\n const kind=alert?.kind||\"generic\",title=alert?.title||\"Spectra FieldLink\",body=alert?.body||\"New hunting team activity. Open FieldLink to see details.\";\n const tab=kind===\"message\"?\"chat\":\"map\",art=kind===\"help\"?\"help\":kind===\"message\"?\"message\":\"moose\";\n await self.registration.showNotification(title,{body,icon:\"/notify/\"+art+\".png\",badge:\"/notify/\"+art+\"-badge.png\",tag:\"fieldlink-\"+(alert?.id||\"activity\"),requireInteraction:kind===\"help\",renotify:kind===\"help\",vibrate:kind===\"help\"?[500,180,500,180,700]:kind===\"pin\"?[320,150,320]:[180,90,180],data:{url:\"/?tab=\"+tab+\"&team=\"+encodeURIComponent(alert?.team||\"\")}});\n})()));\nself.addEventListener(\"notificationclick\",event=>{\n event.notification.close();event.waitUntil((async()=>{\n  const to=new URL(event.notification.data?.url||\"/?tab=map\",self.location.origin),open=await clients.matchAll({type:\"window\",includeUncontrolled:true});\n  for(const c of open){if(new URL(c.url).origin===to.origin){await c.focus();c.postMessage({type:\"fieldlink-notification-open\",tab:to.searchParams.get(\"tab\")||\"map\"});return}}\n  await clients.openWindow(to.href);\n })());\n});\n",{headers:{"content-type":"application/javascript","Cache-Control":"no-store"}});
 if(path==="/"||path==="/index.html")return new Response(PAGE,{headers:{"content-type":"text/html; charset=utf-8","Cache-Control":"no-store","X-Content-Type-Options":"nosniff","Referrer-Policy":"strict-origin-when-cross-origin","X-Frame-Options":"DENY"}});
 
 
@@ -139,11 +139,11 @@ if(path==="/api/push/pending"&&request.method==="POST"){
  const hash=await digest(authValue);
  const sub=await env.DB.prepare("SELECT 1 AS valid FROM fieldlink_push_team_links pl JOIN hunter_members m ON m.team=pl.team AND m.id=pl.member WHERE pl.endpoint=? AND pl.auth_hash=? LIMIT 1").bind(endpoint,hash).first();
  if(!sub)return fail("Notification subscription not found",401);
- const row=await env.DB.prepare("SELECT q.id AS queue_id,q.team,e.id,e.kind,e.marker_icon,e.author_name,e.body,t.title AS team_name FROM fieldlink_push_outbox q JOIN events e ON e.id=q.event_id AND e.team=q.team JOIN teams t ON t.team_id=q.team JOIN fieldlink_push_team_links pl ON pl.endpoint=q.endpoint AND pl.team=q.team AND pl.auth_hash=? JOIN hunter_members m ON m.team=pl.team AND m.id=pl.member WHERE q.endpoint=? AND q.delivered=0 AND e.deleted=0 AND e.is_private=0 AND e.author<>pl.member ORDER BY q.id LIMIT 1").bind(hash,endpoint).first();
+ const row=await env.DB.prepare("SELECT q.id AS queue_id,q.team,e.id,e.kind,e.marker_icon,e.author_name,e.body,t.title AS team_name FROM fieldlink_push_outbox q JOIN events e ON e.id=q.event_id AND e.team=q.team JOIN teams t ON t.team_id=q.team JOIN fieldlink_push_team_links pl ON pl.endpoint=q.endpoint AND pl.team=q.team AND pl.auth_hash=? JOIN hunter_members m ON m.team=pl.team AND m.id=pl.member WHERE q.endpoint=? AND q.delivered=0 AND e.deleted=0 AND e.is_private=0 AND e.author<>pl.member AND (e.kind<>'location_request' OR e.body=pl.member) ORDER BY q.id LIMIT 1").bind(hash,endpoint).first();
  if(!row)return json({empty:true});
  await env.DB.prepare("UPDATE fieldlink_push_outbox SET delivered=1 WHERE id=? AND delivered=0").bind(row.queue_id).run();
- const title=row.kind==="help"?"🚨 HUNTER NEEDS HELP":row.kind==="pin"?(row.marker_icon==="bull"?"🫎 Bull moose spotted!":"🫎 Cow moose spotted!"):"💬 New team message";
- return json({id:row.id,kind:row.kind,team:row.team, title:row.team_name+" · "+title,body:row.author_name+": "+row.body});
+ const title=row.kind==="location_request"?"📍 Location requested":row.kind==="help"?"🚨 HUNTER NEEDS HELP":row.kind==="pin"?(row.marker_icon==="bull"?"🫎 Bull moose spotted!":"🫎 Cow moose spotted!"):"💬 New team message";
+ return json({id:row.id,kind:row.kind,team:row.team, title:row.team_name+" · "+title,body:row.kind==="location_request"?row.author_name+" requests your location. Open Spectra to auto-share if GPS is enabled.":row.author_name+": "+row.body});
 }
 
 /* Create an independent team and captain account. No access to another team's data. */
@@ -319,7 +319,8 @@ if(path==="/api/events"&&(request.method==="GET"||request.method==="POST")){
   const hunters=await env.DB.prepare("SELECT author,author_name,hunter_color,lat,lon,location_at,last_contact,needs_help,help_at FROM hunter_presence WHERE team=? LIMIT 50").bind(team).all();
   const members=await env.DB.prepare("SELECT id,hunter_name,hunter_color,role,created,last_seen FROM hunter_members WHERE team=? LIMIT 50").bind(team).all();
   const trails=await env.DB.prepare("SELECT author,lat,lon,accuracy,created FROM gps_trail_points WHERE team=? AND created>=? ORDER BY author,id LIMIT 10000").bind(team,Date.now()-TRAIL_HISTORY_MS).all();
-  return json({team:account.title,events:(items.results||[]).reverse(),hunters:hunters.results||[],members:members.results||[],gps_trails:trails.results||[],you:account.member_id});
+ const reacts=await env.DB.prepare("SELECT event_id,member_id,emoji FROM fieldlink_message_reactions WHERE team=? AND event_id IN (SELECT id FROM events WHERE team=? AND kind='message' AND deleted=0 ORDER BY created DESC LIMIT 200) LIMIT 1000").bind(team,team).all();
+  return json({team:account.title,events:(items.results||[]).reverse(),hunters:hunters.results||[],members:members.results||[],gps_trails:trails.results||[],message_reactions:reacts.results||[],you:account.member_id});
  }
  let data;try{data=await request.json()}catch{return fail("Invalid JSON")}
  const id=String(data.id||""),author=account.member_id,name=account.hunter_name,kind=String(data.kind||""),body=String(data.body||"").trim();const markerIcon=String(data.marker_icon||"buck"),markerColor=String(data.marker_color||"#F7B267"),markerToken=String(data.marker_token||"");
@@ -327,9 +328,14 @@ if(path==="/api/events"&&(request.method==="GET"||request.method==="POST")){
  const geo=(typeof data.lat==="number"&&typeof data.lon==="number"&&Number.isFinite(data.lat)&&Number.isFinite(data.lon)&&Math.abs(data.lat)<=90&&Math.abs(data.lon)<=180);const hunterColor=account.hunter_color,isPrivate=kind==="pin"&&data.is_private===true?1:0;
  if(["position","pin"].includes(kind)&&!geo)return fail("GPS coordinates required");
  if(kind==="pin"&&(!/^[a-f0-9]{48}$/.test(markerToken)||!["cow","bull","buck","doe","hunter"].includes(markerIcon)||!["#B7EA84","#F7B267","#F36C6C","#79B8FF","#B5A2FF","#FFFFFF","#F1D95C","#5ADBB5"].includes(markerColor)))return fail("Invalid marker settings or owner key");
+ if(kind==="location_request"){
+  if(body===author||!(/^[\\w-]{8,64}$/.test(body)))return fail("Invalid location request recipient",400);
+  const targetHunter=await env.DB.prepare("SELECT id FROM hunter_members WHERE team=? AND id=?").bind(team,body).first();
+  if(!targetHunter)return fail("Recipient is not in your team",404);
+ }
  let created=Date.now();
  const stored=await env.DB.prepare("INSERT OR IGNORE INTO events(id,team,author,author_name,kind,body,lat,lon,created,delete_hash,marker_icon,marker_color,hunter_color,is_private) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)").bind(id,team,author,name,kind,body,geo?data.lat:null,geo?data.lon:null,created,kind==="pin"?await digest(markerToken):null,kind==="pin"?markerIcon:null,kind==="pin"?markerColor:null,hunterColor,isPrivate).run();
- if(stored.meta?.changes===1&&(kind==="message"||kind==="help"||(kind==="pin"&&!isPrivate&&["cow","bull"].includes(markerIcon))))ctx.waitUntil(queuePush(env,ctx,team,author,id,kind));
+ if(stored.meta?.changes===1&&(kind==="message"||kind==="help"||(kind==="pin"&&!isPrivate&&["cow","bull"].includes(markerIcon))||kind==="location_request"))ctx.waitUntil(queuePush(env,ctx,team,author,id,kind,kind==="location_request"?body:null));
  if(["position","help","help_clear"].includes(kind)){
   if(kind==="position"&&geo&&stored.meta?.changes===1){
    const reportedAccuracy=Number(data.accuracy);
@@ -343,6 +349,32 @@ if(path==="/api/events"&&(request.method==="GET"||request.method==="POST")){
   await env.DB.prepare(sql).bind(team,author,name,hunterColor,geo?data.lat:null,geo?data.lon:null,geo?created:null,created,needs,kind==="help"?created:null,kind,kind).run();
  }
  return json({ok:true,id});
+}
+
+
+if(path==="/api/chat/action"&&request.method==="POST"){
+ const team=url.searchParams.get("team"),member=await auth(request,env,team);
+ if(!member)return fail("Signed-in hunter required",401);
+ let data;try{data=await request.json()}catch{return fail("Invalid JSON",400)}
+ const id=String(data.id||""),action=String(data.action||"");
+ if(!/^[\\w-]{8,64}$/.test(id)||!["react","delete"].includes(action))return fail("Invalid action",400);
+ const msg=await env.DB.prepare("SELECT author,deleted FROM events WHERE team=? AND id=? AND kind='message'").bind(team,id).first();
+ if(!msg||msg.deleted===1)return fail("Message not found",404);
+ if(action==="delete"){
+  if(msg.author!==member.member_id)return fail("Only the author may delete their message",403);
+  await env.DB.batch([
+   env.DB.prepare("UPDATE events SET deleted=1 WHERE team=? AND id=? AND kind='message' AND author=? AND deleted=0").bind(team,id,member.member_id),
+   env.DB.prepare("DELETE FROM fieldlink_message_reactions WHERE team=? AND event_id=?").bind(team,id),
+   env.DB.prepare("DELETE FROM fieldlink_push_outbox WHERE team=? AND event_id=?").bind(team,id)
+  ]);
+  return json({ok:true,deleted:true});
+ }
+ const emoji=String(data.emoji||"");
+ if(!["👍","❤️","😂","👀","✅"].includes(emoji))return fail("Unsupported reaction",400);
+ const before=await env.DB.prepare("SELECT emoji FROM fieldlink_message_reactions WHERE team=? AND event_id=? AND member_id=?").bind(team,id,member.member_id).first();
+ if(before?.emoji===emoji)await env.DB.prepare("DELETE FROM fieldlink_message_reactions WHERE team=? AND event_id=? AND member_id=?").bind(team,id,member.member_id).run();
+ else await env.DB.prepare("INSERT INTO fieldlink_message_reactions(team,event_id,member_id,emoji,created) VALUES(?,?,?,?,?) ON CONFLICT(team,event_id,member_id) DO UPDATE SET emoji=excluded.emoji,created=excluded.created").bind(team,id,member.member_id,emoji,Date.now()).run();
+ return json({ok:true,reaction:before?.emoji===emoji?null:emoji});
 }
 
 if(path==="/api/markers"&&request.method==="POST"){
