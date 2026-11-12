@@ -130,6 +130,29 @@ class MainActivity : Activity() {
             if (!isMainFrame || sourceOrigin.toString() != origin) return@addWebMessageListener
             try {
                 val body = JSONObject(message.data ?: return@addWebMessageListener)
+                if (body.optString("type") == "share_invite") {
+                    val link = body.optString("url")
+                    val invite = Uri.parse(link)
+                    val code = invite.getQueryParameter("code") ?: ""
+                    if (invite.scheme == "https" &&
+                        invite.host == "fieldlink.northstarventures.ca" &&
+                        invite.path == "/install" &&
+                        Regex("[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{12}").matches(code)) {
+                        val title = body.optString("team_name", "Hunting team").take(45)
+                        runOnUiThread {
+                            val message = "Join " + title +
+                                " on Spectra FieldLink. Download the Android app and get your " +
+                                "private team code at this link:\\n" + link
+                            val send = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_SUBJECT, "Install Spectra FieldLink")
+                                putExtra(Intent.EXTRA_TEXT, message)
+                            }
+                            startActivity(Intent.createChooser(send, "Invite hunter"))
+                        }
+                    }
+                    return@addWebMessageListener
+                }
                 if (body.optString("type") == "gps_once") {
                     if (prefs.enabled && prefs.sharing && hasFinePermission()) {
                         ContextCompat.startForegroundService(this,
