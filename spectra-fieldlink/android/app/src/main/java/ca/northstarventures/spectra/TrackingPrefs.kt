@@ -40,6 +40,30 @@ class TrackingPrefs(context: Context) {
             .putString("active_team", team).apply()
     }
 
+    fun saveProfile(team: String, name: String, title: String, color: String, role: String) {
+        if (team.isBlank()) return
+        prefs.edit()
+            .putString("name_" + team, name.take(28))
+            .putString("title_" + team, title.take(60))
+            .putString("color_" + team, color.take(12))
+            .putString("role_" + team, role.take(18))
+            .apply()
+    }
+
+    fun session(team: String): org.json.JSONObject? {
+        val bearer = token(team) ?: return null
+        val memberId = member(team)
+        if (memberId.isEmpty()) return null
+        return org.json.JSONObject()
+            .put("team_id", team)
+            .put("member_id", memberId)
+            .put("token", bearer)
+            .put("member_name", prefs.getString("name_" + team, "Hunter"))
+            .put("member_color", prefs.getString("color_" + team, "#B7EA84"))
+            .put("title", prefs.getString("title_" + team, "Hunting team"))
+            .put("role", prefs.getString("role_" + team, "hunter"))
+    }
+
     fun member(team: String): String = prefs.getString("member_" + team, "") ?: ""
     fun token(team: String): String? = try {
         prefs.getString("token_" + team, null)?.let(::decrypt)
