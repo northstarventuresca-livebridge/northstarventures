@@ -5,6 +5,9 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.media.AudioAttributes
+import android.media.RingtoneManager
+import android.os.Build
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -44,6 +47,9 @@ class TrackingService : Service() {
             private set
         private const val GPS_CHANNEL = "spectra_gps"
         private const val ALERT_CHANNEL = "spectra_requests"
+        private const val SOS_CHANNEL = "spectra_sos_v1"
+        private const val MOOSE_CHANNEL = "spectra_moose_v1"
+        private const val ALERT_INTERVAL_MS = 20_000L
         private const val GPS_NOTIFICATION = 4821
         private const val MIN_POLL_MS = 45_000L
     }
@@ -72,6 +78,15 @@ class TrackingService : Service() {
         override fun onAvailable(network: Network) {
             SyncEngine.kick(applicationContext)
             if (::prefs.isInitialized && prefs.enabled) pollRequests()
+        }
+    }
+
+    private val alertTicker = object : Runnable {
+        override fun run() {
+            if (prefs.enabled && prefs.sharing && trackingActive) {
+                SyncEngine.checkHunterAlerts(applicationContext, ::deliverHunterAlerts)
+                main.postDelayed(this, ALERT_INTERVAL_MS)
+            }
         }
     }
 
@@ -123,6 +138,8 @@ class TrackingService : Service() {
             configureInterval(TrackingPolicy.MOVING_INTERVAL_MS)
             main.removeCallbacks(requestTicker)
             main.post(requestTicker)
+            main.removeCallbacks(alertTicker)
+            main.post(alertTicker)
             SyncEngine.kick(this)
             return START_STICKY
         } catch (_: SecurityException) {
@@ -212,6 +229,27 @@ class TrackingService : Service() {
         nm.createNotificationChannel(NotificationChannel(
             ALERT_CHANNEL, getString(R.string.alert_channel), NotificationManager.IMPORTANCE_HIGH
         ))
+        nm.createNotificationChannel(NotificationChannel(
+            SOS_CHANNEL, "URGENT · Hunter needs help", NotificationManager.IMPORTANCE_HIGH
+        ).apply {
+            description = "Urgent Need Help messages from other hunters in your team"
+            enableVibration(true)
+            vibrationPattern = longArrayOf(0, 650, 180, 650, 180, 1000)
+            setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM),
+                AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build())
+            lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
+        })
+        nm.createNotificationChannel(NotificationChannel(
+            MOOSE_CHANNEL, "Moose sightings", NotificationManager.IMPORTANCE_HIGH
+        ).apply {
+            description = "Bull and cow moose spotted by other hunters on your team"
+            enableVibration(true)
+            vibrationPattern = longArrayOf(0, 320, 140, 320)
+            setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION),
+                AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_NOTIFICATION_EVENT)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build())
+        })
     }
 
     private fun trackingNotification(): android.app.Notification {
@@ -248,8 +286,66 @@ class TrackingService : Service() {
             .notify(4812, note)
     }
 
+    private fun deliverHunterAlerts(team: String, alerts: List<SyncEngine.HunterAlert>) {
+        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val current = TrackingPrefs(this)
+        val clearedAt = alerts.filter { it.kind == "help_clear" }
+            .groupBy { it.author }.mapValues { (_, v) -> v.maxOf { it.created } }
+        for (alert in alerts) {
+            if (current.activeTeam != team || !current.enabled) return
+            if (current.hasSeenAlert(team, alert.id)) continue
+            val tag = "spectra-help-" + team + "-" + alert.author
+            if (alert.kind == "help_clear") {
+                manager.cancel(tag, 1)
+                current.markAlertSeen(team, alert.id)
+                continue
+            }
+            if (alert.kind == "help" && (clearedAt[alert.author] ?: 0L) >= alert.created) {
+                current.markAlertSeen(team, alert.id)
+                continue
+            }
+            if (alert.kind == "help" || alert.kind == "pin") {
+                val urgent = alert.kind == "help"
+                val title = if (urgent) "🚨 NEED HELP · " + alert.authorName.take(28)
+                    else if (alert.markerIcon == "bull") "🫎 Bull moose spotted!"
+                    else "🫎 Cow moose spotted!"
+                val body = if (urgent)
+                    alert.authorName.take(28) + " needs assistance. Open Spectra for their last reported location."
+                    else alert.authorName.take(28) + " marked a moose on your hunting map. " +
+                        alert.body.take(80)
+                val open = PendingIntent.getActivity(this,
+                    (alert.id.hashCode() and 0x7FFFFFFF),
+                    Intent(this, MainActivity::class.java).apply {
+                        flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                    },
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+                val channel = if (urgent) SOS_CHANNEL else MOOSE_CHANNEL
+                val note = NotificationCompat.Builder(this, channel)
+                    .setSmallIcon(R.drawable.ic_spectra)
+                    .setContentTitle(title)
+                    .setContentText(body)
+                    .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+                    .setContentIntent(open)
+                    .setPriority(if (urgent) NotificationCompat.PRIORITY_MAX
+                                 else NotificationCompat.PRIORITY_HIGH)
+                    .setCategory(if (urgent) NotificationCompat.CATEGORY_ALARM
+                                 else NotificationCompat.CATEGORY_EVENT)
+                    .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                    .setAutoCancel(true)
+                    .build()
+                if (Build.VERSION.SDK_INT < 33 || ContextCompat.checkSelfPermission(
+                        this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
+                    if (urgent) manager.notify(tag, 1, note)
+                    else manager.notify("spectra-sighting-" + team + "-" + alert.id, 2, note)
+                    current.markAlertSeen(team, alert.id)
+                }
+            }
+        }
+    }
+
     override fun onDestroy() {
         trackingActive = false
+        main.removeCallbacks(alertTicker)
         main.removeCallbacks(requestTicker)
         if (registered) fused.removeLocationUpdates(callback)
         if (networkRegistered) try {
