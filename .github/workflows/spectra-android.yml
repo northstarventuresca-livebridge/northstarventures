@@ -61,5 +61,7 @@ jobs:
               --notes "Android-only Spectra FieldLink test build. GPS tracking works while Android permits the location service to run. This is an unsigned-for-release debug beta, not an emergency locator." \
               --prerelease
           fi
-          gh release upload "$TAG" "$FILE#Spectra-FieldLink.apk" --clobber
+          cp "$FILE" "/tmp/Spectra-FieldLink.apk"
+          gh release upload "$TAG" "/tmp/Spectra-FieldLink.apk" --clobber
+          gh release delete-asset "$TAG" "app-debug.apk" --yes 2>/dev/null || true
           echo "Public Spectra APK: https://github.com/${GITHUB_REPOSITORY}/releases/download/$TAG/Spectra-FieldLink.apk"
