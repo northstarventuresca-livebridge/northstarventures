@@ -181,7 +181,48 @@ if(path==="/api/native/alerts"&&request.method==="GET"){
   "AND (e.kind IN ('help','help_clear') OR (e.kind='pin' AND e.marker_icon IN ('cow','bull'))) "+
   "ORDER BY e.created ASC,e.id ASC LIMIT 80"
  ).bind(team,account.member_id,after,now).all();
- return json({alerts:data.results||[],server_time:now});
+ const replies=await env.DB.prepare(
+  "SELECT 'sosreply-'||r.sos_id||'-'||r.responder||'-'||r.status AS id,"+
+  "'sos_response' AS kind,r.responder AS author,m.hunter_name AS author_name,"+
+  "r.status AS body,r.updated AS created,NULL AS marker_icon,r.sos_id AS sos_id "+
+  "FROM sos_responses r JOIN events e ON e.team=r.team AND e.id=r.sos_id "+
+  "JOIN hunter_members m ON m.team=r.team AND m.id=r.responder "+
+  "WHERE r.team=? AND e.author=? AND r.updated>? AND r.updated<=? "+
+  "ORDER BY r.updated ASC LIMIT 80"
+ ).bind(team,account.member_id,after,now).all();
+ return json({alerts:[...(data.results||[]),...(replies.results||[])].sort((a,b)=>a.created-b.created).slice(0,80),server_time:now});
+}
+
+if(path==="/api/sos/respond"&&request.method==="POST"){
+ const team=url.searchParams.get("team"),member=await auth(request,env,team);
+ if(!member)return fail("Hunter sign-in required",401);
+ let payload;try{payload=await request.json()}catch{return fail("Invalid response",400)}
+ const sosId=String(payload.sos_id||"").trim(),status=String(payload.status||"");
+ if(!/^[\\w-]{8,64}$/.test(sosId)||!["acknowledged","on_my_way"].includes(status))
+  return fail("Choose Acknowledge or On My Way",400);
+ const sos=await env.DB.prepare(
+  "SELECT s.id,s.author,s.created FROM events s "+
+  "JOIN hunter_presence p ON p.team=s.team AND p.author=s.author "+
+  "WHERE s.team=? AND s.id=? AND s.kind='help' AND s.deleted=0 "+
+  "AND s.author<>? AND p.needs_help=1 AND p.help_at=s.created"
+ ).bind(team,sosId,member.member_id).first();
+ if(!sos)return fail("This SOS has ended or is no longer active",409);
+ const now=Date.now();
+ const insert=await env.DB.prepare(
+  "INSERT OR IGNORE INTO sos_responses(team,sos_id,responder,status,created,updated) VALUES(?,?,?,?,?,?)"
+ ).bind(team,sosId,member.member_id,status,now,now).run();
+ let changed=insert.meta?.changes===1;
+ if(!changed&&status==="on_my_way"){
+  const upgrade=await env.DB.prepare(
+   "UPDATE sos_responses SET status='on_my_way',updated=? WHERE team=? AND sos_id=? "+
+   "AND responder=? AND status='acknowledged'"
+  ).bind(now,team,sosId,member.member_id).run();
+  changed=upgrade.meta?.changes===1;
+ }
+ const current=await env.DB.prepare(
+  "SELECT status,updated FROM sos_responses WHERE team=? AND sos_id=? AND responder=?"
+ ).bind(team,sosId,member.member_id).first();
+ return json({ok:true,changed,status:current?.status||status,sos_id:sosId,responder:member.member_id,responded_at:current?.updated||now});
 }
 
 if(path==="/api/native/pair/create"&&request.method==="POST"){
@@ -433,7 +474,14 @@ if(path==="/api/events"&&(request.method==="GET"||request.method==="POST")){
   const members=await env.DB.prepare("SELECT m.id,m.hunter_name,m.hunter_color,a.app_role AS role,m.created,m.last_seen FROM hunter_members m JOIN fieldlink_app_members a ON a.team=m.team AND a.member=m.id WHERE m.team=? LIMIT 50").bind(team).all();
   const trails=await env.DB.prepare("SELECT p.author,p.lat,p.lon,p.accuracy,p.created FROM gps_trail_points p JOIN fieldlink_app_members a ON a.team=p.team AND a.member=p.author WHERE p.team=? AND p.created>=? ORDER BY p.author,p.id LIMIT 10000").bind(team,Date.now()-TRAIL_HISTORY_MS).all();
  const reacts=await env.DB.prepare("SELECT r.event_id,r.member_id,r.emoji FROM fieldlink_message_reactions r JOIN fieldlink_app_members participant ON participant.team=r.team AND participant.member=r.member_id WHERE r.team=? AND r.event_id IN (SELECT e.id FROM events e JOIN fieldlink_app_members creator ON creator.team=e.team AND creator.member=e.author WHERE e.team=? AND e.kind='message' AND e.deleted=0 ORDER BY e.created DESC LIMIT 200) LIMIT 1000").bind(team,team).all();
-  return json({team:account.title,events:(items.results||[]).reverse(),hunters:hunters.results||[],members:members.results||[],gps_trails:trails.results||[],message_reactions:reacts.results||[],you:account.member_id,your_role:account.role});
+  const replies=await env.DB.prepare(
+   "SELECT r.sos_id,r.responder,r.status,r.updated,m.hunter_name "+
+   "FROM sos_responses r JOIN events s ON s.team=r.team AND s.id=r.sos_id "+
+   "JOIN hunter_presence p ON p.team=s.team AND p.author=s.author AND p.needs_help=1 AND p.help_at=s.created "+
+   "JOIN hunter_members m ON m.team=r.team AND m.id=r.responder "+
+   "WHERE r.team=? ORDER BY r.updated DESC LIMIT 100"
+  ).bind(team).all();
+  return json({team:account.title,events:(items.results||[]).reverse(),hunters:hunters.results||[],members:members.results||[],gps_trails:trails.results||[],message_reactions:reacts.results||[],sos_responses:replies.results||[],you:account.member_id,your_role:account.role});
  }
  let data;try{data=await request.json()}catch{return fail("Invalid JSON")}
  const id=String(data.id||""),author=account.member_id,name=account.hunter_name,kind=String(data.kind||""),body=String(data.body||"").trim();const markerIcon=String(data.marker_icon||"buck"),markerColor=String(data.marker_color||"#F7B267"),markerToken=String(data.marker_token||"");
