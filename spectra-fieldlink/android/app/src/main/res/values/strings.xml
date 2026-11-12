@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Spectra FieldLink</string>
+    <string name="tracking_channel">Pocket GPS tracking</string>
+    <string name="alert_channel">Hunter location requests</string>
+</resources>
