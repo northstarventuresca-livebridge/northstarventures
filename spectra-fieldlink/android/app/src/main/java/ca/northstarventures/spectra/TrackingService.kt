@@ -73,7 +73,7 @@ class TrackingService : Service() {
 
     private val requestTicker = object : Runnable {
         override fun run() {
-            if (prefs.enabled && prefs.sharing && registered) {
+            if (prefs.enabled && prefs.sharing) {
                 SyncEngine.kick(applicationContext)
                 pollRequests()
                 main.postDelayed(this, MIN_POLL_MS)
