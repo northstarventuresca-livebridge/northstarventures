@@ -38,6 +38,10 @@ class TrackingService : Service() {
     companion object {
         const val ACTION_START = "ca.northstarventures.spectra.START_TRACKING"
         const val ACTION_STOP = "ca.northstarventures.spectra.STOP_TRACKING"
+
+        /** Actual foreground service state for same-process activity status checks. */
+        @Volatile var trackingActive: Boolean = false
+            private set
         private const val GPS_CHANNEL = "spectra_gps"
         private const val ALERT_CHANNEL = "spectra_requests"
         private const val GPS_NOTIFICATION = 4821
@@ -96,6 +100,7 @@ class TrackingService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP) {
+            trackingActive = false
             prefs.enabled = false
             stopSelf()
             return START_NOT_STICKY
@@ -105,6 +110,7 @@ class TrackingService : Service() {
             ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) !=
               PackageManager.PERMISSION_GRANTED) {
             prefs.enabled = false
+            trackingActive = false
             stopSelf()
             return START_NOT_STICKY
         }
@@ -113,12 +119,14 @@ class TrackingService : Service() {
                 this, GPS_NOTIFICATION, trackingNotification(),
                 ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
             )
+            trackingActive = true
             configureInterval(TrackingPolicy.MOVING_INTERVAL_MS)
             main.removeCallbacks(requestTicker)
             main.post(requestTicker)
             SyncEngine.kick(this)
             return START_STICKY
         } catch (_: SecurityException) {
+            trackingActive = false
             prefs.enabled = false
             stopSelf()
             return START_NOT_STICKY
@@ -154,6 +162,7 @@ class TrackingService : Service() {
         try {
             store.add(team, member, location.latitude, location.longitude, location.accuracy, captured)
             lastStored = location
+            prefs.lastFixAt = captured
             lastStoreElapsed = nowElapsed
             SyncEngine.kick(this)
         } catch (_: Exception) {
@@ -172,7 +181,12 @@ class TrackingService : Service() {
         try {
             fused.requestLocationUpdates(req, callback, Looper.getMainLooper())
                 .addOnSuccessListener { registered = true }
-                .addOnFailureListener { registered = false }
+                .addOnFailureListener {
+                    registered = false
+                    trackingActive = false
+                    prefs.enabled = false
+                    stopSelf()
+                }
         } catch (_: SecurityException) { registered = false }
     }
 
@@ -235,6 +249,7 @@ class TrackingService : Service() {
     }
 
     override fun onDestroy() {
+        trackingActive = false
         main.removeCallbacks(requestTicker)
         if (registered) fused.removeLocationUpdates(callback)
         if (networkRegistered) try {
