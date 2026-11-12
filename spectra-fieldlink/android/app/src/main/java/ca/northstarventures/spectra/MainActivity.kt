@@ -22,6 +22,8 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.net.Uri
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.os.Build
 import android.os.Bundle
 import android.view.Gravity
@@ -62,6 +64,7 @@ class MainActivity : Activity() {
     private val uiHandler = Handler(Looper.getMainLooper())
     private var stoppedPromptShownThisResume = false
     private var lastManualStartAt = 0L
+    private var backgroundedAt = 0L
     private val statusTicker = object : Runnable {
         override fun run() {
             if (::prefs.isInitialized && ::status.isInitialized) renderTracking()
@@ -348,6 +351,19 @@ class MainActivity : Activity() {
         if (!::prefs.isInitialized) return
         uiHandler.removeCallbacks(statusTicker)
         uiHandler.post(statusTicker)
+        // HTML/UI is hosted by Cloudflare. Refresh after a long background period
+        // only when Android confirms internet, without touching native GPS state.
+        val away = backgroundedAt.takeIf { it > 0 }?.let {
+            SystemClock.elapsedRealtime() - it
+        } ?: 0L
+        if (away > 5 * 60_000L && ::webView.isInitialized &&
+            webView.url?.startsWith(origin + "/") == true) {
+            val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            val capabilities = cm.getNetworkCapabilities(cm.activeNetwork)
+            if (capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) == true)
+                webView.reload()
+        }
+        backgroundedAt = 0L
         UpdateManager.resumeInstallIfAllowed(this)
         // Check for signed, in-place updates when opened. Offline GPS is unaffected.
         uiHandler.postDelayed({
@@ -371,6 +387,7 @@ class MainActivity : Activity() {
     }
 
     override fun onPause() {
+        backgroundedAt = SystemClock.elapsedRealtime()
         uiHandler.removeCallbacks(statusTicker)
         stoppedPromptShownThisResume = false
         super.onPause()
