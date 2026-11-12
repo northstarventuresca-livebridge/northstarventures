@@ -27,6 +27,11 @@ class TrackingPrefs(context: Context) {
         get() = prefs.getBoolean("sharing", true)
         set(value) = prefs.edit().putBoolean("sharing", value).apply()
 
+    /** Timestamp of last GPS fix successfully stored in the offline outbox. */
+    var lastFixAt: Long
+        get() = prefs.getLong("last_fix_at", 0L)
+        set(value) = prefs.edit().putLong("last_fix_at", value).apply()
+
     var activeTeam: String
         get() = prefs.getString("active_team", "") ?: ""
         set(value) = prefs.edit().putString("active_team", value).apply()
