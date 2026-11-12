@@ -621,7 +621,13 @@ class MainActivity : Activity() {
         val team = incoming.getStringExtra("sos_team") ?: ""
         val sosId = incoming.getStringExtra("sos_id") ?: ""
         val choice = incoming.getStringExtra("sos_choice") ?: ""
+        val nonce = incoming.getStringExtra("sos_nonce") ?: ""
         incoming.action = null // Don't replay when this activity is recreated.
+        if (!prefs.consumeSosActionNonce(team, sosId, choice, nonce)) {
+            Toast.makeText(this, "This SOS action has expired. Reopen the latest alert.",
+                Toast.LENGTH_LONG).show()
+            return
+        }
         beginSosResponse(team, sosId, choice)
     }
 
