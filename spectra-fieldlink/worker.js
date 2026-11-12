@@ -259,8 +259,8 @@ if(path==="/api/invite-info"&&request.method==="GET"){
 }
 if(path==="/api/register"&&request.method==="POST"){
  let data;try{data=await request.json()}catch{return fail("Invalid registration")}
- const code=String(data.code||"").trim().toUpperCase().replace(/-/g,""),name=String(data.name||"").trim(),color=String(data.color||"");
- if(!(/^[A-F0-9]{48}$/.test(code)||/^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{12}$/.test(code))||name.length<2||name.length>28||!["#B7EA84","#F7B267","#F36C6C","#79B8FF","#B5A2FF","#FFFFFF","#F1D95C","#5ADBB5"].includes(color))return fail("Enter your name and choose a hunter colour");
+ const received=String(data.code||"").trim().replace(/-/g,""),code=received.length===48?received.toLowerCase():received.toUpperCase(),name=String(data.name||"").trim(),color=String(data.color||"");
+ if(!(/^[a-f0-9]{48}$/.test(code)||/^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{12}$/.test(code))||name.length<2||name.length>28||!["#B7EA84","#F7B267","#F36C6C","#79B8FF","#B5A2FF","#FFFFFF","#F1D95C","#5ADBB5"].includes(color))return fail("Enter your name and choose a hunter colour");
  const hash=await digest(code),now=Date.now(),login=token(),loginHash=await digest(login),id=token().slice(0,24),uniqueInviteUse=await digest(code+":"+id);
  const stmt=env.DB.prepare("INSERT INTO hunter_members(id,team,hunter_name,hunter_color,login_hash,invite_hash,role,created,last_seen) SELECT ?,i.team,?,?,?,?,i.role,?,? FROM hunter_invites i WHERE i.code_hash=? AND i.expires>? AND (i.role='hunter' OR i.used_at IS NULL)").bind(id,name,color,loginHash,uniqueInviteUse,now,now,hash,now);
  let result;
@@ -273,7 +273,7 @@ if(path==="/api/register"&&request.method==="POST"){
 if(path==="/api/invite"&&request.method==="POST"){
  const team=url.searchParams.get("team"),member=await auth(request,env,team);
  if(!member)return fail("Hunter sign-in required",401);
- const code=token().toUpperCase(),now=Date.now(),expires=now+24*60*60*1000;
+ const code=token(),now=Date.now(),expires=now+24*60*60*1000;
  const alphabet="ABCDEFGHJKLMNPQRSTUVWXYZ23456789",random=crypto.getRandomValues(new Uint8Array(12));
  const joinCode=[...random].map(x=>alphabet[x%alphabet.length]).join("");
  const stmt=env.DB.prepare("INSERT INTO hunter_invites(code_hash,team,created_by,role,created,expires,used_at) VALUES (?,?,?,?,?,?,NULL)");
