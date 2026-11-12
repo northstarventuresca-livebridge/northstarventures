@@ -1,0 +1,13 @@
+# Never commit private signing keys or GitHub Actions secret material.
+signing.properties
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.pem
+*.key
+*.zip
+.gradle/
+build/
+app/build/
+local.properties
