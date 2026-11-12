@@ -1,6 +1,7 @@
 package ca.northstarventures.spectra
 
 import android.content.Context
+import android.net.ConnectivityManager
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
@@ -22,47 +23,51 @@ object SyncEngine {
         executor.execute { perform(app) }
     }
 
+
     fun perform(context: Context) {
         if (!syncing.compareAndSet(false, true)) return
         try {
+            val connection = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            if (connection.activeNetwork == null) return
             val prefs = TrackingPrefs(context)
             val store = LocationStore(context)
-            // Process the complete backlog across all known team memberships.
-            var batches = 0
-            while (batches < 400) {
-                val fixes = store.nextBatch()
-                if (fixes.isEmpty()) break
-                var progress = false
-                for (fix in fixes) {
-                    val token = prefs.token(fix.team) ?: continue
-                    if (prefs.member(fix.team) != fix.member) continue
-                    val event = JSONObject()
-                        .put("id", fix.id)
-                        .put("kind", "position")
-                        .put("body", "GPS update")
-                        .put("lat", fix.lat)
-                        .put("lon", fix.lon)
-                        .put("accuracy", fix.accuracy)
-                        .put("created", fix.capturedAt)
-                        .put("transport", "android-native")
-                    val result = request(
-                        "/api/events?team=" + fix.team, "POST", token, event
-                    )
-                    if (result.code in 200..299) {
-                        store.acknowledge(fix.id)
-                        progress = true
-                    } else if (result.code == 401 && fix.team == prefs.activeTeam) {
-                        // Revoked hunter session: don't continue collecting into a team
-                        // that is no longer authorized.
-                        prefs.enabled = false
-                        context.stopService(android.content.Intent(context, TrackingService::class.java))
+            for (team in prefs.knownTeams()) {
+                val token = prefs.token(team) ?: continue
+                val member = prefs.member(team)
+                if (member.isBlank()) continue
+                var batches = 0
+                while (batches < 1000) {
+                    val fixes = store.nextBatchFor(team, member, 80)
+                    if (fixes.isEmpty()) break
+                    val payload = org.json.JSONArray()
+                    fixes.forEach { fix ->
+                        payload.put(JSONObject().put("id", fix.id)
+                            .put("lat", fix.lat).put("lon", fix.lon)
+                            .put("accuracy", fix.accuracy).put("created", fix.capturedAt))
                     }
+                    val response = request("/api/gps/batch?team=" + team, "POST", token,
+                        JSONObject().put("points", payload))
+                    if (response.code in 200..299) {
+                        val accepted = JSONObject(response.body).optJSONArray("accepted")
+                            ?: break
+                        val ids = (0 until accepted.length()).mapNotNull {
+                            accepted.optString(it).takeIf(String::isNotEmpty)
+                        }
+                        if (ids.size != fixes.size || ids.toSet() != fixes.map { it.id }.toSet()) break
+                        store.acknowledgeBatch(ids)
+                    } else {
+                        if (response.code == 401 && team == prefs.activeTeam) {
+                            prefs.enabled = false
+                            context.stopService(android.content.Intent(
+                                context, TrackingService::class.java))
+                        }
+                        break
+                    }
+                    batches++
                 }
-                if (!progress) break
-                batches++
             }
         } catch (_: Exception) {
-            // Retain all unacknowledged rows for the next network opportunity.
+            // Preserve every original fix if the network blips during a batch.
         } finally { syncing.set(false) }
     }
 

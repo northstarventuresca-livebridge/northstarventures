@@ -72,6 +72,34 @@ class LocationStore(context: Context) : SQLiteOpenHelper(
         return results
     }
 
+
+    @Synchronized fun nextBatchFor(team: String, member: String, limit: Int = 80): List<PendingFix> {
+        val result = ArrayList<PendingFix>()
+        readableDatabase.query("pending_fixes",
+            arrayOf("id", "team", "member", "lat", "lon", "accuracy", "captured_at"),
+            "team=? AND member=?", arrayOf(team, member), null, null,
+            "captured_at ASC", limit.coerceIn(1, 80).toString()
+        ).use { c ->
+            while (c.moveToNext()) result.add(PendingFix(
+                c.getString(0), c.getString(1), c.getString(2), c.getDouble(3),
+                c.getDouble(4), c.getFloat(5), c.getLong(6)
+            ))
+        }
+        return result
+    }
+
+    @Synchronized fun acknowledgeBatch(ids: List<String>) {
+        if (ids.isEmpty()) return
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            val placeholders = List(ids.size) { "?" }.joinToString(",")
+            db.delete("pending_fixes", "id IN (" + placeholders + ")", ids.toTypedArray())
+            db.setTransactionSuccessful()
+        } finally { db.endTransaction() }
+    }
+
+
     @Synchronized fun acknowledge(id: String) {
         writableDatabase.delete("pending_fixes", "id=?", arrayOf(id))
     }

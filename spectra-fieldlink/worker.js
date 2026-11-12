@@ -348,6 +348,39 @@ if(path==="/api/trek"&&request.method==="GET"){
  const records=await env.DB.prepare("SELECT lat,lon,accuracy,created FROM gps_day_history WHERE team=? AND author=? AND created>=? AND created<? ORDER BY created ASC LIMIT 7000").bind(team,account.member_id,start,end).all();
  return json({points:records.results||[],limit:7000,timezone:"device-local"});
 }
+
+/* Short-outage and multi-day offline flush: max 80 fixes per idempotent request.
+   Archived original timestamps and current presence are committed together. */
+if(path==="/api/gps/batch"&&request.method==="POST"){
+ const team=url.searchParams.get("team"),account=await auth(request,env,team);
+ if(!account)return fail("Signed-in hunter required",401);
+ let data;try{data=await request.json()}catch{return fail("Invalid batch JSON",400)}
+ if(!Array.isArray(data.points)||data.points.length<1||data.points.length>80)return fail("Batch must contain 1–80 GPS fixes",400);
+ const now=Date.now(),points=[];
+ for(const raw of data.points){
+  if(!raw||typeof raw!=="object")return fail("Invalid GPS record",400);
+  const id=String(raw.id||""),lat=raw.lat,lon=raw.lon,accuracy=raw.accuracy;
+  const stamp=Number(raw.created);
+  if(!/^[\w-]{8,64}$/.test(id)||typeof lat!=="number"||typeof lon!=="number"||
+     !Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180||
+     typeof accuracy!=="number"||!Number.isFinite(accuracy)||accuracy<=0||accuracy>150||
+     !Number.isSafeInteger(stamp)||stamp<now-30*86400000||stamp>now+5*60000)
+     return fail("Invalid GPS fix or timestamp",400);
+  points.push({id,lat,lon,accuracy,created:stamp});
+ }
+ const insert=env.DB.prepare("INSERT OR IGNORE INTO gps_day_history(event_id,team,author,lat,lon,accuracy,created) VALUES (?,?,?,?,?,?,?)");
+ const cmds=points.map(p=>insert.bind(p.id,team,account.member_id,p.lat,p.lon,p.accuracy,p.created));
+ const latest=points.reduce((a,b)=>b.created>a.created?b:a);
+ const current=env.DB.prepare("INSERT INTO hunter_presence(team,author,author_name,hunter_color,lat,lon,location_at,last_contact,needs_help,help_at) VALUES (?,?,?,?,?,?,?,?,0,NULL) ON CONFLICT(team,author) DO UPDATE SET author_name=excluded.author_name,hunter_color=excluded.hunter_color,lat=CASE WHEN excluded.location_at>=COALESCE(hunter_presence.location_at,0) THEN excluded.lat ELSE hunter_presence.lat END,lon=CASE WHEN excluded.location_at>=COALESCE(hunter_presence.location_at,0) THEN excluded.lon ELSE hunter_presence.lon END,location_at=MAX(COALESCE(hunter_presence.location_at,0),excluded.location_at),last_contact=excluded.last_contact");
+ cmds.push(current.bind(team,account.member_id,account.hunter_name,account.hunter_color,latest.lat,latest.lon,latest.created,now));
+ await env.DB.batch(cmds);
+ // Historical routes never appear as newly seen realtime animal/hunter paths.
+ ctx.waitUntil((async()=>{for(const p of points.filter(x=>x.created>=Date.now()-TRAIL_HISTORY_MS).sort((a,b)=>a.created-b.created)){
+  try{await recordMovingLocation(env,team,account.member_id,p.lat,p.lon,p.accuracy,p.created,true)}catch(e){console.warn("Native trail backfill",String(e).slice(0,100))}
+ }})());
+ return json({ok:true,accepted:points.map(p=>p.id)});
+}
+
 if(path==="/api/events"&&(request.method==="GET"||request.method==="POST")){
  const team=url.searchParams.get("team"),account=await auth(request,env,team);
  if(!account)return fail("Team ID or secret incorrect",401);
