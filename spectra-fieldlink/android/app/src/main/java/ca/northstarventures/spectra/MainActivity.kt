@@ -383,7 +383,7 @@ class MainActivity : Activity() {
             .setView(form)
             .setPositiveButton("Join & enable GPS", null)
             .setNegativeButton("Not now", null)
-            .setNeutralButton("Existing website account", null)
+            .setNeutralButton("Recover my hunter account", null)
             .create()
         dialog.setOnShowListener {
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
@@ -502,13 +502,13 @@ class MainActivity : Activity() {
 
     private fun pairPhone() {
         val code = EditText(this).apply {
-            hint = "8-digit phone link code"
+            hint = "8-digit account recovery code"
             inputType = InputType.TYPE_CLASS_NUMBER
             filters = arrayOf(android.text.InputFilter.LengthFilter(8))
         }
         AlertDialog.Builder(this)
-            .setTitle("Connect your existing hunter")
-            .setMessage("In Chrome, open Spectra → Setup → Connect native Android app → Generate phone link code. Enter it here; no duplicate hunter account is created.")
+            .setTitle("Recover your hunter account")
+            .setMessage("In your previous Spectra app, go to Setup → Transfer this hunter account → Generate recovery code. Enter it here to restore the SAME hunter profile and history without duplicates.")
             .setView(code)
             .setNegativeButton("Cancel", null)
             .setPositiveButton("Pair phone") { _, _ ->
@@ -520,7 +520,7 @@ class MainActivity : Activity() {
     }
 
     private fun redeemPhoneCode(code: String) {
-        Toast.makeText(this, "Linking Spectra phone…", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, "Recovering Spectra hunter…", Toast.LENGTH_SHORT).show()
         Thread {
             try {
                 val conn = URL(origin + "/api/native/pair/redeem").openConnection() as HttpURLConnection
