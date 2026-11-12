@@ -85,6 +85,23 @@ class TrackingPrefs(context: Context) {
         return false
     }
 
+    /** Native alert deduplication persists across screen locks and process recreation. */
+    fun hasSeenAlert(team: String, eventId: String): Boolean =
+        eventId in (prefs.getString("alert_seen_" + team, "") ?: "")
+            .split(",").filter { it.isNotBlank() }
+
+    fun markAlertSeen(team: String, eventId: String) {
+        val key = "alert_seen_" + team
+        val previous = (prefs.getString(key, "") ?: "").split(",").filter { it.isNotBlank() }
+        if (eventId !in previous)
+            prefs.edit().putString(key, (previous + eventId).takeLast(200).joinToString(",")).apply()
+    }
+
+    /** Time cursor is server-issued and only advances after alerts are processed. */
+    fun alertCursor(team: String): Long = prefs.getLong("alert_cursor_" + team, 0L)
+    fun setAlertCursor(team: String, value: Long) =
+        prefs.edit().putLong("alert_cursor_" + team, value).apply()
+
     private fun key(): SecretKey {
         val store = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
         (store.getKey(alias, null) as? SecretKey)?.let { return it }
