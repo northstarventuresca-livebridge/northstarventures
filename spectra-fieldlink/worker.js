@@ -6,6 +6,8 @@ function fail(message,status=400){return json({error:message},status)}
 function hex(bytes){return Array.from(bytes).map(x=>x.toString(16).padStart(2,"0")).join("")}
 async function digest(s){return hex(new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s))))}
 function token(){return hex(crypto.getRandomValues(new Uint8Array(24)))}
+const COLOURS=["#B7EA84","#F7B267","#F36C6C","#79B8FF","#B5A2FF","#FFFFFF","#F1D95C","#5ADBB5"];
+async function authToken(token,env,team){if(!/^[a-f0-9]{48}$/.test(token||""))return null;return auth(new Request("https://fieldlink.northstarventures.ca/",{headers:{"Authorization":"Bearer "+token}}),env,team)}
 async function auth(request,env,team){if(!team||!/^[A-Z0-9]{8,16}$/.test(team))return null;const token=(request.headers.get("Authorization")||"").replace(/^Bearer\s+/i,"").trim();if(!/^[a-f0-9]{48}$/.test(token))return null;const hash=await digest(token);const a=await env.DB.prepare("SELECT m.id AS member_id,m.hunter_name,m.hunter_color,m.role,t.team_id,t.title FROM hunter_members m JOIN teams t ON t.team_id=m.team WHERE m.team=? AND m.login_hash=?").bind(team,hash).first();return a||null}
 function securityHeaders(extra){return {...HEADERS,...extra}}
 
@@ -87,6 +89,7 @@ async function dispatchOnePush(env,endpoint,kind){
  const response=await fetch(endpoint,{method:"POST",headers:{"TTL":"86400","Urgency":kind==="help"?"high":"normal","Authorization":"vapid t="+jwt+", k="+env.VAPID_PUBLIC}});
  if(response.status===404||response.status===410){
   await env.DB.prepare("DELETE FROM fieldlink_push_subscriptions WHERE endpoint=?").bind(endpoint).run();
+  await env.DB.prepare("DELETE FROM fieldlink_push_team_links WHERE endpoint=?").bind(endpoint).run();
   await env.DB.prepare("DELETE FROM fieldlink_push_outbox WHERE endpoint=?").bind(endpoint).run();
  }else if(!response.ok)console.warn("FieldLink push provider status",response.status);
  }catch(e){console.warn("FieldLink push attempt failed",String(e).slice(0,200))}
@@ -94,7 +97,7 @@ async function dispatchOnePush(env,endpoint,kind){
 async function queuePush(env,ctx,team,sender,eventId,kind){
  if(!env.VAPID_PRIVATE_JWK||!env.VAPID_PUBLIC)return;
  try{
-  const subs=await env.DB.prepare("SELECT endpoint FROM fieldlink_push_subscriptions WHERE team=? AND member<>? LIMIT 50").bind(team,sender).all();
+  const subs=await env.DB.prepare("SELECT DISTINCT endpoint FROM fieldlink_push_team_links WHERE team=? AND member<>? LIMIT 50").bind(team,sender).all();
   const endpoints=(subs.results||[]).map(row=>row.endpoint).filter(pushUrl);
   if(!endpoints.length)return;
   const now=Date.now();
@@ -125,23 +128,92 @@ if(path==="/api/push/subscribe"&&request.method==="POST"){
  let data;try{data=await request.json()}catch{return fail("Invalid subscription")}
  const sub=data.subscription||{},endpoint=String(sub.endpoint||""),authValue=String(sub.keys?.auth||"");
  if(!pushUrl(endpoint)||endpoint.length>1900||!/^[\w-]{12,160}$/.test(authValue))return fail("Unsupported notification endpoint",400);
- const previous=await env.DB.prepare("SELECT team FROM fieldlink_push_subscriptions WHERE endpoint=?").bind(endpoint).first();
- if(previous&&previous.team!==team)await env.DB.prepare("DELETE FROM fieldlink_push_outbox WHERE endpoint=?").bind(endpoint).run();
- const now=Date.now();
- await env.DB.prepare("INSERT INTO fieldlink_push_subscriptions(endpoint,team,member,auth_hash,created,updated,last_notified) VALUES (?,?,?,?,?,?,?) ON CONFLICT(endpoint) DO UPDATE SET team=excluded.team,member=excluded.member,auth_hash=excluded.auth_hash,updated=excluded.updated").bind(endpoint,team,member.member_id,await digest(authValue),now,now,now).run();
+ const now=Date.now(),hash=await digest(authValue);
+ await env.DB.prepare("INSERT INTO fieldlink_push_team_links(endpoint,team,member,auth_hash,created,updated) VALUES (?,?,?,?,?,?) ON CONFLICT(endpoint,team,member) DO UPDATE SET auth_hash=excluded.auth_hash,updated=excluded.updated").bind(endpoint,team,member.member_id,hash,now,now).run();
  return json({ok:true});
 }
 if(path==="/api/push/pending"&&request.method==="POST"){
  let data;try{data=await request.json()}catch{return fail("Invalid request")}
  const endpoint=String(data.endpoint||""),authValue=String(data.auth||"");
  if(!pushUrl(endpoint)||!/^[\w-]{12,160}$/.test(authValue))return fail("Invalid notification credentials",401);
- const sub=await env.DB.prepare("SELECT team,member FROM fieldlink_push_subscriptions WHERE endpoint=? AND auth_hash=?").bind(endpoint,await digest(authValue)).first();
+ const hash=await digest(authValue);
+ const sub=await env.DB.prepare("SELECT 1 AS valid FROM fieldlink_push_team_links pl JOIN hunter_members m ON m.team=pl.team AND m.id=pl.member WHERE pl.endpoint=? AND pl.auth_hash=? LIMIT 1").bind(endpoint,hash).first();
  if(!sub)return fail("Notification subscription not found",401);
- const row=await env.DB.prepare("SELECT q.id AS queue_id,e.id,e.kind,e.marker_icon,e.author_name,e.body FROM fieldlink_push_outbox q JOIN events e ON e.id=q.event_id AND e.team=q.team WHERE q.endpoint=? AND q.team=? AND q.delivered=0 AND e.deleted=0 AND e.is_private=0 AND e.author<>? ORDER BY q.id LIMIT 1").bind(endpoint,sub.team,sub.member).first();
+ const row=await env.DB.prepare("SELECT q.id AS queue_id,e.id,e.kind,e.marker_icon,e.author_name,e.body,t.title AS team_name FROM fieldlink_push_outbox q JOIN events e ON e.id=q.event_id AND e.team=q.team JOIN fieldlink_push_team_links pl ON pl.endpoint=q.endpoint AND pl.team=q.team AND pl.auth_hash=? JOIN hunter_members m ON m.team=pl.team AND m.id=pl.member WHERE q.endpoint=? AND q.delivered=0 AND e.deleted=0 AND e.is_private=0 AND e.author<>pl.member ORDER BY q.id LIMIT 1").bind(hash,endpoint).first();
  if(!row)return json({empty:true});
  await env.DB.prepare("UPDATE fieldlink_push_outbox SET delivered=1 WHERE id=? AND delivered=0").bind(row.queue_id).run();
  const title=row.kind==="help"?"🚨 HUNTER NEEDS HELP":row.kind==="pin"?(row.marker_icon==="bull"?"🫎 Bull moose spotted!":"🫎 Cow moose spotted!"):"💬 New team message";
- return json({id:row.id,kind:row.kind,title,body:row.author_name+": "+row.body});
+ return json({id:row.id,kind:row.kind,title:row.team_name+" · "+title,body:row.author_name+": "+row.body});
+}
+
+/* Create an independent team and captain account. No access to another team's data. */
+if(path==="/api/teams/create"&&request.method==="POST"){
+ let data;try{data=await request.json()}catch{return fail("Invalid team details")}
+ const title=String(data.title||"").trim().replace(/\s+/g," "),name=String(data.name||"").trim().replace(/\s+/g," "),color=String(data.color||"#B7EA84");
+ if(title.length<3||title.length>45||name.length<2||name.length>28||!COLOURS.includes(color))return fail("Enter a team name (3–45 characters), hunter name (2–28 characters), and choose a colour",400);
+ const ip=request.headers.get("cf-connecting-ip")||request.headers.get("cf-ipcountry")||"shared";
+ const hourly=Math.floor(Date.now()/3600000),key=await digest("fieldlink-create:"+ip+":"+hourly);
+ const throttle=await env.DB.prepare("INSERT INTO team_creation_limits(request_key,window_start,attempts) VALUES (?,?,1) ON CONFLICT(request_key) DO UPDATE SET attempts=attempts+1 RETURNING attempts").bind(key,hourly*3600000).first();
+ if((throttle?.attempts||0)>6)return fail("Too many teams created from this connection. Try again later.",429);
+ const id="H"+hex(crypto.getRandomValues(new Uint8Array(6))).toUpperCase(),hunterId=token().slice(0,24),login=token(),created=Date.now();
+ try{
+ await env.DB.batch([
+  env.DB.prepare("INSERT INTO teams(team_id,secret_hash,title,created) VALUES (?,?,?,?)").bind(id,await digest(token()),title,created),
+  env.DB.prepare("INSERT INTO hunter_members(id,team,hunter_name,hunter_color,login_hash,invite_hash,role,created,last_seen) VALUES (?,?,?,?,?,?,?,?,?)").bind(hunterId,id,name,color,await digest(login),await digest("captain:"+id+":"+hunterId),"captain",created,created)
+ ]);
+ }catch(e){return fail("Unable to create team. Please try again.",503)}
+ return json({team_id:id,title,member_id:hunterId,member_name:name,member_color:color,token:login,role:"captain"},201);
+}
+/* Captain sends a join offer to known hunters on a team they already belong to.
+   Those hunters must accept from their existing session before a new membership exists. */
+if(path==="/api/team-offers/send"&&request.method==="POST"){
+ const team=url.searchParams.get("team"),captain=await auth(request,env,team);
+ if(!captain||captain.role!=="captain")return fail("Only the team captain can invite existing hunters",403);
+ let body;try{body=await request.json()}catch{return fail("Invalid invitation request")}
+ const sourceTeam=String(body.source_team||""),sourceToken=String(body.source_token||""),ids=[...new Set(Array.isArray(body.members)?body.members.map(String):[])];
+ if(sourceTeam===team||!/^[A-Z0-9]{8,16}$/.test(sourceTeam)||!ids.length||ids.length>40)return fail("Choose hunters from one of your other teams",400);
+ const source=await authToken(sourceToken,env,sourceTeam);
+ if(!source)return fail("Open the source team on this device first",403);
+ const now=Date.now(),expires=now+7*24*60*60*1000;
+ const invites=[];
+ for(const id of ids){
+  if(!/^[a-f0-9]{24}$/.test(id)||id===source.member_id)continue;
+  const member=await env.DB.prepare("SELECT id,hunter_name FROM hunter_members WHERE team=? AND id=?").bind(sourceTeam,id).first();
+  if(!member)continue;
+  const offerId=token().slice(0,24);
+  const res=await env.DB.prepare("INSERT INTO team_join_offers(id,target_team,invited_by,source_team,source_member,created,expires,status) VALUES (?,?,?,?,?,?,?,'pending') ON CONFLICT(target_team,source_team,source_member) DO UPDATE SET invited_by=excluded.invited_by,expires=excluded.expires,created=excluded.created,status='pending'").bind(offerId,team,captain.member_id,sourceTeam,id,now,expires).run();
+  if(res.meta?.changes)invites.push({name:member.hunter_name});
+ }
+ return json({ok:true,invited:invites,expires});
+}
+if(path==="/api/team-offers"&&request.method==="GET"){
+ const team=url.searchParams.get("team"),member=await auth(request,env,team);
+ if(!member)return fail("Signed-in hunter required",401);
+ const offers=await env.DB.prepare("SELECT o.id,o.target_team,t.title AS team_name,o.expires,inviter.hunter_name AS invited_by FROM team_join_offers o JOIN teams t ON t.team_id=o.target_team LEFT JOIN hunter_members inviter ON inviter.id=o.invited_by AND inviter.team=o.target_team WHERE o.source_team=? AND o.source_member=? AND o.status='pending' AND o.expires>? ORDER BY o.created DESC LIMIT 25").bind(team,member.member_id,Date.now()).all();
+ return json({offers:offers.results||[]});
+}
+if(path==="/api/team-offers/respond"&&request.method==="POST"){
+ const team=url.searchParams.get("team"),member=await auth(request,env,team);
+ if(!member)return fail("Signed-in hunter required",401);
+ let body;try{body=await request.json()}catch{return fail("Invalid response")}
+ const offerId=String(body.offer_id||""),action=String(body.action||"");
+ if(!/^[a-f0-9]{24}$/.test(offerId)||!["accept","decline"].includes(action))return fail("Invalid invitation response");
+ const offer=await env.DB.prepare("SELECT o.id,o.target_team,t.title FROM team_join_offers o JOIN teams t ON t.team_id=o.target_team WHERE o.id=? AND o.source_team=? AND o.source_member=? AND o.status='pending' AND o.expires>?").bind(offerId,team,member.member_id,Date.now()).first();
+ if(!offer)return fail("This invitation is no longer available",410);
+ if(action==="decline"){
+  await env.DB.prepare("UPDATE team_join_offers SET status='declined' WHERE id=? AND status='pending'").bind(offerId).run();
+  return json({ok:true,declined:true});
+ }
+ const now=Date.now(),newId=token().slice(0,24),login=token();
+ const reserved=await env.DB.prepare("UPDATE team_join_offers SET status='accepted' WHERE id=? AND status='pending' AND expires>?").bind(offerId,now).run();
+ if(reserved.meta?.changes!==1)return fail("Invitation was already accepted",409);
+ try{
+  await env.DB.prepare("INSERT INTO hunter_members(id,team,hunter_name,hunter_color,login_hash,invite_hash,role,created,last_seen) VALUES (?,?,?,?,?,?,?,?,?)").bind(newId,offer.target_team,member.hunter_name,member.hunter_color,await digest(login),await digest("offer:"+offerId+":"+newId),"hunter",now,now).run();
+ }catch(e){
+  await env.DB.prepare("UPDATE team_join_offers SET status='pending' WHERE id=? AND status='accepted'").bind(offerId).run();
+  return fail("Could not join this team. Please try again.",503);
+ }
+ return json({ok:true,joined:true,team_id:offer.target_team,title:offer.title,member_id:newId,member_name:member.hunter_name,member_color:member.hunter_color,token:login,role:"hunter"});
 }
 if(path==="/api/invite-info"&&request.method==="GET"){
  const code=String(url.searchParams.get("code")||"");
@@ -204,7 +276,9 @@ if(path==="/api/hunters/delete"&&request.method==="POST"){
   env.DB.prepare("DELETE FROM fieldlink_push_outbox WHERE team=? AND endpoint IN (SELECT endpoint FROM fieldlink_push_subscriptions WHERE team=? AND member=?)").bind(team,team,targetId),
   env.DB.prepare("DELETE FROM fieldlink_push_outbox WHERE team=? AND event_id IN (SELECT id FROM events WHERE team=? AND author=? AND kind<>'message')").bind(team,team,targetId),
   env.DB.prepare("DELETE FROM fieldlink_push_subscriptions WHERE team=? AND member=?").bind(team,targetId),
+  env.DB.prepare("DELETE FROM fieldlink_push_team_links WHERE team=? AND member=?").bind(team,targetId),
   env.DB.prepare("DELETE FROM hunter_invites WHERE team=? AND created_by=?").bind(team,targetId),
+  env.DB.prepare("DELETE FROM team_join_offers WHERE (source_team=? AND source_member=?) OR (target_team=? AND invited_by=?)").bind(team,targetId,team,targetId),
   env.DB.prepare("DELETE FROM hunter_presence WHERE team=? AND author=?").bind(team,targetId),
   env.DB.prepare("DELETE FROM gps_trail_points WHERE team=? AND author=?").bind(team,targetId),
   env.DB.prepare("DELETE FROM gps_day_history WHERE team=? AND author=?").bind(team,targetId),
@@ -213,7 +287,7 @@ if(path==="/api/hunters/delete"&&request.method==="POST"){
   env.DB.prepare("DELETE FROM hunter_delete_limits WHERE team=? AND actor=?").bind(team,actor.member_id)
  ];
  const result=await env.DB.batch(commands);
- if(result[9]?.meta?.changes!==1)return fail("Hunter could not be removed",409);
+ if(result[result.length-2]?.meta?.changes!==1)return fail("Hunter could not be removed",409);
  return json({ok:true,removed:true,member_id:targetId});
 }
 if(path==="/api/member-color"&&request.method==="POST"){
