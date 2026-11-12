@@ -8,7 +8,8 @@ async function digest(s){return hex(new Uint8Array(await crypto.subtle.digest("S
 function token(){return hex(crypto.getRandomValues(new Uint8Array(24)))}
 const COLOURS=["#B7EA84","#F7B267","#F36C6C","#79B8FF","#B5A2FF","#FFFFFF","#F1D95C","#5ADBB5"];
 async function authToken(token,env,team){if(!/^[a-f0-9]{48}$/.test(token||""))return null;return auth(new Request("https://fieldlink.northstarventures.ca/",{headers:{"Authorization":"Bearer "+token}}),env,team)}
-async function auth(request,env,team){if(!team||!/^[A-Z0-9]{8,16}$/.test(team))return null;const token=(request.headers.get("Authorization")||"").replace(/^Bearer\s+/i,"").trim();if(!/^[a-f0-9]{48}$/.test(token))return null;const hash=await digest(token);const a=await env.DB.prepare("SELECT m.id AS member_id,m.hunter_name,m.hunter_color,m.role,t.team_id,t.title FROM hunter_members m JOIN teams t ON t.team_id=m.team WHERE m.team=? AND m.login_hash=?").bind(team,hash).first();return a||null}
+async function auth(request,env,team){if(!team||!/^[A-Z0-9]{8,16}$/.test(team))return null;const token=(request.headers.get("Authorization")||"").replace(/^Bearer\s+/i,"").trim();if(!/^[a-f0-9]{48}$/.test(token))return null;const hash=await digest(token);const a=await env.DB.prepare("SELECT m.id AS member_id,m.hunter_name,m.hunter_color,m.role,t.team_id,t.title FROM hunter_members m JOIN teams t ON t.team_id=m.team WHERE m.team=? AND m.login_hash=?").bind(team,hash).first();if(a)return a;
+return await env.DB.prepare("SELECT m.id AS member_id,m.hunter_name,m.hunter_color,m.role,t.team_id,t.title FROM fieldlink_native_tokens nt JOIN hunter_members m ON m.id=nt.member AND m.team=nt.team JOIN teams t ON t.team_id=m.team WHERE nt.team=? AND nt.token_hash=? AND nt.revoked=0").bind(team,hash).first()||null}
 function securityHeaders(extra){return {...HEADERS,...extra}}
 
 function trailDistanceMeters(lat1,lon1,lat2,lon2){
@@ -147,6 +148,39 @@ if(path==="/api/push/pending"&&request.method==="POST"){
 }
 
 /* Create an independent team and captain account. No access to another team's data. */
+
+/* One-use Android pairing keeps the original Chrome sign-in unchanged. */
+if(path==="/api/native/pair/create"&&request.method==="POST"){
+ const team=url.searchParams.get("team"),member=await auth(request,env,team);
+ if(!member)return fail("Join a hunting team first",401);
+ const now=Date.now();
+ const recent=await env.DB.prepare("SELECT COUNT(*) AS n FROM fieldlink_native_pair_codes WHERE team=? AND member=? AND created>?").bind(team,member.member_id,now-3600000).first();
+ if((recent?.n||0)>=5)return fail("Too many pairing codes. Try again later.",429);
+ const raw=crypto.getRandomValues(new Uint32Array(1))[0];
+ const code=String(raw%100000000).padStart(8,"0");
+ const codeHash=await digest("spectra-native-pair:"+code);
+ await env.DB.prepare("INSERT INTO fieldlink_native_pair_codes(code_hash,team,member,created,expires,redeemed) VALUES (?,?,?,?,?,0)").bind(codeHash,team,member.member_id,now,now+600000).run();
+ return json({code,expires_at:now+600000});
+}
+if(path==="/api/native/pair/redeem"&&request.method==="POST"){
+ let data;try{data=await request.json()}catch{return fail("Invalid request",400)}
+ const code=String(data.code||"").trim();
+ if(!/^[0-9]{8}$/.test(code))return fail("Enter an eight-digit pairing code",400);
+ const now=Date.now(),period=Math.floor(now/600000);
+ const source=(request.headers.get("cf-connecting-ip")||"unknown").slice(0,128);
+ const rateKey=await digest("spectra-native-redeem:"+source+":"+period);
+ const n=await env.DB.prepare("INSERT INTO fieldlink_native_pair_limits(request_key,window_start,attempts) VALUES (?,?,1) ON CONFLICT(request_key) DO UPDATE SET attempts=attempts+1 RETURNING attempts").bind(rateKey,period*600000).first();
+ if((n?.attempts||0)>12)return fail("Too many pairing attempts. Try again in 10 minutes.",429);
+ const codeHash=await digest("spectra-native-pair:"+code);
+ const pair=await env.DB.prepare("UPDATE fieldlink_native_pair_codes SET redeemed=1 WHERE code_hash=? AND redeemed=0 AND expires>? RETURNING team,member").bind(codeHash,now).first();
+ if(!pair)return fail("Code expired or already used",403);
+ const hunter=await env.DB.prepare("SELECT m.id,m.hunter_name,m.hunter_color,m.role,t.title FROM hunter_members m JOIN teams t ON t.team_id=m.team WHERE m.id=? AND m.team=?").bind(pair.member,pair.team).first();
+ if(!hunter)return fail("Hunter account no longer active",410);
+ const bearer=token();
+ await env.DB.prepare("INSERT INTO fieldlink_native_tokens(token_hash,team,member,created,revoked) VALUES (?,?,?,?,0)").bind(await digest(bearer),pair.team,pair.member,now).run();
+ return json({team_id:pair.team,member_id:pair.member,member_name:hunter.hunter_name,member_color:hunter.hunter_color,role:hunter.role,title:hunter.title,token:bearer});
+}
+
 if(path==="/api/teams/create"&&request.method==="POST"){
  let data;try{data=await request.json()}catch{return fail("Invalid team details")}
  const title=String(data.title||"").trim().replace(/\s+/g," "),name=String(data.name||"").trim().replace(/\s+/g," "),color=String(data.color||"#B7EA84"),adminPassword=String(data.admin_password||"");
@@ -285,6 +319,8 @@ if(path==="/api/hunters/delete"&&request.method==="POST"){
   env.DB.prepare("DELETE FROM gps_trail_points WHERE team=? AND author=?").bind(team,targetId),
   env.DB.prepare("DELETE FROM gps_day_history WHERE team=? AND author=?").bind(team,targetId),
   env.DB.prepare("UPDATE events SET deleted=1 WHERE team=? AND author=? AND kind<>'message'").bind(team,targetId),
+  env.DB.prepare("DELETE FROM fieldlink_native_tokens WHERE team=? AND member=?").bind(team,targetId),
+  env.DB.prepare("DELETE FROM fieldlink_native_pair_codes WHERE team=? AND member=?").bind(team,targetId),
   env.DB.prepare("DELETE FROM hunter_members WHERE team=? AND id=? AND role='hunter'").bind(team,targetId),
   env.DB.prepare("DELETE FROM hunter_delete_limits WHERE team=? AND actor=?").bind(team,actor.member_id)
  ];
