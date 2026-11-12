@@ -2,6 +2,9 @@ package ca.northstarventures.spectra
 
 import android.Manifest
 import android.app.AlertDialog
+import android.app.NotificationManager
+import android.app.PendingIntent
+import androidx.core.app.NotificationCompat
 import android.text.InputType
 import android.text.TextUtils
 import android.content.ClipData
@@ -42,6 +45,11 @@ import org.json.JSONObject
  * JS messages are only accepted from the exact HTTPS origin and its main frame.
  */
 class MainActivity : Activity() {
+    companion object {
+        const val ACTION_SOS_RESPOND = "ca.northstarventures.spectra.RESPOND_SOS"
+    }
+    private data class PendingSos(val team: String, val sosId: String, val choice: String)
+    private var pendingSos: PendingSos? = null
     private val origin = "https://fieldlink.northstarventures.ca"
     private val preassignedTeamInvite = BuildConfig.TEAM_INVITE
     private lateinit var prefs: TrackingPrefs
@@ -90,6 +98,13 @@ class MainActivity : Activity() {
         if (state == null) webView.loadUrl(origin + "/")
         else webView.restoreState(state)
         if (prefs.activeTeam.isBlank()) webView.post { showFirstRun() }
+        handleSosIntent(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleSosIntent(intent)
     }
 
     private fun configureWebView() {
@@ -103,7 +118,7 @@ class MainActivity : Activity() {
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
                 if (url == null || !url.startsWith(origin + "/")) return
-                webView.evaluateJavascript("window.SpectraNativeShareReady = true;", null)
+                webView.evaluateJavascript("window.SpectraNativeShareReady = true; window.SpectraNativeSosReady = true;", null)
                 val team = prefs.activeTeam
                 if (team.isNotBlank()) prefs.session(team)?.let(::hydrateWebSession)
             }
@@ -131,6 +146,13 @@ class MainActivity : Activity() {
             if (!isMainFrame || sourceOrigin.toString() != origin) return@addWebMessageListener
             try {
                 val body = JSONObject(message.data ?: return@addWebMessageListener)
+                if (body.optString("type") == "sos_reply") {
+                    val team = body.optString("team_id")
+                    val sosId = body.optString("sos_id")
+                    val choice = body.optString("choice")
+                    runOnUiThread { beginSosResponse(team, sosId, choice) }
+                    return@addWebMessageListener
+                }
                 if (body.optString("type") == "share_invite") {
                     val link = body.optString("url")
                     val invite = Uri.parse(link)
@@ -247,9 +269,14 @@ class MainActivity : Activity() {
                                             grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == 10) {
-            if (hasFinePermission()) maybeAskNotificationsThenStart()
-            else Toast.makeText(this, "Precise location is required for hunting GPS tracking",
-                Toast.LENGTH_LONG).show()
+            if (hasFinePermission()) {
+                if (pendingSos != null) completePendingSosResponse()
+                else maybeAskNotificationsThenStart()
+            } else {
+                pendingSos = null
+                Toast.makeText(this, "Location permission is required to acknowledge an SOS and share GPS",
+                    Toast.LENGTH_LONG).show()
+            }
         }
         if (requestCode == 11) {
             if (Build.VERSION.SDK_INT >= 33 &&
@@ -565,6 +592,119 @@ class MainActivity : Activity() {
             }
         }.start()
     }
+
+    /**
+     * SOS notification taps are intentional, visible user actions. Only then can
+     * the app resume native location tracking after an explicit GPS pause.
+     * Never claim "on my way" until Android's foreground location service is on.
+     */
+    private fun handleSosIntent(incoming: Intent?) {
+        if (incoming?.action != ACTION_SOS_RESPOND) return
+        val team = incoming.getStringExtra("sos_team") ?: ""
+        val sosId = incoming.getStringExtra("sos_id") ?: ""
+        val choice = incoming.getStringExtra("sos_choice") ?: ""
+        incoming.action = null // Don't replay when this activity is recreated.
+        beginSosResponse(team, sosId, choice)
+    }
+
+    private fun beginSosResponse(team: String, sosId: String, choice: String) {
+        if (!Regex("[A-Z0-9]{8,16}").matches(team) ||
+            !Regex("[a-zA-Z0-9_-]{8,64}").matches(sosId) ||
+            choice !in listOf("acknowledged", "on_my_way")) return
+        if (team != prefs.activeTeam || prefs.token(team).isNullOrBlank()) {
+            Toast.makeText(this, "Switch to the hunting team that sent this SOS first",
+                Toast.LENGTH_LONG).show()
+            return
+        }
+        if (pendingSos != null) return
+        pendingSos = PendingSos(team, sosId, choice)
+        if (!hasFinePermission()) {
+            requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION), 10)
+        } else completePendingSosResponse()
+    }
+
+    private fun completePendingSosResponse() {
+        val response = pendingSos ?: return
+        pendingSos = null
+        // Acknowledge + GPS or On My Way + GPS is explicit opt-in for this action.
+        prefs.sharing = true
+        if (::webView.isInitialized && webView.url?.startsWith(origin + "/") == true)
+            webView.evaluateJavascript(
+                "if(typeof setLocationSharing==='function')setLocationSharing(true);" +
+                "else localStorage.setItem('fieldlink_live_gps','1');", null)
+        if (!TrackingService.trackingActive) startTracker()
+        uiHandler.postDelayed({
+            if (!TrackingService.trackingActive || !prefs.enabled || !prefs.sharing) {
+                Toast.makeText(this, "GPS could not start. SOS response was NOT sent. " +
+                    "Enable location permission and tap the SOS action again.",
+                    Toast.LENGTH_LONG).show()
+                return@postDelayed
+            }
+            postSosResponse(response)
+        }, 1600L)
+    }
+
+    private fun postSosResponse(response: PendingSos) {
+        Thread {
+            try {
+                val conn = URL(origin + "/api/sos/respond?team=" + response.team)
+                    .openConnection() as HttpURLConnection
+                val reply: JSONObject
+                try {
+                    conn.requestMethod = "POST"
+                    conn.connectTimeout = 12_000
+                    conn.readTimeout = 12_000
+                    conn.doOutput = true
+                    conn.setRequestProperty("Authorization", "Bearer " +
+                        (prefs.token(response.team) ?: throw IllegalStateException("No team login")))
+                    conn.setRequestProperty("Content-Type", "application/json")
+                    val payload = JSONObject().put("sos_id", response.sosId)
+                        .put("status", response.choice)
+                    conn.outputStream.use {
+                        it.write(payload.toString().toByteArray(Charsets.UTF_8))
+                    }
+                    val text = (if (conn.responseCode in 200..299)
+                        conn.inputStream else conn.errorStream)
+                        ?.bufferedReader()?.use { it.readText() } ?: "{}"
+                    reply = JSONObject(text)
+                    if (conn.responseCode !in 200..299)
+                        throw IllegalStateException(reply.optString("error", "SOS response failed"))
+                } finally { conn.disconnect() }
+                runOnUiThread {
+                    val label = if (response.choice == "on_my_way") "On My Way" else "Acknowledged"
+                    Toast.makeText(this, label + " sent. Your GPS is now shared with the team.",
+                        Toast.LENGTH_LONG).show()
+                    val note = NotificationCompat.Builder(this, "spectra_requests")
+                        .setSmallIcon(R.drawable.ic_spectra)
+                        .setContentTitle("🚨 SOS " + label)
+                        .setContentText("Live GPS is shared. The SOS remains active until cleared.")
+                        .setOngoing(true)
+                        .setOnlyAlertOnce(true)
+                        .setSilent(true)
+                        .setContentIntent(PendingIntent.getActivity(this, 119,
+                            Intent(this, MainActivity::class.java),
+                            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
+                        .build()
+                    (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
+                        .notify("spectra-help-" + response.team + "-" + findSosAuthor(response.sosId), 1, note)
+                    if (::webView.isInitialized)
+                        webView.evaluateJavascript(
+                            "if(typeof refresh==='function')refresh();", null)
+                }
+            } catch (error: Exception) {
+                runOnUiThread {
+                    Toast.makeText(this, "Could not send SOS response: " +
+                        (error.message ?: "Network error") + ". GPS remains enabled.",
+                        Toast.LENGTH_LONG).show()
+                }
+            }
+        }.start()
+    }
+
+    // The active SOS author is not present in a recovery token; leave previous
+    // notification untouched rather than erroneously cancelling another hunter's.
+    private fun findSosAuthor(sosId: String) = sosId
 
     private fun dp(n: Int) = (resources.displayMetrics.density * n).toInt()
 }
