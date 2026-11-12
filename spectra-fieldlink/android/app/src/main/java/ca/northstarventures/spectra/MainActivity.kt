@@ -272,7 +272,7 @@ class MainActivity : Activity() {
             maxLines = 1
         }
         val invite = EditText(this).apply {
-            hint = "Team invitation link"
+            hint = "12-character team code"
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
             setSingleLine(true)
             if (preassignedTeamInvite.isNotBlank()) {
@@ -288,7 +288,7 @@ class MainActivity : Activity() {
         }
         val message = if (preassignedTeamInvite.isNotBlank())
             "Welcome to Spectra! Enter your name to join your hunting team. Your phone will ask permission to keep you visible to your team."
-        else "Welcome to Spectra! Enter your name and paste your team's invitation link. You only need to join once. No browser or second app is required."
+        else "Welcome to Spectra! Enter your name and the team code from your captain. Allow Android to access your location to keep your teammates updated, even with your screen off."
         val dialog = AlertDialog.Builder(this)
             .setTitle("Join your hunting team")
             .setMessage(message)
@@ -305,7 +305,7 @@ class MainActivity : Activity() {
                     display.length !in 2..28 ->
                         name.error = "Enter a name between 2 and 28 characters"
                     code == null ->
-                        invite.error = "Paste your team's invitation link"
+                        invite.error = "Enter the team code from your captain"
                     else -> {
                         dialog.getButton(AlertDialog.BUTTON_POSITIVE).isEnabled = false
                         joinTeamInApp(code, display) { error ->
@@ -329,6 +329,9 @@ class MainActivity : Activity() {
     private fun extractInvite(raw: String): String? {
         val clean = raw.trim()
         if (Regex("[a-f0-9]{48}").matches(clean)) return clean
+        if (Regex("[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{12}").matches(clean.uppercase())) {
+            return clean.uppercase()
+        }
         return try {
             val url = Uri.parse(clean)
             if (url.scheme != "https" || url.host != "fieldlink.northstarventures.ca") null
