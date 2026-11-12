@@ -3,6 +3,13 @@ package ca.northstarventures.spectra
 import android.Manifest
 import android.app.AlertDialog
 import android.text.InputType
+import android.text.TextUtils
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.graphics.Typeface
+import android.os.Handler
+import android.os.Looper
 import android.widget.EditText
 import java.net.HttpURLConnection
 import java.net.URL
@@ -35,6 +42,7 @@ import org.json.JSONObject
  */
 class MainActivity : Activity() {
     private val origin = "https://fieldlink.northstarventures.ca"
+    private val preassignedTeamInvite = BuildConfig.TEAM_INVITE
     private lateinit var prefs: TrackingPrefs
     private lateinit var webView: WebView
     private lateinit var status: TextView
@@ -71,6 +79,7 @@ class MainActivity : Activity() {
         renderTracking()
         if (state == null) webView.loadUrl(origin + "/")
         else webView.restoreState(state)
+        if (prefs.activeTeam.isBlank()) webView.post { showFirstRun() }
     }
 
     private fun configureWebView() {
@@ -104,14 +113,23 @@ class MainActivity : Activity() {
             if (!isMainFrame || sourceOrigin.toString() != origin) return@addWebMessageListener
             try {
                 val body = JSONObject(message.data ?: return@addWebMessageListener)
+                if (body.optString("type") == "gps_once") {
+                    if (prefs.enabled && prefs.sharing && hasFinePermission()) {
+                        ContextCompat.startForegroundService(this,
+                            Intent(this, TrackingService::class.java).setAction(TrackingService.ACTION_START))
+                    } else runOnUiThread { toggleTracking() }
+                    return@addWebMessageListener
+                }
                 if (body.optString("type") != "session") return@addWebMessageListener
                 val team = body.optString("team_id")
                 val member = body.optString("member_id")
                 val token = body.optString("token")
                 val sharing = body.optBoolean("sharing", false)
                 if (team.isBlank() || token.isBlank()) {
-                    prefs.enabled = false
-                    stopService(Intent(this, TrackingService::class.java))
+                    // The webpage boots in demo mode before the secure session is restored.
+                    // Never stop an already-running native GPS service just because
+                    // a WebView reloaded without its session.
+                    return@addWebMessageListener
                 } else {
                     val oldTeam = prefs.activeTeam
                     prefs.saveAccount(team, member, token)
@@ -138,7 +156,7 @@ class MainActivity : Activity() {
             return
         }
         if (prefs.activeTeam.isBlank() || prefs.token(prefs.activeTeam).isNullOrBlank()) {
-            pairPhone()
+            showFirstRun()
             return
         }
         if (!prefs.sharing) {
@@ -194,11 +212,11 @@ class MainActivity : Activity() {
     private fun renderTracking() {
         val active = prefs.enabled && prefs.sharing
         status.text = when {
-            prefs.activeTeam.isBlank() -> "Pocket GPS: pair existing hunter"
+            prefs.activeTeam.isBlank() -> "Pocket GPS: join your hunting team"
             active -> "Pocket GPS ON · screen-off tracking"
             else -> "Pocket GPS OFF · start before heading out"
         }
-        button.text = if (prefs.activeTeam.isBlank()) "Pair phone" else if (active) "Stop GPS" else "Start GPS"
+        button.text = if (prefs.activeTeam.isBlank()) "Join team" else if (active) "Stop GPS" else "Start GPS"
         button.isEnabled = true
     }
 
@@ -223,6 +241,145 @@ class MainActivity : Activity() {
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
         if (webView.canGoBack()) webView.goBack() else super.onBackPressed()
+    }
+
+
+
+    /**
+     * New hunters never need Chrome or a device-pairing code. All signup is
+     * inside Spectra; a team invitation may be preloaded in the installer or
+     * pasted from a captain's invitation message.
+     *
+     * A generic APK cannot safely know which private team to join. A team-linked
+     * installer may prefill the invite at build time, but it should be distributed
+     * only to trusted team members while its invitation remains valid.
+     */
+    private fun showFirstRun() {
+        if (isFinishing || prefs.activeTeam.isNotBlank()) return
+        val name = EditText(this).apply {
+            hint = "Your name"
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_WORDS
+            maxLines = 1
+        }
+        val invite = EditText(this).apply {
+            hint = "Team invitation link"
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
+            setSingleLine(true)
+            if (preassignedTeamInvite.isNotBlank()) {
+                setText(preassignedTeamInvite)
+                visibility = View.GONE
+            }
+        }
+        val form = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(8), dp(20), dp(10))
+            addView(name)
+            addView(invite)
+        }
+        val message = if (preassignedTeamInvite.isNotBlank())
+            "Welcome to Spectra! Enter your name to join your hunting team. Your phone will ask permission to keep you visible to your team."
+        else "Welcome to Spectra! Enter your name and paste your team's invitation link. You only need to join once. No browser or second app is required."
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("Join your hunting team")
+            .setMessage(message)
+            .setView(form)
+            .setPositiveButton("Join & enable GPS", null)
+            .setNegativeButton("Not now", null)
+            .setNeutralButton("Existing website account", null)
+            .create()
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val display = name.text.toString().trim()
+                val code = extractInvite(invite.text.toString())
+                when {
+                    display.length !in 2..28 ->
+                        name.error = "Enter a name between 2 and 28 characters"
+                    code == null ->
+                        invite.error = "Paste your team's invitation link"
+                    else -> {
+                        dialog.getButton(AlertDialog.BUTTON_POSITIVE).isEnabled = false
+                        joinTeamInApp(code, display) { error ->
+                            if (error == null) dialog.dismiss()
+                            else {
+                                dialog.getButton(AlertDialog.BUTTON_POSITIVE).isEnabled = true
+                                Toast.makeText(this, error, Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    }
+                }
+            }
+            dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener {
+                dialog.dismiss()
+                pairPhone()
+            }
+        }
+        dialog.show()
+    }
+
+    private fun extractInvite(raw: String): String? {
+        val clean = raw.trim()
+        if (Regex("[a-f0-9]{48}").matches(clean)) return clean
+        return try {
+            val url = Uri.parse(clean)
+            if (url.scheme != "https" || url.host != "fieldlink.northstarventures.ca") null
+            else url.getQueryParameter("invite")?.takeIf { Regex("[a-f0-9]{48}").matches(it) }
+        } catch (_: Exception) { null }
+    }
+
+    private fun joinTeamInApp(code: String, display: String, done: (String?) -> Unit) {
+        Thread {
+            try {
+                val json = JSONObject()
+                    .put("code", code).put("name", display).put("color", "#B7EA84")
+                val conn = URL(origin + "/api/register").openConnection() as HttpURLConnection
+                val response: JSONObject
+                try {
+                    conn.requestMethod = "POST"
+                    conn.connectTimeout = 12_000
+                    conn.readTimeout = 12_000
+                    conn.doOutput = true
+                    conn.setRequestProperty("Content-Type", "application/json")
+                    conn.outputStream.use { it.write(json.toString().toByteArray(Charsets.UTF_8)) }
+                    val status = conn.responseCode
+                    val text = (if (status in 200..299) conn.inputStream else conn.errorStream)
+                        ?.bufferedReader()?.use { it.readText() } ?: "{}"
+                    response = JSONObject(text)
+                    if (status !in 200..299) throw IllegalStateException(
+                        response.optString("error", "Invitation expired. Ask your captain to resend it."))
+                } finally { conn.disconnect() }
+                val team = response.getString("team_id")
+                val member = response.getString("member_id")
+                prefs.saveAccount(team, member, response.getString("token"))
+                prefs.sharing = true
+                runOnUiThread {
+                    activateWebSession(response)
+                    renderTracking()
+                    done(null)
+                    // This explicit Join & enable GPS action is the foreground user
+                    // consent to begin the Android permission and tracking flow.
+                    if (hasFinePermission()) maybeAskNotificationsThenStart()
+                    else requestPermissions(
+                        arrayOf(Manifest.permission.ACCESS_FINE_LOCATION,
+                            Manifest.permission.ACCESS_COARSE_LOCATION), 10)
+                }
+            } catch (e: Exception) {
+                runOnUiThread { done(e.message ?: "Could not join the team. Check your connection.") }
+            }
+        }.start()
+    }
+
+    private fun activateWebSession(account: JSONObject) {
+        val uri = webView.url?.let { Uri.parse(it) }
+        if (uri?.scheme != "https" || uri.host != "fieldlink.northstarventures.ca") {
+            webView.loadUrl(origin + "/")
+            return
+        }
+        val payload = JSONObject.quote(account.toString())
+        webView.evaluateJavascript(
+            "localStorage.setItem('fieldlink_session'," + payload + ");" +
+            "localStorage.setItem('fieldlink_sessions',JSON.stringify([" + payload +
+            "].map(JSON.parse)));" +
+            "localStorage.setItem('fieldlink_live_gps','1');location.reload();", null)
     }
 
 
@@ -272,22 +429,12 @@ class MainActivity : Activity() {
                 prefs.saveAccount(team, member, token)
                 prefs.sharing = true
                 runOnUiThread {
-                    val session = JSONObject()
+                    activateWebSession(JSONObject()
                         .put("team_id", team).put("member_id", member)
                         .put("member_name", reply.getString("member_name"))
                         .put("member_color", reply.getString("member_color"))
                         .put("title", reply.getString("title"))
-                        .put("role", reply.getString("role")).put("token", token)
-                    val url = webView.url?.let { Uri.parse(it) }
-                    if (url?.scheme == "https" && url.host == "fieldlink.northstarventures.ca") {
-                        val quoted = JSONObject.quote(session.toString())
-                        webView.evaluateJavascript(
-                            "localStorage.setItem('fieldlink_session'," + quoted + ");" +
-                            "localStorage.setItem('fieldlink_sessions',JSON.stringify([" +
-                            quoted + "].map(JSON.parse)));" +
-                            "location.reload();", null
-                        )
-                    } else webView.loadUrl(origin + "/")
+                        .put("role", reply.getString("role")).put("token", token))
                     renderTracking()
                     Toast.makeText(this, "Hunter linked! Tap Start GPS.", Toast.LENGTH_LONG).show()
                 }
