@@ -25,7 +25,9 @@ jobs:
       - name: Install Android 35
         run: |
           echo "SDK: $ANDROID_HOME"
-          sdkmanager "platforms;android-35" "build-tools;35.0.0"
+          SDKMGR="$(find "$ANDROID_HOME/cmdline-tools" -path '*/bin/sdkmanager' -type f | head -1)"
+          test -n "$SDKMGR"
+          "$SDKMGR" "platforms;android-35" "build-tools;35.0.0"
       - name: Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
