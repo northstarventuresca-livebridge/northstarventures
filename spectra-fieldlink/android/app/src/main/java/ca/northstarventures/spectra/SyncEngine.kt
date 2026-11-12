@@ -17,6 +17,18 @@ object SyncEngine {
     private val executor = Executors.newSingleThreadExecutor()
     private val syncing = AtomicBoolean(false)
     private val polling = AtomicBoolean(false)
+    private val alertExecutor = Executors.newSingleThreadExecutor()
+    private val alertPolling = AtomicBoolean(false)
+
+    data class HunterAlert(
+        val id: String,
+        val kind: String,
+        val author: String,
+        val authorName: String,
+        val body: String,
+        val markerIcon: String,
+        val created: Long
+    )
 
     fun kick(context: Context) {
         val app = context.applicationContext
@@ -98,6 +110,58 @@ object SyncEngine {
                 }
             } catch (_: Exception) {
             } finally { polling.set(false) }
+        }
+    }
+
+    /**
+     * Poll a small authenticated event feed while the native tracking service runs.
+     * The WebView can be suspended or the screen locked; this never uses browser JS.
+     * Once a batch is handled, the cursor advances using server time minus a short
+     * overlap to avoid racing a concurrently committed event.
+     */
+    fun checkHunterAlerts(context: Context, deliver: (String, List<HunterAlert>) -> Unit) {
+        if (!alertPolling.compareAndSet(false, true)) return
+        val app = context.applicationContext
+        alertExecutor.execute {
+            try {
+                val prefs = TrackingPrefs(app)
+                if (!prefs.enabled || !prefs.sharing) return@execute
+                val team = prefs.activeTeam
+                if (team.isBlank()) return@execute
+                val token = prefs.token(team) ?: return@execute
+                val now = System.currentTimeMillis()
+                val last = prefs.alertCursor(team)
+                val after = if (last > 0L && last <= now + 60_000L)
+                    maxOf(now - 24L * 60 * 60_000, last - 3_000L)
+                else now - 10 * 60_000L
+                val result = request("/api/native/alerts?team=" + team + "&after=" + after,
+                    "GET", token, null)
+                if (result.code !in 200..299) return@execute
+                val parsed = JSONObject(result.body)
+                val records = parsed.optJSONArray("alerts") ?: return@execute
+                val alerts = ArrayList<HunterAlert>()
+                for (i in 0 until records.length()) {
+                    val item = records.optJSONObject(i) ?: continue
+                    val id = item.optString("id")
+                    val created = item.optLong("created", 0)
+                    val kind = item.optString("kind")
+                    if (id.isEmpty() || created <= 0 || prefs.hasSeenAlert(team, id)) continue
+                    if (kind != "help" && kind != "help_clear" &&
+                        !(kind == "pin" && item.optString("marker_icon") in listOf("cow", "bull"))) continue
+                    alerts.add(HunterAlert(id, kind, item.optString("author"),
+                        item.optString("author_name", "Hunter"), item.optString("body"),
+                        item.optString("marker_icon"), created))
+                }
+                // When multiple teams are joined, don't ever deliver team A's
+                // alerts into team B's active app session.
+                if (prefs.activeTeam != team || !prefs.enabled) return@execute
+                deliver(team, alerts)
+                val serverTime = parsed.optLong("server_time", now)
+                if (serverTime > 0 && serverTime <= System.currentTimeMillis() + 60_000L)
+                    prefs.setAlertCursor(team, maxOf(last, serverTime - 3_000L))
+            } catch (_: Exception) {
+                // Network or notification failure: cursor doesn't move, retry later.
+            } finally { alertPolling.set(false) }
         }
     }
 
