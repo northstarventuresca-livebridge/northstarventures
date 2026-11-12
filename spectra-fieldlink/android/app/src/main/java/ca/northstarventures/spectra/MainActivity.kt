@@ -90,6 +90,13 @@ class MainActivity : Activity() {
         webView.settings.allowContentAccess = false
         webView.settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_NEVER_ALLOW
         webView.webViewClient = object : WebViewClient() {
+            override fun onPageFinished(view: WebView?, url: String?) {
+                super.onPageFinished(view, url)
+                if (url == null || !url.startsWith(origin + "/")) return
+                val team = prefs.activeTeam
+                if (team.isNotBlank()) prefs.session(team)?.let(::hydrateWebSession)
+            }
+
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                 val url = request?.url ?: return false
                 if (url.scheme == "https" && url.host == "fieldlink.northstarventures.ca") return false
@@ -141,6 +148,9 @@ class MainActivity : Activity() {
                         startTracker()
                     }
                 }
+                prefs.saveProfile(team, body.optString("member_name", "Hunter"),
+                    body.optString("title", "Hunting team"),
+                    body.optString("member_color", "#B7EA84"), body.optString("role", "hunter"))
                 renderTracking()
             } catch (_: Exception) {
                 // Never accept invalid or untrusted credentials from the page.
@@ -350,6 +360,9 @@ class MainActivity : Activity() {
                 val team = response.getString("team_id")
                 val member = response.getString("member_id")
                 prefs.saveAccount(team, member, response.getString("token"))
+                prefs.saveProfile(team, response.getString("member_name"),
+                    response.getString("title"), response.getString("member_color"),
+                    response.getString("role"))
                 prefs.sharing = true
                 runOnUiThread {
                     activateWebSession(response)
@@ -366,6 +379,19 @@ class MainActivity : Activity() {
                 runOnUiThread { done(e.message ?: "Could not join the team. Check your connection.") }
             }
         }.start()
+    }
+
+
+    private fun hydrateWebSession(account: JSONObject) {
+        val encoded = JSONObject.quote(account.toString())
+        webView.evaluateJavascript(
+            "(function(){try{var s=JSON.parse(localStorage.getItem('fieldlink_session')||'null');" +
+            "if(!s||s.team_id!==" + JSONObject.quote(account.optString("team_id")) +
+            "||s.token!==" + JSONObject.quote(account.optString("token")) + "){" +
+            "localStorage.setItem('fieldlink_session'," + encoded + ");" +
+            "localStorage.setItem('fieldlink_sessions',JSON.stringify([" + encoded + "].map(JSON.parse)));" +
+            "localStorage.setItem('fieldlink_live_gps'," + JSONObject.quote(if (prefs.sharing) "1" else "0") + ");" +
+            "location.reload();}}catch(e){}})();", null)
     }
 
     private fun activateWebSession(account: JSONObject) {
@@ -427,6 +453,9 @@ class MainActivity : Activity() {
                 val member = reply.getString("member_id")
                 val token = reply.getString("token")
                 prefs.saveAccount(team, member, token)
+                prefs.saveProfile(team, reply.getString("member_name"),
+                    reply.getString("title"), reply.getString("member_color"),
+                    reply.getString("role"))
                 prefs.sharing = true
                 runOnUiThread {
                     activateWebSession(JSONObject()
