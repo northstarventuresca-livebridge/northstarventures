@@ -126,7 +126,7 @@ if(path==="/api/android/latest"&&request.method==="GET"){
  if(!upstream.ok)return fail("Update service temporarily unavailable",503);
  let release;
  try{release=await upstream.json()}catch{return fail("Invalid update metadata",502)}
- const text=String(release.body||""),code=Number((text.match(/versionCode=(\\d+)/)||[])[1]||0);
+ const text=String(release.body||""),code=Number((text.match(/versionCode=([0-9]+)/)||[])[1]||0);
  const match=text.match(/versionName=([a-zA-Z0-9._-]+)/),name=match?match[1]:"";
  const item=(release.assets||[]).find(a=>a.name==="Spectra-FieldLink.apk");
  const urlPrefix="https://github.com/northstarventuresca-livebridge/northstarventures/releases/download/spectra-fieldlink-android-beta/";
