@@ -10,6 +10,7 @@ import android.content.Context
 import android.graphics.Typeface
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.widget.EditText
 import java.net.HttpURLConnection
 import java.net.URL
@@ -47,6 +48,15 @@ class MainActivity : Activity() {
     private lateinit var webView: WebView
     private lateinit var status: TextView
     private lateinit var button: Button
+    private val uiHandler = Handler(Looper.getMainLooper())
+    private var stoppedPromptShownThisResume = false
+    private var lastManualStartAt = 0L
+    private val statusTicker = object : Runnable {
+        override fun run() {
+            if (::prefs.isInitialized && ::status.isInitialized) renderTracking()
+            uiHandler.postDelayed(this, 2_500L)
+        }
+    }
 
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
@@ -193,9 +203,17 @@ class MainActivity : Activity() {
     private fun startTracker() {
         if (!hasFinePermission() || !prefs.sharing || prefs.activeTeam.isBlank()) return
         prefs.enabled = true
-        ContextCompat.startForegroundService(this, Intent(this, TrackingService::class.java)
-            .setAction(TrackingService.ACTION_START))
+        lastManualStartAt = SystemClock.elapsedRealtime()
+        try {
+            ContextCompat.startForegroundService(this, Intent(this, TrackingService::class.java)
+                .setAction(TrackingService.ACTION_START))
+        } catch (error: Exception) {
+            prefs.enabled = false
+            Toast.makeText(this, "GPS could not start: " + (error.message ?: "Check location permissions"),
+                Toast.LENGTH_LONG).show()
+        }
         renderTracking()
+        uiHandler.postDelayed({ if (!isFinishing) renderTracking() }, 1200L)
     }
 
     private fun hasFinePermission() =
@@ -220,22 +238,68 @@ class MainActivity : Activity() {
     }
 
     private fun renderTracking() {
-        val active = prefs.enabled && prefs.sharing
+        val active = prefs.enabled && prefs.sharing && TrackingService.trackingActive
+        val latest = prefs.lastFixAt
+        val age = if (latest > 0) System.currentTimeMillis() - latest else Long.MAX_VALUE
         status.text = when {
-            prefs.activeTeam.isBlank() -> "Pocket GPS: join your hunting team"
-            active -> "Pocket GPS ON · screen-off tracking"
-            else -> "Pocket GPS OFF · start before heading out"
+            prefs.activeTeam.isBlank() -> "Pocket GPS · Join your team"
+            !prefs.sharing -> "GPS SHARING PAUSED"
+            active && age >= 0 && age < 120_000 -> "GPS ON · Last fix " + (age / 1000) + "s ago"
+            active && age >= 120_000 && age < 600_000 -> "GPS ON · Last fix " + (age / 60_000) + "m ago"
+            active && age >= 600_000 -> "GPS ON · Waiting for fresh fix"
+            active -> "GPS ON · Waiting for first fix"
+            prefs.enabled -> "GPS STARTING · Checking tracker…"
+            else -> "GPS OFF · Location not shared"
         }
-        button.text = if (prefs.activeTeam.isBlank()) "Join team" else if (active) "Stop GPS" else "Start GPS"
+        status.setTextColor(if (active) Color.rgb(183, 234, 132)
+                            else Color.rgb(255, 193, 120))
+        button.text = when {
+            prefs.activeTeam.isBlank() -> "Join team"
+            prefs.enabled -> "Stop GPS"
+            else -> "Start GPS"
+        }
         button.isEnabled = true
+    }
+
+    private fun showStoppedTrackingPrompt() {
+        if (isFinishing || TrackingService.trackingActive || !prefs.sharing ||
+            prefs.activeTeam.isBlank()) return
+        AlertDialog.Builder(this)
+            .setTitle("GPS tracking is OFF")
+            .setMessage("Spectra is open, but your phone is not currently sharing its location. " +
+                "Tap Start GPS to resume background tracking. You can stop it at any time from " +
+                "the Android tracking notification.")
+            .setPositiveButton("Start GPS") { _, _ -> toggleTracking() }
+            .setNegativeButton("Keep GPS off", null)
+            .show()
     }
 
     override fun onResume() {
         super.onResume()
-        if (::prefs.isInitialized) {
+        if (!::prefs.isInitialized) return
+        uiHandler.removeCallbacks(statusTicker)
+        uiHandler.post(statusTicker)
+        // An Android Task Manager stop can kill the service without calling onDestroy.
+        // Verify the actual service on every foreground entry; never silently resume
+        // location sharing after an explicit stop or use a stale 'enabled' preference.
+        uiHandler.postDelayed({
+            if (isFinishing || !::prefs.isInitialized || !prefs.sharing ||
+                prefs.activeTeam.isBlank() || TrackingService.trackingActive) return@postDelayed
+            if (prefs.enabled &&
+                SystemClock.elapsedRealtime() - lastManualStartAt < 4_000L) return@postDelayed
+            prefs.enabled = false
             renderTracking()
-            if (prefs.enabled && prefs.sharing && hasFinePermission()) startTracker()
-        }
+            if (!stoppedPromptShownThisResume) {
+                stoppedPromptShownThisResume = true
+                showStoppedTrackingPrompt()
+            }
+        }, 1250L)
+    }
+
+    override fun onPause() {
+        uiHandler.removeCallbacks(statusTicker)
+        stoppedPromptShownThisResume = false
+        super.onPause()
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
