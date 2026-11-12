@@ -3,6 +3,12 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
+// The release signing key lives only in the private GitHub Actions secret;
+// it is never checked into the source repository.
+val localSigningFile = rootProject.file("signing.properties")
+val releaseSigning = java.util.Properties()
+if (localSigningFile.exists()) localSigningFile.inputStream().use { releaseSigning.load(it) }
+
 val embeddedInvite: String = (providers.gradleProperty("spectraTeamInvite").orNull ?: "").also {
     require(it.isEmpty() || Regex("[a-f0-9]{48}").matches(it)) {
         "Team invite must be empty or a valid 48-character invitation token"
@@ -17,14 +23,24 @@ android {
         applicationId = "ca.northstarventures.spectra"
         minSdk = 26
         targetSdk = 35
-        versionCode = 5
-        versionName = "0.5.0-sos-response-beta"
+        versionCode = 6
+        versionName = "0.6.0-updates-beta"
         buildConfigField("String", "TEAM_INVITE", "\"$embeddedInvite\"")
+    }
+    signingConfigs {
+        if (releaseSigning.isNotEmpty()) create("spectraRelease") {
+            storeFile = rootProject.file(releaseSigning.getProperty("storeFile"))
+            storePassword = releaseSigning.getProperty("storePassword")
+            keyAlias = releaseSigning.getProperty("keyAlias")
+            keyPassword = releaseSigning.getProperty("keyPassword")
+        }
     }
     buildTypes {
         release {
             isMinifyEnabled = false
-            // Official distribution requires a private signing key.
+            if (releaseSigning.isNotEmpty()) {
+                signingConfig = signingConfigs.getByName("spectraRelease")
+            }
         }
     }
     compileOptions {
