@@ -142,7 +142,7 @@ class MainActivity : Activity() {
                         runOnUiThread {
                             val message = "Join " + title +
                                 " on Spectra FieldLink. Download the Android app and get your " +
-                                "private team code at this link:\\n" + link
+                                "private team code at this link:\n" + link
                             val send = Intent(Intent.ACTION_SEND).apply {
                                 type = "text/plain"
                                 putExtra(Intent.EXTRA_SUBJECT, "Install Spectra FieldLink")
