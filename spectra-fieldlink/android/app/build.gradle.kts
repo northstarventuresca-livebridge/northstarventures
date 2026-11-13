@@ -28,6 +28,7 @@ android {
         versionCode = 6
         versionName = "0.6.0-updates-beta"
         buildConfigField("String", "TEAM_INVITE", "\"$embeddedInvite\"")
+        buildConfigField("boolean", "PLAY_DISTRIBUTION", "false")
     }
     signingConfigs {
         if (releaseSigning.isNotEmpty()) create("spectraRelease") {
@@ -43,6 +44,12 @@ android {
             if (releaseSigning.isNotEmpty()) {
                 signingConfig = signingConfigs.getByName("spectraRelease")
             }
+        }
+        // A separate Play-only build leaves existing signed APK updates untouched.
+        create("play") {
+            initWith(getByName("release"))
+            matchingFallbacks += listOf("release")
+            buildConfigField("boolean", "PLAY_DISTRIBUTION", "true")
         }
     }
     compileOptions {
