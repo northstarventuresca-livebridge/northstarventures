@@ -25,8 +25,8 @@ android {
         applicationId = "ca.northstarventures.spectra"
         minSdk = 26
         targetSdk = 35
-        versionCode = 6
-        versionName = "0.6.0-updates-beta"
+        versionCode = 7
+        versionName = "0.7.0-play-beta"
         buildConfigField("String", "TEAM_INVITE", "\"$embeddedInvite\"")
         buildConfigField("boolean", "PLAY_DISTRIBUTION", "false")
     }
