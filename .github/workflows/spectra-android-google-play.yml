@@ -22,11 +22,11 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
-      - name: Install Android SDK 35
+      - name: Install Android SDK 36
         run: |
           SDKMGR="$(find "$ANDROID_HOME/cmdline-tools" -path '*/bin/sdkmanager' -type f | head -1)"
           test -n "$SDKMGR"
-          "$SDKMGR" "platforms;android-35" "build-tools;35.0.0"
+          "$SDKMGR" "platforms;android-36" "build-tools;35.0.0"
       - name: Configure Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
