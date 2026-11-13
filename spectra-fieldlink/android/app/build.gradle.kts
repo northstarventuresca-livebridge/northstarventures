@@ -20,13 +20,13 @@ val embeddedInvite: String = (providers.gradleProperty("spectraTeamInvite").orNu
 android {
     buildFeatures { buildConfig = true }
     namespace = "ca.northstarventures.spectra"
-    compileSdk = 35
+    compileSdk = 36
     defaultConfig {
         applicationId = "ca.northstarventures.spectra"
         minSdk = 26
-        targetSdk = 35
-        versionCode = 7
-        versionName = "0.7.0-play-beta"
+        targetSdk = 36
+        versionCode = 8
+        versionName = "0.8.0-play-beta"
         buildConfigField("String", "TEAM_INVITE", "\"$embeddedInvite\"")
         buildConfigField("boolean", "PLAY_DISTRIBUTION", "false")
     }
