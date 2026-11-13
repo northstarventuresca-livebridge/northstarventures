@@ -1,0 +1,60 @@
+name: Spectra FieldLink Google Play AAB
+on:
+  push:
+    branches:
+      - feature/spectra-fieldlink-play-store-20261112
+    paths:
+      - "spectra-fieldlink/android/**"
+      - ".github/workflows/spectra-android-google-play.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  play-bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout app
+        uses: actions/checkout@v4
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Install Android SDK 35
+        run: |
+          SDKMGR="$(find "$ANDROID_HOME/cmdline-tools" -path '*/bin/sdkmanager' -type f | head -1)"
+          test -n "$SDKMGR"
+          "$SDKMGR" "platforms;android-35" "build-tools;35.0.0"
+      - name: Configure Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.11.1"
+      - name: Run Android tests
+        run: gradle -p spectra-fieldlink/android :app:testDebugUnitTest --no-daemon
+      - name: Restore private signing bundle
+        env:
+          SPECTRA_ANDROID_SIGNING_BUNDLE: ${{ secrets.SPECTRA_ANDROID_SIGNING_BUNDLE }}
+        run: |
+          test -n "$SPECTRA_ANDROID_SIGNING_BUNDLE" || { echo "::error::Signing bundle secret is missing"; exit 1; }
+          umask 077
+          printf '%s' "$SPECTRA_ANDROID_SIGNING_BUNDLE" | base64 -d > /tmp/spectra-signing.zip
+          unzip -qq /tmp/spectra-signing.zip -d spectra-fieldlink/android
+          rm -f /tmp/spectra-signing.zip
+          test -s spectra-fieldlink/android/spectra-fieldlink-release.p12
+          test -s spectra-fieldlink/android/signing.properties
+      - name: Build Play Store Android App Bundle
+        run: gradle -p spectra-fieldlink/android :app:bundlePlay --no-daemon --stacktrace
+      - name: Verify signed bundle
+        run: |
+          BUNDLE="spectra-fieldlink/android/app/build/outputs/bundle/play/app-play.aab"
+          test -s "$BUNDLE"
+          jarsigner -verify "$BUNDLE" >/dev/null
+          echo "Google Play upload bundle verified"
+      - name: Upload Google Play AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: Spectra-FieldLink-Google-Play-AAB
+          path: spectra-fieldlink/android/app/build/outputs/bundle/play/app-play.aab
+          retention-days: 30
