@@ -1,0 +1,13 @@
+{
+  "name": "spectra-fieldlink-ios-dev",
+  "main": "./worker.js",
+  "compatibility_date": "2026-11-11",
+  "workers_dev": true,
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "spectra-fieldlink-ios-dev",
+      "database_id": "b8a52cf3-8d75-4970-b782-decace429871"
+    }
+  ]
+}
