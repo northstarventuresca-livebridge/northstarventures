@@ -62,22 +62,22 @@ async function runScan(){
  finally{cover.style.display='none';cover.textContent='Scene hidden by SafeReel';cover.style.background='';cover.style.color='';cover.style.fontSize='';cover.style.letterSpacing='';video.muted=oldMuted;video.controls=false;video.currentTime=oldTime;$('#playBtn').disabled=false;$('#scanBtn').disabled=false;$('#scanBtn').textContent='✦ Scan this video';if(wasPlaying)video.play().catch(()=>{})}
  async function analyzeSegments(segments,offset){
   for(let i=0;i<segments.length;i+=35){const batch=segments.slice(i,i+35);const r=await fetch('/api/moderate-text',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({segments:batch})});const d=await r.json();if(!r.ok)throw new Error(d.error||'Transcript analysis failed.');for(const seg of d.segments||[]){const start=Math.max(0,Number(seg.start||0)+offset),end=Math.min(video.duration,Number(seg.end||0)+offset),context=String(seg.text||'').trim();if(!context)continue;for(const category of seg.categories||[]){const labels={sexual:'Sexual content',violence:'Violence',hate:'Hate / harassment','self-harm':'Self-harm',illicit:'Illegal instructions'};state.cues.push({start,end:Math.max(start+.5,end),label:labels[category]||category,category,categoryLabel:labels[category]||category,context,approved:false,ai:true})}const profanityRules=[
-  {label:'F-word',re:/\\bfuck(?:s|ed|er|ers|ing)?\\b/giu},
-  {label:'S-word',re:/\\bshit(?:s|ty|ting)?\\b/giu},
-  {label:'B-word',re:/\\bbitch(?:es)?\\b/giu},
-  {label:'Asshole',re:/\\basshole(?:s)?\\b/giu},
-  {label:'Damn',re:/\\bdamn(?:ed|it)?\\b/giu},
-  {label:'Hell',re:/\\bhell\\b/giu},
-  {label:'Crap',re:/\\bcrap\\b/giu},
-  {label:'Bastard',re:/\\bbastard(?:s)?\\b/giu},
-  {label:'D-word',re:/\\bdick(?:s)?\\b/giu},
-  {label:'Piss',re:/\\bpiss(?:ed|ing|es)?\\b/giu},
-  {label:'C-word',re:/\\bcunt(?:s)?\\b/giu},
-  {label:'Twat',re:/\\btwat\\b/giu},
-  {label:'Whore',re:/\\bwhore(?:s)?\\b/giu},
-  {label:'Slut',re:/\\bslut(?:s)?\\b/giu},
-  {label:'Motherf-word',re:/\\bmotherfuck(?:er|ers|ed|ing|s)?\\b/giu},
-  {label:'Bullshit',re:/\\bbullshit\\b/giu}
+  {label:'F-word',re:/\bfuck(?:s|ed|er|ers|ing)?\b/giu},
+  {label:'S-word',re:/\bshit(?:s|ty|ting)?\b/giu},
+  {label:'B-word',re:/\bbitch(?:es)?\b/giu},
+  {label:'Asshole',re:/\basshole(?:s)?\b/giu},
+  {label:'Damn',re:/\bdamn(?:ed|it)?\b/giu},
+  {label:'Hell',re:/\bhell\b/giu},
+  {label:'Crap',re:/\bcrap\b/giu},
+  {label:'Bastard',re:/\bbastard(?:s)?\b/giu},
+  {label:'D-word',re:/\bdick(?:s)?\b/giu},
+  {label:'Piss',re:/\bpiss(?:ed|ing|es)?\b/giu},
+  {label:'C-word',re:/\bcunt(?:s)?\b/giu},
+  {label:'Twat',re:/\btwat\b/giu},
+  {label:'Whore',re:/\bwhore(?:s)?\b/giu},
+  {label:'Slut',re:/\bslut(?:s)?\b/giu},
+  {label:'Motherf-word',re:/\bmotherfuck(?:er|ers|ed|ing|s)?\b/giu},
+  {label:'Bullshit',re:/\bbullshit\b/giu}
 ];
 for(const rule of profanityRules){const hits=context.match(rule.re)||[];for(const hit of new Set(hits.map(x=>x.toLowerCase())))state.cues.push({start:Math.max(0,start-.25),end:Math.min(video.duration,end+.3),label:rule.label,category:'profanity',categoryLabel:'Profanity',context,approved:false,ai:true})}
 for(const word of state.words){const re=new RegExp(`(^|[^\\\\p{L}\\\\p{N}])${escapeRegex(word)}($|[^\\\\p{L}\\\\p{N}])`,'iu');if(re.test(context))state.cues.push({start:Math.max(0,start-.25),end:Math.min(video.duration,end+.3),label:`Custom word: ${word}`,category:'custom',categoryLabel:`Custom word: ${word}`,context,approved:false,ai:true})}}render()}
