@@ -197,7 +197,7 @@ async function runLiveScan(){
   if(finished)return;finished=true;state.liveActive=false;state.liveRecorder=null;
   if(state.liveEnd&&!state.liveError&&!state.liveStopRequested&&state.fingerprint){const record=currentScanRecord(true);state.cachedComplete=true;try{await saveLocalScan(record);$('#scanProgress').textContent='Scan complete and saved on this device · '+state.cues.length+' findings.'}catch{$('#scanProgress').textContent='Scan complete · '+state.cues.length+' findings. Download a scan file to keep it.'}$('#downloadScan').classList.remove('hidden');if(state.transcript.length)$('#downloadSrt').classList.remove('hidden')}
   if(frameTimer)clearInterval(frameTimer);if(progressTimer)clearInterval(progressTimer);if(state.liveChunkTimer)clearTimeout(state.liveChunkTimer);
-  $('#scanBtn').disabled=false;$('#scanBtn').textContent='▶ Analyze 10 seconds, then play';
+  $('#scanBtn').disabled=false;$('#scanBtn').textContent=state.cachedComplete?'▶ Play with saved scan':'▶ Analyze 10 seconds, then play';
   if(state.liveError){video.pause();cover.textContent='Scan stopped: '+state.liveError;cover.style.display='grid';$('#scanProgress').textContent='Scan stopped: '+state.liveError}
   else if(state.liveStopRequested){video.pause();cover.textContent='Live scan stopped · playback paused for safety';cover.style.display='grid';$('#scanProgress').textContent='Stopped at '+fmt(state.safeThrough)+' to avoid playing unscanned video.'}
   else {cover.style.display='none';cover.textContent='Scene hidden by SafeReel';$('#scanProgress').textContent='Reached the end of the video · '+state.cues.length+' findings.'}
