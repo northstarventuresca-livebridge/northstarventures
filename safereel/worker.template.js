@@ -71,10 +71,11 @@ async function api(request, env, url) {
     form.append("model", "whisper-1");
     form.append("response_format", "verbose_json");
     form.append("timestamp_granularities[]", "segment");
+    form.append("timestamp_granularities[]", "word");
     const response = await openAi(request, "audio/transcriptions", { apiKey: env.OPENAI_API_KEY, form });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) return json({ error: result.error?.message || "Transcription request failed." }, 502);
-    return json({ segments: (result.segments || []).map(s => ({ start: Number(s.start || 0), end: Number(s.end || 0), text: String(s.text || "") })), offset });
+    return json({ segments: (result.segments || []).map(s => ({ start: Number(s.start || 0), end: Number(s.end || 0), text: String(s.text || "") })), words: (result.words || []).map(w => ({ word: String(w.word || ""), start: Number(w.start || 0), end: Number(w.end || 0) })), offset });
   }
 
   if (url.pathname === "/api/moderate-text" && request.method === "POST") {
