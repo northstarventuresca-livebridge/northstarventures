@@ -21,6 +21,15 @@ async function hmac(payload, secret) {
   return btoa(String.fromCharCode(...bytes)).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
 }
 
+async function getKidsSession(request,env){
+  const raw=request.headers.get("cookie")||"";
+  const value=raw.split(";").map(x=>x.trim()).find(x=>x.startsWith("sr_kids="))?.slice(8);
+  if(!value)return null;
+  const [expires,encoded,signature]=value.split(".");
+  if(!expires||!encoded||!signature||Number(expires)<Math.floor(Date.now()/1000))return null;
+  if(!constantTimeEqual(signature,await hmac(expires+"."+encoded,env.SESSION_SECRET)))return null;
+  try{return atob(encoded.replaceAll("-","+").replaceAll("_","/"))}catch{return null}
+}
 async function validSession(request, env) {
   const raw = request.headers.get("cookie") || "";
   const token = raw.split(";").map(x => x.trim()).find(x => x.startsWith(cookieName + "="))?.slice(cookieName.length + 1);
@@ -59,6 +68,48 @@ async function api(request, env, url) {
   if (url.pathname === "/api/session" && request.method === "GET") return validSession(request, env) ? json({ ok: true }) : json({ error: "Sign in required." }, 401);
   if (!await validSession(request, env)) return json({ error: "Sign in required." }, 401);
   if (url.pathname === "/api/status" && request.method === "GET") return json({ aiConfigured: Boolean(env.OPENAI_API_KEY) });
+  if(url.pathname==="/api/kids-library/connect"&&request.method==="POST"){
+    const body=await request.json().catch(()=>({})),code=String(body.code||"").trim();
+    if(code.length<4||code.length>150)return json({error:"Enter a valid Kids Church access code."},400);
+    let login;
+    try{login=await fetch("https://kids.greatchurch.ca/api/login",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({code,remember:true})})}
+    catch{return json({error:"Could not reach the Kids Church site."},502)}
+    if(!login.ok)return json({error:"Kids Church access code was not accepted."},401);
+    const setCookie=login.headers.get("set-cookie")||"",match=setCookie.match(/__Host-gck_session=([^;]+)/);
+    if(!match)return json({error:"Kids Church did not create a video library session."},502);
+    const expires=String(Math.floor(Date.now()/1000)+31536000),encoded=btoa(match[1]).replaceAll("+","-").replaceAll("/","_").replaceAll("=","");
+    const signature=await hmac(expires+"."+encoded,env.SESSION_SECRET);
+    return json({ok:true},200,{"set-cookie":"sr_kids="+expires+"."+encoded+"."+signature+"; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=31536000"});
+  }
+  if(url.pathname==="/api/kids-library/list"&&request.method==="GET"){
+    const kidsCookie=await getKidsSession(request,env);
+    if(!kidsCookie)return json({connected:false,items:[]});
+    const target=new URL("https://kids.greatchurch.ca/api/library/list");
+    target.searchParams.set("path",url.searchParams.get("path")||"");
+    let upstream;
+    try{upstream=await fetch(target.toString(),{headers:{cookie:"__Host-gck_session="+kidsCookie},cache:"no-store"})}
+    catch{return json({error:"Could not reach the Kids Church video library."},502)}
+    if(upstream.status===401)return json({connected:false,items:[]});
+    const data=await upstream.json().catch(()=>null);
+    if(!upstream.ok||!data)return json({error:data?.error||"Kids Church could not list the shared videos."},502);
+    return json(data,200,{"cache-control":"no-store"});
+  }
+  if(url.pathname==="/api/kids-library/media"&&request.method==="GET"){
+    const kidsCookie=await getKidsSession(request,env);
+    if(!kidsCookie)return json({error:"Connect the Kids Church library first."},401);
+    const target=new URL("https://kids.greatchurch.ca/api/library/media");
+    target.searchParams.set("path",url.searchParams.get("path")||"");
+    const headers=new Headers({cookie:"__Host-gck_session="+kidsCookie});
+    const range=request.headers.get("range");if(range)headers.set("range",range);
+    let upstream;
+    try{upstream=await fetch(target.toString(),{headers,cache:"no-store"})}
+    catch{return json({error:"Could not stream this Kids Church video."},502)}
+    if(!upstream.ok&&upstream.status!==206)return json({error:"Kids Church could not stream this video."},502);
+    const out=new Headers({"cache-control":"private, no-store","x-content-type-options":"nosniff","accept-ranges":"bytes"});
+    for(const key of ["content-type","content-length","content-range","etag"]){const v=upstream.headers.get(key);if(v)out.set(key,v)}
+    out.set("content-disposition","inline");
+    return new Response(upstream.body,{status:upstream.status,headers:out});
+  }
   if (!env.OPENAI_API_KEY) return json({ error: "OpenAI API key is not configured." }, 503);
 
   if (url.pathname === "/api/transcribe" && request.method === "POST") {
