@@ -3,6 +3,76 @@
 const MONICA_BASE_URL = "https://monicas-house.rwyers.workers.dev";
 const DEFAULT_MONICA_PROJECT_ID = "monicas-house";
 
+const MONICA_VERIFY_CONTEXT = "polaris-to-monicas-house:v1:";
+
+function b64url(bytes) {
+  const arr = bytes instanceof ArrayBuffer ? new Uint8Array(bytes) : bytes;
+  let binary = "";
+  for (const byte of arr) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"");
+}
+function fromB64url(text) {
+  const s = String(text).replace(/-/g,"+").replace(/_/g,"/");
+  const binary = atob(s.padEnd(Math.ceil(s.length / 4) * 4, "="));
+  return Uint8Array.from(binary, ch => ch.charCodeAt(0));
+}
+function canonicalMonicaCommand(value) {
+  return {
+    action: String(value?.action || ""),
+    projectId: String(value?.projectId || ""),
+    taskId: String(value?.taskId || ""),
+    notes: String(value?.notes || "")
+  };
+}
+async function monicaHmacKey(env) {
+  if (!env.POLARIS_AUTH_SECRET) throw new Error("Polaris authentication not configured");
+  return crypto.subtle.importKey("raw",new TextEncoder().encode(env.POLARIS_AUTH_SECRET),
+    {name:"HMAC",hash:"SHA-256"},false,["sign","verify"]);
+}
+async function signMonicaAction(env, command) {
+  const claim={
+    aud:"monicas-house",
+    at:Date.now(),
+    nonce:crypto.randomUUID(),
+    command:canonicalMonicaCommand(command)
+  };
+  const payload=b64url(new TextEncoder().encode(JSON.stringify(claim)));
+  const sig=await crypto.subtle.sign("HMAC",await monicaHmacKey(env),
+    new TextEncoder().encode(MONICA_VERIFY_CONTEXT+payload));
+  return payload+"."+b64url(sig);
+}
+
+// This verification endpoint is publicly reachable, but never issues tokens.
+// Only Polaris can sign an action with the existing private authentication secret.
+export async function verifyMonicaBridgeRequest(request,env) {
+  const j=(data,status=200)=>new Response(JSON.stringify(data),{
+    status,headers:{"content-type":"application/json","cache-control":"no-store"}
+  });
+  if(request.method!=="POST")return j({ok:false},405);
+  const raw=await request.text();
+  if(raw.length>4096)return j({ok:false},413);
+  let body;try{body=JSON.parse(raw)}catch{return j({ok:false},400)}
+  const token=String(body?.token||"");
+  if(token.length<100||token.length>2600||!token.includes("."))return j({ok:false},401);
+  try{
+    const [payload,signature,...extra]=token.split(".");
+    if(extra.length||!payload||!signature)return j({ok:false},401);
+    const verified=await crypto.subtle.verify("HMAC",await monicaHmacKey(env),
+      fromB64url(signature),new TextEncoder().encode(MONICA_VERIFY_CONTEXT+payload));
+    if(!verified)return j({ok:false},401);
+    const claim=JSON.parse(new TextDecoder().decode(fromB64url(payload)));
+    if(claim.aud!=="monicas-house"||!Number.isFinite(claim.at)
+      ||Math.abs(Date.now()-claim.at)>45000
+      ||typeof claim.nonce!=="string"
+      ||!/^[a-f0-9-]{36}$/i.test(claim.nonce))return j({ok:false},401);
+    if(!["start","pause","stop","status"].includes(claim.command?.action))
+      return j({ok:false},401);
+    if(JSON.stringify(claim.command)!==JSON.stringify(canonicalMonicaCommand(body)))
+      return j({ok:false},401);
+    return j({ok:true,nonce:claim.nonce});
+  }catch{return j({ok:false},401)}
+}
+
 function humanDuration(seconds) {
   const n = Math.max(0, Math.floor(Number(seconds || 0)));
   const h = Math.floor(n / 3600), m = Math.floor(n / 60) % 60, s = n % 60;
@@ -29,26 +99,23 @@ function timerReply(action, state) {
 }
 
 async function requestMonica(env, action, options = {}) {
-  if (!env.POLARIS_BRIDGE_SECRET || String(env.POLARIS_BRIDGE_SECRET).length < 32) {
-    return { error: "The secure connection to Monica has not been configured yet.", status: 503 };
+  if (!env.POLARIS_AUTH_SECRET) {
+    return { error: "Polaris authentication is unavailable.", status: 503 };
   }
-  const projectId = options.projectId || DEFAULT_MONICA_PROJECT_ID;
-  const isStatus = action === "status";
-  const path = "/api/polaris/timer";
-  const url = MONICA_BASE_URL + path + (isStatus ? "?projectId=" + encodeURIComponent(projectId) : "");
+  const command=canonicalMonicaCommand({
+    action,projectId:options.projectId||DEFAULT_MONICA_PROJECT_ID,
+    taskId:options.taskId,notes:options.notes?String(options.notes).slice(0,1000):""
+  });
+  let token;
+  try{token=await signMonicaAction(env,command)}
+  catch{return {error:"Polaris could not authorize that command.",status:503}};
   let response;
   try {
-    response = await fetch(url, {
-      method: isStatus ? "GET" : "POST",
-      headers: {
-        "authorization": "Bearer " + env.POLARIS_BRIDGE_SECRET,
-        ...(isStatus ? {} : { "content-type": "application/json" })
-      },
-      ...(isStatus ? {} : { body: JSON.stringify({
-        action, projectId, ...(options.taskId ? { taskId: options.taskId } : {}),
-        ...(options.notes ? { notes: String(options.notes).slice(0, 1000) } : {})
-      }) }),
-      redirect: "error"
+    response = await fetch(MONICA_BASE_URL + "/api/polaris/timer", {
+      method:"POST",
+      headers:{"authorization":"Bearer "+token,"content-type":"application/json"},
+      body:JSON.stringify(command),
+      redirect:"error"
     });
   } catch {
     return { error: "Monica's site could not be reached.", status: 502 };
