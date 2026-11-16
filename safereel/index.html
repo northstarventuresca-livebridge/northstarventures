@@ -243,7 +243,8 @@ async function runLiveScan(){
  if(state.cachedComplete){video.currentTime=0;video.muted=false;video.play().catch(()=>toast('Press Play to start.'));return}
  if(!video.src||!video.duration){toast('Choose a video first.');return}
  if(!scanner.src){toast('Reload the video before starting buffered playback.');return}
- const sourceInfo=state.remoteVideo?'The Kids Church video streams through SafeReel; only audio chunks and sampled frames are sent securely to OpenAI.':'Audio chunks and sampled frames are sent securely to OpenAI; the full movie stays on this device.';\n if(!confirm('SafeReel will analyze the first 10 seconds before playback, then keep scanning ahead in 10-second chunks. '+sourceInfo+' Continue?'))return;
+ const sourceInfo=state.remoteVideo?'The Kids Church video streams through SafeReel; only audio chunks and sampled frames are sent securely to OpenAI.':'Audio chunks and sampled frames are sent securely to OpenAI; the full movie stays on this device.';
+ if(!confirm('SafeReel will analyze the first 10 seconds before playback, then keep scanning ahead in 10-second chunks. '+sourceInfo+' Continue?'))return;
  state.liveActive=true;state.liveStarted=false;state.liveEnd=false;state.liveError=null;state.liveStopRequested=false;state.safeThrough=0;state.bufferWait=true;state.liveFrames=[];
  state.cues=state.cues.filter(c=>!c.ai);render();
  $('#scanBtn').disabled=false;$('#scanBtn').textContent='■ Stop buffered scan';$('#playBtn').disabled=true;
