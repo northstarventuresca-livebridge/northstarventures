@@ -76,7 +76,7 @@ export async function polarisMaybeRunMonicaTimer(message, selectedProject, env) 
   if ((!match || !/\btimer\b/i.test(clean)) && !askStatus) return null;
 
   // Task-specific routing requires a verified task ID; never infer one from a room name.
-  if (/\b(?:for|on)\s+(?:the\s+)?(?:task|item|job)\b/i.test(clean))
+  if (/\b(?:task|item|job)\b/i.test(clean) || /\btimer\b.*\b(?:for|on|in)\s+(?!monica(?:\x27s)?(?: house)?\b|general\b|house\b)(\S+)/i.test(clean))
     return { reply: "I can control individual Monica tasks once you select the exact task. For now, say 'start Monica timer' for general house work.", project: "Monica's House" };
 
   const verb = match?.[1].toLowerCase();
