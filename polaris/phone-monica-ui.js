@@ -1,5 +1,5 @@
-// Polaris Android dashboard voice and extended Monica journal dictation.
-// This module is injected as an inline script on the authenticated / dashboard.
+// Polaris Android dashboard voice controls and extended Monica journal dictation.
+// Inject inside the existing authenticated / dashboard document.
 (function(){
  if(document.getElementById("pmMobileControl"))return;
  const panel=document.createElement("section");
@@ -9,7 +9,7 @@
  panel.innerHTML='<div style="display:flex;gap:10px;align-items:center;justify-content:space-between"><button id="pmDashTalk" type="button" style="border:1px solid #68e9ff;border-radius:10px;min-height:43px;padding:9px 16px;background:#11598b;color:white;font-weight:800;cursor:pointer">🎙 TAP TO TALK</button><a href="/assistant" style="font-size:12px;color:#9addff">Assistant</a><button id="pmDashClose" type="button" style="background:transparent;color:#a8c7df;border:0;font-size:20px;cursor:pointer" aria-label="Hide Talk button">×</button></div><div id="pmDashStatus" role="status" aria-live="polite" style="color:#aed5ed;font-size:12px;line-height:1.4;margin-top:8px">Tap once, speak, then Polaris answers.</div><div id="pmDashReply" aria-live="polite" style="display:none;margin-top:8px;color:#e5fcff;font-size:14px;max-height:130px;overflow:auto"></div>';
  document.body.appendChild(panel);
  const button=panel.querySelector("#pmDashTalk"),status=panel.querySelector("#pmDashStatus"),reply=panel.querySelector("#pmDashReply");
- panel.querySelector("#pmDashClose").addEventListener("click",()=>{panel.remove();});
+ panel.querySelector("#pmDashClose").addEventListener("click",()=>{if(journalMode==="recording")journalPause();panel.remove();});
  let rec=null,sent=false,last="",voiceInFlight=false;
 
  let soundContext=null,soundNode=null,lastSpoken="",speechToken=0;
@@ -142,6 +142,26 @@
   jText.value="";journalDisplay();
   journalState("Polaris is introducing long dictation…");
   sayAnswer("Okay Ryan, long dictation mode. Go ahead with your entry. I'm listening, and I'll keep listening until you say Polaris, I'm finished, Polaris, I'm done, or Polaris, that's all.");
+  journalCheckSecure();
+ }
+ async function journalCheckSecure(){
+  try{
+   const signed=await fetch("/api/monica/sign",{method:"POST",credentials:"same-origin",
+     headers:{"content-type":"application/json"},body:JSON.stringify({action:"status"})});
+   const auth=await signed.json();
+   if(!signed.ok||!auth.ok||!auth.token)throw Error("Polaris could not authorize a read-only check");
+   const response=await fetch("https://monicas-house.rwyers.workers.dev/api/polaris/timer",{
+     method:"POST",mode:"cors",credentials:"omit",
+     headers:{"authorization":"Bearer "+auth.token,"content-type":"application/json"},
+     body:JSON.stringify(auth.command)
+   });
+   const status=await response.json();
+   if(!response.ok||!status.ok)throw Error(status.error||"Monica could not verify Polaris");
+  }catch(e){
+   if(journalMode&&journalMode!=="saving"){
+    journalState("⚠ Secure journal-save connection not verified. Your spoken notes will be preserved here until we fix it. "+String(e.message).slice(0,105));
+   }
+  }
  }
  function journalStartMic(){
   if(!journalMode||journalMode==="saving"||journalMode==="review")return;
