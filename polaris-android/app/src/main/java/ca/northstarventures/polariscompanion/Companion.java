@@ -219,7 +219,17 @@ public final class Companion extends Activity {
   }
  }
  @Override public void onCreate(Bundle b){
-  super.onCreate(b);draw();
+  super.onCreate(b);
+  // Start in live conversation by default for paired devices.
+  // Only the small gear in VoiceCall opens the existing settings screen.
+  boolean openSettings=getIntent()!=null&&getIntent().getBooleanExtra("open_settings",false);
+  boolean reminderNotice=getIntent()!=null&&getIntent().hasExtra("say");
+  if(!openSettings&&!reminderNotice&&!token(this).isEmpty()){
+   startActivity(new Intent(this,VoiceCall.class));
+   finish();
+   return;
+  }
+  draw();
   String say=getIntent().getStringExtra("say");
   if(say!=null&&!say.isEmpty())tts=new TextToSpeech(this,ok->{if(ok==TextToSpeech.SUCCESS&&tts!=null){
    tts.setLanguage(Locale.CANADA);tts.setSpeechRate(1.1f);tts.speak(say,TextToSpeech.QUEUE_FLUSH,null,"alert");}});
@@ -232,7 +242,13 @@ public final class Companion extends Activity {
  void draw(){
   ScrollView sc=new ScrollView(this);layout=new LinearLayout(this);layout.setOrientation(LinearLayout.VERTICAL);
   layout.setPadding(25,25,25,30);layout.setBackgroundColor(Color.rgb(8,29,47));sc.addView(layout);setContentView(sc);
-  text("✦ Polaris Companion",24);text("Location reminders • Private to this phone",13);
+  if(!token(this).isEmpty()){
+   button("← Back to Polaris conversation",()->{
+    startActivity(new Intent(this,VoiceCall.class));
+    finish();
+   });
+  }
+  text("✦ Polaris Settings",24);text("Location reminders • Private to this phone",13);
   status=text("",13);status.setTextColor(Color.rgb(125,225,210));
   if(token(this).isEmpty()){
    text("Open Polaris Memory and create a 12-character pairing code.",15);
@@ -242,7 +258,7 @@ public final class Companion extends Activity {
     new Thread(()->{
      try{JSONObject body=new JSONObject().put("code",entry.getText().toString().trim()).put("label","Polaris Android");
       JSONObject response=api("/api/companion/claim","",body);saveToken(this,response.getString("token"));
-      runOnUiThread(()->{draw();message("Paired. Enable reminders and permissions.");});
+      runOnUiThread(()->{startActivity(new Intent(this,VoiceCall.class));finish();});
      }catch(Exception e){runOnUiThread(()->message("Pairing failed: "+e.getMessage()));}
     }).start();
    });
