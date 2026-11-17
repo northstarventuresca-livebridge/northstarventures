@@ -152,6 +152,20 @@ async function onRealtimeEvent(event){
     transcript("System","Callback requested for "+minutes+" minutes from now.");
     continue;
    }
+   if(part.name==="show_project_website"){
+    let args={};try{args=JSON.parse(part.arguments||"{}")}catch{}
+    status("Sending verified project website to TV…");
+    let message;
+    try{
+      const result=await post("/api/companion/voice/show-website",{project:args.project,request:args.request||""});
+      message="The "+result.project+" website is ready on your TV, with a QR code to open it. If you enabled the TV's site tab, that tab will open the site; otherwise just scan the QR or click View Site on the TV.";
+    }catch(e){message="I couldn't open that project's website on the TV: "+e.message}
+    if(dc?.readyState==="open"){
+      dc.send(JSON.stringify({type:"conversation.item.create",item:{type:"function_call_output",call_id:part.call_id,output:message}}));
+      dc.send(JSON.stringify({type:"response.create"}));
+    }
+    transcript("Screen",message);status("Connected • listening");continue;
+   }
    if(part.name==="queue_change_request"){
     let args={};try{args=JSON.parse(part.arguments||"{}")}catch{}
     status("Saving website change request…");
