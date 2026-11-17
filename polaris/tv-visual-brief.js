@@ -55,7 +55,8 @@ async function pcVisualBrief(env,{question,project,sourceNotes=[],spoken,sourceL
   if(!r.ok)return fallback;
   const raw=await r.json();
   const content=(raw.output||[]).flatMap(o=>(o.content||[]).filter(x=>x.type==="output_text").map(x=>x.text||"")).join("").trim()||raw.output_text||"";
-  let json;try{json=JSON.parse(content.trim())}catch{return fallback}
+  const first=content.indexOf("{"),last=content.lastIndexOf("}");
+  let json;try{json=JSON.parse(first>=0&&last>first?content.slice(first,last+1):content.trim())}catch{return fallback}
   if(!json||!Array.isArray(json.points))return fallback;
   const points=json.points.slice(0,6).map(p=>({
    label:pcDisplaySafe(p?.label,95),
