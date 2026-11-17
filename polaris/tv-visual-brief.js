@@ -49,7 +49,7 @@ async function pcVisualBrief(env,{question,project,sourceNotes=[],spoken,sourceL
   const r=await fetch("https://api.openai.com/v1/responses",{
    method:"POST",headers:{"authorization":"Bearer "+env.Polaris_open_ai,"content-type":"application/json"},
    body:JSON.stringify({model:POLARIS_OPENAI_MODEL,store:false,reasoning:{effort:"low"},
-     max_output_tokens:740,instructions,input:[{role:"user",content:input}]}),
+     max_output_tokens:1100,instructions,input:[{role:"user",content:input}]}),
    signal:AbortSignal.timeout(12000)
   });
   if(!r.ok)return fallback;
