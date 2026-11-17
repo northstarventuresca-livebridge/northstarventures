@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en-CA">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#091a2e"><title>Polaris • Private Memory</title>
+<style>
+:root{color-scheme:dark;--bg:#09192d;--card:#122b40;--line:#345b71;--txt:#edf8ff;--muted:#a8c5d7;--mint:#66e2c2;--blue:#76cff0}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 10% 0%,#164258,#09192d 55%);color:var(--txt);font:15px/1.5 system-ui,-apple-system,sans-serif}
+main{max-width:1050px;margin:auto;padding:16px 15px 80px}
+header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);padding-bottom:16px}
+header h1{font-size:25px;margin:0}header p{margin:0;color:var(--muted);font-size:12px}
+.intro{margin-top:22px;padding:22px;border:1px solid #4e8ca1;border-radius:18px;background:linear-gradient(125deg,#19475c,#10263a)}
+.intro h2{margin:0;font-size:22px}.intro p{color:#c4dfe9;margin:8px 0 16px;max-width:780px}
+form{display:flex;gap:9px;flex-wrap:wrap}input,select,button,textarea{font:inherit}input,textarea,select{background:#082033;border:1px solid #507f98;border-radius:10px;color:white;padding:12px;min-height:44px}
+input#newMemory{flex:1;min-width:225px}button{border:1px solid #5183a0;border-radius:10px;background:#1b4965;color:#eaf9ff;min-height:43px;padding:9px 13px;cursor:pointer;font-weight:700}button.primary{background:var(--mint);color:#062637;border:0;padding:12px 20px}
+button:disabled{opacity:.45;cursor:default}.notice{border-left:3px solid var(--mint);background:#10354a;border-radius:5px;padding:12px;margin-top:13px;display:none;white-space:pre-wrap}
+.top{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin:22px 0 12px}
+.top h2{margin:0;font-size:20px}.filters{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+.filters select,.filters input{font-size:13px;padding:8px;min-height:39px}
+#search{max-width:220px}
+.stats{font-size:12px;color:var(--muted)}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px}
+.memory{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:15px;display:flex;flex-direction:column;gap:10px}
+.memory.done{opacity:.55}.memory .head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.memory strong{font-size:16px;line-height:1.35}
+.tag{font-size:11px;border:1px solid #518eaa;color:#c9e9fc;border-radius:100px;padding:3px 9px;white-space:nowrap}
+.info{color:var(--muted);font-size:12px}.info span{display:inline-block;margin-right:10px}
+.bottom{margin-top:auto;display:flex;justify-content:flex-end;gap:7px}
+.bottom button{padding:6px 11px;min-height:32px;font-size:12px}
+.empty{color:var(--muted);text-align:center;padding:35px;border:1px dashed #456e82;border-radius:12px;grid-column:1/-1}
+.tip{color:var(--muted);font-size:12px;margin-top:17px}
+@media (max-width:600px){.intro{padding:16px}.cards{grid-template-columns:1fr}.filters{width:100%}.filters input{flex:1;max-width:none}}
+</style></head>
+<body><main>
+<header><div><h1>🧠 Polaris Memory</h1><p>Your private personal assistant • Ideas, shopping, and things to remember</p></div><nav class="nav"></nav></header>
+<section class="intro">
+<h2>Just tell Polaris what you need to remember.</h2>
+<p>“Bring toilet paper, a mop and light bulbs tomorrow.” Or “Next time I’m at RONA, remind me to look for a vanity on sale.” Ask about them later in natural language.</p>
+<form id="memoryForm"><input id="newMemory" maxlength="3300" autocomplete="off" aria-label="Your reminder or memory question" placeholder="Remember to bring a mop to Monica's house tomorrow…" required><button id="saveMemory" class="primary">Save / Ask</button></form>
+<div id="notice" class="notice" role="status"></div>
+</section>
+<section class="top"><div><h2>Saved memories</h2><div id="stats" class="stats"></div></div><div class="filters"><select id="kind"><option value="all">All categories</option><option value="bring">Things to bring</option><option value="store">Store reminders</option><option value="shopping">Shopping</option><option value="idea">Ideas</option><option value="general">Other notes</option></select><select id="status"><option value="open">Active</option><option value="done">Completed</option><option value="all">All</option></select><input id="search" aria-label="Search memories" placeholder="Search memories…"></div></section>
+<div id="list" class="cards"><div class="empty">Loading memories…</div></div>
+<p class="tip">Private to your authenticated Polaris account. Memory is persistent and doesn't expire with the chat history. Store-related reminders appear when you ask about the store; arrival-based phone notifications aren't enabled yet.</p>
+</main>
+<script>
+(function(){
+"use strict";
+const $=id=>document.getElementById(id),esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+let items=[],busy=false;
+function notify(message,fail=false){$("notice").style.display="block";$("notice").style.borderLeftColor=fail?"#f89999":"#66e2c2";$("notice").textContent=message}
+async function refresh(){
+ try{
+  const r=await fetch("/api/personal-memory",{credentials:"same-origin",cache:"no-store"});
+  const d=await r.json();if(!r.ok||!d.ok)throw Error(d.error||"Couldn't load memories");
+  items=d.entries||[];paint();
+ }catch(e){notify(e.message,true);$("list").innerHTML='<div class="empty">Unable to read saved memories.</div>'}
+}
+function paint(){
+ const status=$("status").value,kind=$("kind").value,search=$("search").value.trim().toLowerCase();
+ const open=items.filter(x=>x.status==="open");
+ $("stats").textContent=open.length+" active · "+items.length+" total memories";
+ const visible=items.filter(x=>(status==="all"||x.status===status)&&(kind==="all"||x.kind===kind)&&
+  (!search||(x.item+" "+x.store+" "+x.context+" "+x.project_key).toLowerCase().includes(search)));
+ const names={bring:"🎒 Bring",store:"🏬 Store",shopping:"🛒 Shopping",idea:"💡 Idea",general:"📝 Note"};
+ $("list").innerHTML=visible.length?visible.map(x=>{
+  const info=[x.store?"🏬 "+x.store:"",x.due_date?"📅 "+x.due_date:"",x.context?"📍 "+x.context:""].filter(Boolean);
+  return '<article class="memory '+(x.status==="done"?"done":"")+'"><div class="head"><strong>'+esc(x.item)+'</strong><span class="tag">'+esc(names[x.kind]||x.kind)+'</span></div>'+
+   '<div class="info">'+info.map(t=>'<span>'+esc(t)+'</span>').join("")+'</div>'+
+   '<div class="bottom"><button type="button" data-op="'+(x.status==="done"?"reopen":"done")+'" data-id="'+esc(x.id)+'">'+(x.status==="done"?"↺ Reopen":"✓ Done")+'</button></div></article>';
+ }).join(""):'<div class="empty">No memories in this view. Tell Polaris something to remember!</div>';
+}
+$("status").addEventListener("change",paint);$("kind").addEventListener("change",paint);$("search").addEventListener("input",paint);
+$("list").addEventListener("click",async e=>{
+ const b=e.target.closest("button[data-op]");if(!b||busy)return;
+ busy=true;b.disabled=true;
+ try{
+  const r=await fetch("/api/personal-memory",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json"},body:JSON.stringify({operation:b.dataset.op,id:b.dataset.id})});
+  const d=await r.json();if(!r.ok||!d.ok)throw Error(d.error||"Couldn't update");
+  notify(d.reply||"Saved.");await refresh();
+ }catch(e){notify(e.message,true)}finally{busy=false;b.disabled=false}
+});
+$("memoryForm").addEventListener("submit",async e=>{
+ e.preventDefault();if(busy)return;const msg=$("newMemory").value.trim();if(!msg)return;
+ busy=true;$("saveMemory").disabled=true;notify("Polaris is organizing your note…");
+ try{
+  const r=await fetch("/api/personal-memory",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json"},body:JSON.stringify({operation:"interpret",message:msg,requestId:crypto.randomUUID()})});
+  const d=await r.json();if(!r.ok||!d.ok)throw Error(d.error||"Couldn't process memory");
+  if(!d.handled)throw Error("I didn't recognize a reminder or memory question. Try 'Remember to...' or 'What did I need...?'.");
+  notify(d.reply||"Memory saved");
+  if(d.action==="save")$("newMemory").value="";
+  await refresh();
+ }catch(e){notify(e.message,true)}
+ finally{busy=false;$("saveMemory").disabled=false}
+});
+refresh();
+})();
+</script>
+</body></html>
