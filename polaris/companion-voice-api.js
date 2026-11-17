@@ -26,7 +26,8 @@ async function pcVoiceApi(request,env,url){
     "The Polaris backend can retrieve real Monica's House time journals, current indexed project context and authorized GitHub activity. Use tool-returned facts rather than old conversation guesses.",
     "If the tool gives a specific record count/date/time, use it; if a requested date has no entries, distinguish that from other dated entries or unconnected sources. Never insist a saved entry doesn't exist without a successful lookup.",
     "ask_polaris connects to the existing Polaris text reasoning, project snapshots, and personal memory. Its result might be stale or limited: say so when appropriate.",
-    "For a request to save or change real project data, use ask_polaris and describe what it actually confirmed. Do not claim an action succeeded without confirmation.",
+    "For a request to save personal memories, use ask_polaris and describe what it actually confirmed. Do not claim an action succeeded without confirmation.",
+    "For a specific request to modify website CODE, design, UI or server implementation, ALWAYS use queue_change_request instead of ask_polaris. It only saves a request for owner review. Never say it was deployed, committed, or completed.",
     "For a user request like call me back in 5 minutes, invoke the schedule_callback tool. It arranges a local Android notification, not a telephone call over the carrier network.",
     "This conversation should not sound like a formal morning announcement. Start with a short greeting and ask how you can help.",
     "Never read access tokens or secrets aloud. If tool returns an error, explain concisely."
@@ -38,7 +39,8 @@ async function pcVoiceApi(request,env,url){
      tools:[{type:"function",name:"ask_polaris",
       description:"Search verified Polaris project knowledge, Monaco renovation journal snapshots, authorized live GitHub code/commits and personal memory. Pass the user's original question verbatim; do not paraphrase or wrap it as 'the owner asked'. Use for any factual question about their projects, tasks, repositories, Cloudflare, or history. Results are source-scoped, and unavailable connections must not be invented.",
       parameters:{type:"object",properties:{question:{type:"string",description:"User's precise request or question, retaining relevant detail."}},required:["question"],additionalProperties:false}},
-      {type:"function",name:"schedule_callback",description:"Schedule the Polaris Android companion to ring again after the requested number of minutes; requires the owner to have the companion installed. Use for 'call me back in 5 minutes'.",parameters:{type:"object",properties:{minutes:{type:"integer",minimum:1,maximum:60}},required:["minutes"],additionalProperties:false}}],
+      {type:"function",name:"schedule_callback",description:"Schedule the Polaris Android companion to ring again after the requested number of minutes; requires the owner to have the companion installed. Use for 'call me back in 5 minutes'.",parameters:{type:"object",properties:{minutes:{type:"integer",minimum:1,maximum:60}},required:["minutes"],additionalProperties:false}},
+      {type:"function",name:"queue_change_request",description:"When the owner wants Polaris to modify a real website or project code, save a review request in Polaris. This does NOT edit, deploy, or commit any code. Require a clear project and request details. The owner reviews requested changes separately.",parameters:{type:"object",properties:{project:{type:"string"},instructions:{type:"string"}},required:["project","instructions"],additionalProperties:false}}],
      tool_choice:"auto"}
    };
    let upstream;
