@@ -146,7 +146,7 @@ function makeQr(parent,url){
  parent.replaceChildren();
  try{
   const text=String(url||'');
-  if(typeof polarisQrSvg!=='function'||new TextEncoder().encode(text).length>133)throw Error('QR not ready');
+  if(typeof polarisQrSvg!=='function'||text.length>133)throw Error('QR not ready');
   parent.innerHTML=polarisQrSvg(text);
  }catch{
   const fallback=document.createElement('span');fallback.textContent='OPEN';fallback.style.color='#132c46';parent.append(fallback);
@@ -182,6 +182,10 @@ async function pollWebsiteCommand(){
   const response=await r.json(),cmd=response.command||null;
   if(!websiteInitialized){
    websiteInitialized=true;lastSiteCommandId=cmd?.id||null;
+   if(cmd&&Date.now()-Date.parse(cmd.created_at||0)<15*60000){
+    const url=safeWebsite(cmd.url);
+    if(url){websiteCommandUrl=url;websiteCommandProject=String(cmd.project||'').slice(0,60);renderShortcuts()}
+   }
    return;
   }
   if(!cmd||cmd.id===lastSiteCommandId)return;
