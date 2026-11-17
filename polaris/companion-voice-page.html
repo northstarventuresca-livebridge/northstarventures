@@ -150,7 +150,15 @@ function stop(finished=true){
  if(finished){callClosed=true;status("Call ended.");$("start").disabled=true;}
 }
 $("start").onclick=()=>start();
-$("mute").onclick=()=>{if(!microphone)return;muted=!muted;microphone.getAudioTracks().forEach(t=>t.enabled=!muted);$("mute").textContent=muted?"Unmute":"Mute";status(muted?"Microphone muted":"Connected • listening")};
+function toggleMic(){
+ if(!microphone||!connected){status("Connect Polaris before using the headset button.");return false}
+ muted=!muted;
+ microphone.getAudioTracks().forEach(t=>t.enabled=!muted);
+ $("mute").textContent=muted?"Unmute":"Mute";
+ status(muted?"Microphone muted • headset button to talk":"Connected • listening");
+ return true;
+}
+$("mute").onclick=toggleMic;
 $("end").onclick=()=>{stop();transcript("System","Call ended. You can return to Polaris Companion.")};
 window.addEventListener("pagehide",()=>stop());
 window.PolarisPhone={
@@ -159,6 +167,7 @@ window.PolarisPhone={
   token=value;callClosed=false;$("start").disabled=false;status("Ready to connect.");
   start();
  },
+ toggleMute:()=>toggleMic(),
  hangUp:()=>stop()
 };
 })();
