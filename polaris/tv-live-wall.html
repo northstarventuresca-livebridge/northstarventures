@@ -66,11 +66,23 @@ body.tv-mode #polarisTVWall{display:grid;grid-template-rows:auto minmax(0,1fr) a
 @media(max-height:650px){body.tv-mode #polarisTVWall{gap:7px;padding:8px 11px}#polarisTVWall .tvTop{padding-bottom:5px}#polarisTVWall .tvHero h1{font-size:clamp(21px,2.4vw,34px);margin:5px 0}#polarisTVWall .tvHero p{-webkit-line-clamp:2}#polarisTVWall .tvCore{width:75px;height:75px}#polarisTVWall .tvMetric{min-height:68px}#polarisTVWall .tvMetricValue{font-size:clamp(19px,2vw,30px);margin:3px 0}#polarisTVWall .tvInfo p{-webkit-line-clamp:2}#polarisTVWall .tvRight{grid-template-rows:minmax(0,1.15fr) minmax(0,.85fr)}}
 @media(max-width:650px){#polarisTVWall .tvLayout{grid-template-columns:minmax(0,1fr) minmax(195px,.9fr)}#polarisTVWall .tvCore{display:none}#polarisTVWall .tvHero{grid-template-columns:1fr}#polarisTVWall .tvMetricNote{display:none}#polarisTVWall .tvInfoList{grid-template-columns:1fr}}
 @media(prefers-reduced-motion:reduce){#polarisTVWall .tvCore:before{animation:none}}
+
+/* Compact always-visible action brief from source-grounded Polaris summaries */
+#polarisTVWall .tvLeft.is-brief{grid-template-rows:minmax(0,.73fr) auto minmax(0,1.65fr)}
+#polarisTVWall .tvLeft.is-brief.no-metrics{grid-template-rows:minmax(0,.73fr) minmax(0,1.65fr)}
+#polarisTVWall .tvMetrics[hidden]{display:none!important}
+#polarisTVWall .tvInfoList.tvBriefList{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(3,minmax(0,1fr));gap:clamp(6px,.7vw,13px)}
+#polarisTVWall .tvBriefPoint{border:1px solid #347e9d91;border-radius:9px;background:#0c2941;padding:clamp(7px,.77vw,13px);display:flex;flex-direction:column;justify-content:center;overflow:hidden;min-height:0}
+#polarisTVWall .tvBriefPoint strong{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;color:#f2fdff;font-size:clamp(12px,1.05vw,19px);font-weight:800;line-height:1.3}
+#polarisTVWall .tvBriefPoint p{font-size:clamp(10px,.85vw,16px);line-height:1.28;color:#a4c8de;margin:4px 0 0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+#polarisTVWall .tvBriefFlag{color:#91e8ef;font-size:clamp(8px,.7vw,12px);text-transform:uppercase;letter-spacing:.08em;font-weight:730;margin-bottom:4px}
+@media(max-height:700px){#polarisTVWall .tvBriefPoint{padding:5px 7px}#polarisTVWall .tvBriefPoint p{-webkit-line-clamp:1}#polarisTVWall .tvBriefFlag{margin-bottom:1px}}
+
 </style>
 <section id="polarisTVWall" aria-label="Polaris automatic television monitoring view">
 <header class="tvTop"><div class="tvBrand"><span class="tvMark" aria-hidden="true">✦</span><span>POLARIS</span></div><div class="tvTopRight"><span id="tvNet" class="tvTag tvLive">● CONNECTING</span><span class="tvTag">LIVE DISPLAY · TV MODE</span><button type="button" id="tvFullScreen" class="tvIconBtn" title="Fullscreen TV view">⛶ FULLSCREEN</button><button type="button" id="tvExit" class="tvIconBtn" title="Use classic display layout">CLASSIC</button></div></header>
 <div class="tvLayout">
-<section class="tvLeft" aria-label="Current Polaris result">
+<section id="tvLeft" class="tvLeft" aria-label="Current Polaris result">
 <article class="tvSurface tvHero"><div><div class="tvKicker"><span id="tvProject">NORTH STAR VENTURES</span> · <span id="tvStage">WAITING FOR AN UPDATE</span></div><h1 id="tvTitle">POLARIS · READY</h1><p id="tvSubtitle">Your project and activity updates will appear here automatically.</p></div><div class="tvCore" aria-hidden="true"><b>✦</b></div></article>
 <div class="tvMetrics" id="tvMetrics" aria-label="Verified project metrics"><div class="tvMetric tvSurface"><div class="tvMetricLabel">DISPLAY</div><div class="tvMetricValue">READY</div><div class="tvMetricNote">Waiting for verified data</div></div></div>
 <article class="tvSurface tvBottom"><div class="tvTitleRow"><span id="tvHighlightsTitle">PROJECT HIGHLIGHTS</span><span id="tvCycle">AUTO ROTATE</span></div><div id="tvHighlights" class="tvInfoList"><div class="tvInfo"><strong>Ready</strong><p>Your latest verified project information will display here.</p></div></div></article>
@@ -96,19 +108,47 @@ el('tvFullScreen').onclick=()=>{if(document.fullscreenElement){document.exitFull
 const str=(v,limit=220)=>String(v==null?'':v).slice(0,limit);
 const formatDate=v=>{const d=new Date(v);return isNaN(d)?'Unknown':new Intl.DateTimeFormat('en-CA',{timeZone:'America/Edmonton',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',hour12:true}).format(d)};
 function ageLabel(value){const n=Date.parse(value);if(!Number.isFinite(n))return 'Time unverified';const ms=Math.max(0,Date.now()-n);if(ms<90000)return 'Just updated';if(ms<3600000)return Math.round(ms/60000)+' min ago';if(ms<86400000)return Math.round(ms/3600000)+' hr ago';return Math.floor(ms/86400000)+' days ago'}
-let revision=null,lastUpdate=null,insights=[],details=[],lastItemsKey='',lastRevisionAt=0,insightIndex=0,detailIndex=0,approvalIndex=0,approvalSignature='',knownChanges=-1,requests=[],changesOK=false,updateOK=false;
+let brief=null,revision=null,lastUpdate=null,insights=[],details=[],lastItemsKey='',lastRevisionAt=0,insightIndex=0,detailIndex=0,approvalIndex=0,approvalSignature='',knownChanges=-1,requests=[],changesOK=false,updateOK=false;
 const addCard=(className,parent,title,description)=>{const card=document.createElement('div');card.className=className;const h=document.createElement('strong');h.textContent=str(title,130);const p=document.createElement('p');p.textContent=str(description,380);card.append(h,p);parent.append(card);return card};
 function carouselData(){
  const list=el('tvHighlights'),extra=el('tvDetailItems');list.replaceChildren();extra.replaceChildren();
- const a=insights.length?insights:[{title:'No items supplied',detail:'The latest update did not include project highlights'}];
+ const points=Array.isArray(brief?.points)?brief.points.filter(x=>x?.label).slice(0,6):[];
+ list.classList.toggle('tvBriefList',points.length>0);
+ const heading=el('tvHighlightsTitle');
+ if(points.length){
+  heading.textContent=str(brief.heading||'AT A GLANCE',50).toUpperCase();
+  el('tvCycle').textContent=points.length+' QUICK POINTS · ALL VISIBLE';
+  list.style.gridTemplateRows='repeat('+Math.ceil(points.length/2)+',minmax(0,1fr))';
+  for(const point of points){
+   const card=document.createElement('div');card.className='tvBriefPoint';
+   const flag=document.createElement('div');flag.className='tvBriefFlag';
+   flag.textContent=({worked:'WORKED ON',started:'STARTED',completed:'RECORDED DONE',
+    checked:'CHECKED',planned:'PLANNED',blocked:'BLOCKED',unknown:'SOURCE NOTE'})[point.status]||'SUMMARY';
+   const name=document.createElement('strong');name.textContent='• '+str(point.label,95);
+   card.append(flag,name);
+   if(point.detail){const p=document.createElement('p');p.textContent=str(point.detail,110);card.append(p)}
+   list.append(card);
+  }
+ }else{
+  list.style.gridTemplateRows='';
+  heading.textContent='PROJECT HIGHLIGHTS';
+  const a=insights.length?insights:[{title:'No items supplied',detail:'The latest update did not include project highlights'}];
+  for(let i=0;i<Math.min(2,a.length);i++){
+   const item=a[(insightIndex+i)%a.length];
+   addCard('tvInfo',list,item.title||item.label||'PROJECT DETAIL',item.detail||item.description||item.value||'');
+  }
+  el('tvCycle').textContent=insights.length>2?'ROTATING '+((insightIndex%insights.length)+1)+'/'+insights.length:'LATEST';
+ }
  const b=details.length?details:[{title:'Waiting for activity',detail:'Verified details will appear when Polaris sends an update'}];
- for(let i=0;i<Math.min(2,a.length);i++){const item=a[(insightIndex+i)%a.length];addCard('tvInfo',list,item.title||item.label||'PROJECT DETAIL',item.detail||item.description||item.value||'')}
- for(let i=0;i<Math.min(2,b.length);i++){const item=b[(detailIndex+i)%b.length];addCard('tvDetail',extra,item.title||item.label||'VERIFIED ACTIVITY',item.detail||item.description||item.value||'')}
- el('tvCycle').textContent=insights.length>2?'ROTATING '+((insightIndex%insights.length)+1)+'/'+insights.length:'LATEST';
+ for(let i=0;i<Math.min(2,b.length);i++){
+  const item=b[(detailIndex+i)%b.length];
+  addCard('tvDetail',extra,item.title||item.label||'VERIFIED ACTIVITY',item.detail||item.description||item.value||'');
+ }
  el('tvActivityPage').textContent=details.length>2?'ROTATING '+((detailIndex%details.length)+1)+'/'+details.length:'LATEST';
 }
 function renderMetrics(p){
  const metrics=(Array.isArray(p.metrics)?p.metrics:[]).slice(0,4),target=el('tvMetrics');target.replaceChildren();
+ target.hidden=!metrics.length;el('tvLeft').classList.toggle('no-metrics',!metrics.length);
  if(!metrics.length)metrics.push({label:'STATUS',value:p.progress?.stage||'READY',note:'No verified metrics supplied'});
  for(const item of metrics){const card=document.createElement('div');card.className='tvMetric tvSurface';for(const [className,value] of [['tvMetricLabel',item.label],['tvMetricValue',item.value],['tvMetricNote',item.note]]){const node=document.createElement('div');node.className=className;node.textContent=str(value,130);node.title=str(value,250);card.append(node)}target.append(card)}
 }
@@ -126,6 +166,8 @@ function renderDisplay(state){
  el('tvStage').textContent=stage.toUpperCase();
  const percent=Number(progress.percent);el('tvProgressFill').style.width=Number.isFinite(percent)?Math.max(0,Math.min(100,percent))+'%':'0%';
  el('tvProgressLabel').textContent=Number.isFinite(percent)?Math.round(percent)+'%':'';renderMetrics(p);
+ brief=p.brief&&Array.isArray(p.brief.points)&&p.brief.points.length?p.brief:null;
+ el('tvLeft').classList.toggle('is-brief',!!brief);
  insights=getItems(p.items||p.priorities);details=getItems(p.details||p.highlights);
  if(state.view==='portfolio'&&Array.isArray(p.projects)&&p.projects.length){insights=getItems(p.projects).map(x=>({title:x.name||x.project||'Project',detail:x.description||x.note||x.summary||''}));}
  insightIndex=0;detailIndex=0;carouselData();
