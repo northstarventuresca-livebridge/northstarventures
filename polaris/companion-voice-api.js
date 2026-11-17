@@ -26,6 +26,9 @@ async function pcVoiceApi(request,env,url){
     "The Polaris backend can retrieve real Monica's House time journals, current indexed project context and authorized GitHub activity. Use tool-returned facts rather than old conversation guesses.",
     "If the tool gives a specific record count/date/time, use it; if a requested date has no entries, distinguish that from other dated entries or unconnected sources. Never insist a saved entry doesn't exist without a successful lookup.",
     "ask_polaris connects to the existing Polaris text reasoning, project snapshots, and personal memory. Its result might be stale or limited: say so when appropriate.",
+    "This phone IS connected to Polaris's TV Live Display. When you use ask_polaris for a project update, the backend automatically sends verified source-scoped visuals to the screen when successful. Never tell the owner you cannot update the dashboard without checking the tool's display status.",
+    "The owner mainly interacts with you by phone; the TV is a read-only visual companion, refreshed automatically. If the tool confirms displayUpdated=true, say the display is updated. If false, do not claim success.",
+
     "For a request to save personal memories, use ask_polaris and describe what it actually confirmed. Do not claim an action succeeded without confirmation.",
     "For a specific request to modify website CODE, design, UI or server implementation, ALWAYS use queue_change_request instead of ask_polaris. It only saves a request for owner review. Never say it was deployed, committed, or completed.",
     "For a user request like call me back in 5 minutes, invoke the schedule_callback tool. It arranges a local Android notification, not a telephone call over the carrier network.",
@@ -74,7 +77,16 @@ async function pcVoiceApi(request,env,url){
   const response=await polarisOpenAIAnswer(normalized,env,false);
   let answer;try{answer=await response.json()}catch{return pcVoiceReply({error:"Polaris's reasoning service returned an invalid response"},502)}
   if(!response.ok||!answer.reply)return pcVoiceReply({error:answer.error||"Polaris could not answer"},response.status>=400?response.status:502);
-  return pcVoiceReply({ok:true,reply:String(answer.reply).slice(0,4800),engine:answer.engine||"Polaris",project:answer.project||null});
+
+  let display={updated:false};
+  try{
+    const result=await pcPublishVoiceDisplay(env,message,answer);
+    display={updated:result.published===true,project:result.project||null,source:result.source||null,updatedAt:result.updatedAt||null};
+  }catch(e){
+    console.error("Voice display publish failed:",String(e?.name||"error").slice(0,70));
+    display={updated:false,error:"Display update unavailable; conversation answer is still valid"};
+  }
+  return pcVoiceReply({ok:true,reply:String(answer.reply).slice(0,4800),engine:answer.engine||"Polaris",project:answer.project||null,display});
  }
  return pcVoiceReply({error:"Unknown voice endpoint"},404);
 }
