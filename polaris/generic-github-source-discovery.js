@@ -29,7 +29,7 @@ function pgDiscoveryScore(value,terms){
  return terms.reduce((n,term)=>n+(lower.includes(term)?(lower.split("/").pop()===term?13:7):0),0);
 }
 function pgDiscoveryRelevant(question){
- return /\b(?:status|where|last|worked|working|progress|feature|upgrade|change|changed|fix|bug|build|built|implementation|implemented|branch|test|tested|deployment|deploy|deployed|dictionary|vocabulary|review|remember|revisit|previous|recent|code|github|source|version|custom)\b/i.test(String(question||""));
+ return /\b(?:status|where|last|worked|working|progress|feature|upgrade|change|changed|fix|bug|build|built|implementation|implemented|branch|test|tested|deployment|deploy|deployed|dictionary|vocabulary|review|remember|revisit|previous|recent|code|github|source|version|custom|discussed|talked|planned|plan|plans|how\u0027s|hows)\b|\bwhat about\b|\bhow are we doing\b|\bdid we\b/i.test(String(question||""));
 }
 async function pgDiscoveryRepos(env,project,question){
  let rows=[];
@@ -64,7 +64,8 @@ async function pgDiscoveryRepos(env,project,question){
  const repositories=[...known].map(repo=>{
   const projectFit=projectTerms.reduce((n,t)=>n+(repo.toLowerCase().includes(t)?11:0),0);
   const queryFit=pgDiscoveryScore(repo,terms);
-  return {repo,rank:projectFit+queryFit};
+  const crossProjectHub=!project&&repo==="northstarventuresca-livebridge/northstarventures"?8:0;
+  return {repo,rank:projectFit+queryFit+crossProjectHub};
  }).sort((a,b)=>b.rank-a.rank).slice(0,project?8:5);
  return {repositories,terms};
 }
@@ -151,5 +152,21 @@ async function pgDiscoverHistory(env,project,question){
  if(!matches.length&&!commits.length)lines.push("No matching branch or recent commit found in the inspected scope. Do NOT claim the feature never existed: it could be in older history, Cloudflare, uncommitted work, or prior chat records.");
  lines.push("Source truth: branch existence, CI success, merges and live deployments are DIFFERENT statuses. Never infer production release from GitHub branches.");
  output.evidence=lines.join("\n").slice(0,8500);
+ // Persist verified branch discoveries as searchable historical project memory.
+ // Never mark branch work as "live" or confuse commits with deployment status.
+ if(focus&&Array.isArray(matches)&&matches.length){
+  await Promise.allSettled(matches.filter(m=>!m.error).slice(0,3).map(m=>{
+   const id="github-discovery:"+m.repo+"@"+m.branch;
+   const details="Checked "+checkedAt+". Branch "+m.branch+" in "+m.repo+
+    " compared with "+m.base+": "+m.status+", "+m.ahead+" ahead, "+m.behind+
+    " behind. Files: "+(m.files||[]).map(f=>f.path).join(", ").slice(0,1800)+
+    ". CI: "+(m.runs||[]).map(x=>x.name+"="+x.result).join("; ").slice(0,550)+
+    ". GitHub evidence DOES NOT establish production deployment.";
+   const sql="INSERT INTO project_memory(id,project,category,title,details,source,as_of,verified_live) "+
+    "VALUES(?,?,?,?,?,?,?,0) ON CONFLICT(id) DO UPDATE SET details=excluded.details,as_of=excluded.as_of,source=excluded.source";
+   return env.POLARIS_DB.prepare(sql).bind(id,focus,"development","GitHub branch: "+m.branch,
+    details,"Live GitHub branch comparison (last checked)",checkedAt.slice(0,10)).run();
+  }));
+ }
  return output;
 }
