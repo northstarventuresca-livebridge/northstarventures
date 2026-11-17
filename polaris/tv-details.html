@@ -1,0 +1,33 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Polaris · Full Details</title>
+<style>:root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;padding:clamp(14px,4vw,38px);font:15px/1.5 system-ui,sans-serif;background:radial-gradient(ellipse at 30% 0,#123d5d,#041421 65%);color:#e9f9ff;min-height:100dvh}main{max-width:880px;margin:auto}header{display:flex;align-items:center;justify-content:space-between;gap:14px;border-bottom:1px solid #336b89;padding-bottom:14px}header strong{letter-spacing:.12em;font-size:20px}a{color:#91f2e4}h1{font-size:clamp(23px,4vw,42px);line-height:1.1;margin:20px 0 10px}h2{font-size:16px;color:#a9f2ed;letter-spacing:.04em;margin:0 0 13px}.muted{color:#9fc0d4}section{border:1px solid #2c6180;background:#0a263d;border-radius:13px;padding:18px;margin:17px 0}ul{padding-left:23px}li{padding:7px 0}li strong{font-size:16px}li span{font-size:13px;color:#aec9d8;display:block}.flag{font-size:11px;letter-spacing:.08em;font-weight:800;color:#72eac9;margin-left:8px}button,.action{display:inline-block;background:#15626f;color:white;font:750 14px system-ui;border:1px solid #56bfa6;border-radius:10px;padding:12px 18px;text-decoration:none;cursor:pointer;margin:6px 7px 6px 0}.actions{display:flex;flex-wrap:wrap;gap:8px}.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:9px}.metric{background:#092031;border:1px solid #29617e;border-radius:8px;padding:11px}.metric b{font-size:22px;display:block}.metric small{color:#98bbcf}.note{padding:10px 0;border-bottom:1px solid #22425c}.note strong{display:block}.note p{white-space:pre-wrap;overflow-wrap:anywhere;margin:5px 0;color:#c2d9e6}</style></head>
+<body><main><header><strong>✦ POLARIS</strong><a href="/display?tv=1">Live Display</a></header>
+<div id="status" class="muted">Loading the verified display record…</div><h1 id="title"></h1><p id="subtitle" class="muted"></p><p id="meta" class="muted"></p>
+<div id="links" class="actions"></div>
+<section id="briefSection" hidden><h2 id="heading">AT A GLANCE</h2><ul id="brief"></ul><div id="next"></div></section>
+<section id="metricSection" hidden><h2>KEY NUMBERS</h2><div id="metrics" class="metrics"></div></section>
+<section><h2>FULL PROJECT DETAILS</h2><div id="notes"></div></section>
+</main><script>(async function(){'use strict';
+const $=id=>document.getElementById(id);const text=(id,value)=>{$(id).textContent=String(value??'')};
+function addText(tag,className,parent,value){const x=document.createElement(tag);x.className=className||'';x.textContent=String(value??'');parent.append(x);return x}
+try{
+ const rev=new URLSearchParams(location.search).get('rev')||'';
+ const r=await fetch('/api/tv/details?rev='+encodeURIComponent(rev),{credentials:'same-origin',cache:'no-store'});
+ const j=await r.json();if(!r.ok||!j.ok)throw Error(j.error||'This display update could not be loaded.');
+ const state=j.state||{},payload=typeof state.payload==='string'?JSON.parse(state.payload):state.payload||{};
+ text('status',state.project||'PROJECT');text('title',state.title||'Polaris update');text('subtitle',state.subtitle||'');
+ text('meta',(state.updated_at?'Updated '+new Date(state.updated_at).toLocaleString()+' · ':'')+'Revision '+state.revision);
+ const links=$('links');if(j.siteUrl){const x=addText('a','action',links,'View project website');x.href=j.siteUrl;x.target='_blank';x.rel='noopener noreferrer'}
+ const b=payload.brief;
+ if(Array.isArray(b?.points)&&b.points.length){
+  $('briefSection').hidden=false;text('heading',b.heading||'AT A GLANCE');
+  for(const p of b.points){const li=addText('li','',$('brief'),'');addText('strong','',li,p.label);
+   if(p.status)addText('span','flag',li,' '+p.status.toUpperCase());
+   if(p.detail)addText('span','',li,p.detail)}
+  if(b.next?.length){addText('h2','',$('next'),'UP NEXT');for(const x of b.next)addText('p','muted',$('next'),'• '+x)}
+ }
+ if(Array.isArray(payload.metrics)&&payload.metrics.length){$('metricSection').hidden=false;for(const m of payload.metrics){const x=addText('div','metric',$('metrics'),'');addText('small','',x,m.label);addText('b','',x,m.value);if(m.note)addText('small','',x,m.note)}}
+ const notes=$('notes');const extras=[...(Array.isArray(payload.items)?payload.items:[]),...(Array.isArray(payload.details)?payload.details:[])].slice(0,35);
+ if(!extras.length)addText('p','muted',notes,'No additional details are saved for this visual update.');
+ for(const it of extras){const box=addText('div','note',notes,'');addText('strong','',box,it.title||it.label||'Details');addText('p','',box,it.detail||it.description||it.value||'')}
+}catch(e){text('status','Unable to load');text('title','Display details unavailable');text('subtitle',e.message)}
+})();</script></body></html>
