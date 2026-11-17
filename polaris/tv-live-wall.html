@@ -95,7 +95,7 @@ el('tvFullScreen').onclick=()=>{if(document.fullscreenElement){document.exitFull
 const str=(v,limit=220)=>String(v==null?'':v).slice(0,limit);
 const formatDate=v=>{const d=new Date(v);return isNaN(d)?'Unknown':new Intl.DateTimeFormat('en-CA',{timeZone:'America/Edmonton',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',hour12:true}).format(d)};
 function ageLabel(value){const n=Date.parse(value);if(!Number.isFinite(n))return 'Time unverified';const ms=Math.max(0,Date.now()-n);if(ms<90000)return 'Just updated';if(ms<3600000)return Math.round(ms/60000)+' min ago';if(ms<86400000)return Math.round(ms/3600000)+' hr ago';return Math.floor(ms/86400000)+' days ago'}
-let revision=null,lastUpdate=null,insights=[],details=[],lastItemsKey='',lastRevisionAt=0,insightIndex=0,detailIndex=0,knownChanges=-1,requests=[],changesOK=false,updateOK=false;
+let revision=null,lastUpdate=null,insights=[],details=[],lastItemsKey='',lastRevisionAt=0,insightIndex=0,detailIndex=0,approvalIndex=0,approvalSignature='',knownChanges=-1,requests=[],changesOK=false,updateOK=false;
 const addCard=(className,parent,title,description)=>{const card=document.createElement('div');card.className=className;const h=document.createElement('strong');h.textContent=str(title,130);const p=document.createElement('p');p.textContent=str(description,380);card.append(h,p);parent.append(card);return card};
 function carouselData(){
  const list=el('tvHighlights'),extra=el('tvDetailItems');list.replaceChildren();extra.replaceChildren();
@@ -148,7 +148,8 @@ function wrapNewApprovals(){
  const show=requests.filter(x=>x.status==='requested');
  const chosen=show.length?show:requests.filter(x=>['approved_for_preparation','preparing','prepared','draft_pr'].includes(x.status)).slice(0,2);
  if(!chosen.length){const div=document.createElement('div');div.className='tvEmpty';div.textContent='✓ Nothing needs your approval';target.append(div);return}
- for(const item of chosen.slice(0,2)){
+ const queueItems=show.length>2?[...show.slice(approvalIndex%show.length),...show.slice(0,approvalIndex%show.length)]:chosen;
+ for(const item of queueItems.slice(0,2)){
   const row=addCard('tvRequest',target,item.project||'Project request',item.request_text||'');
   if(item.status==='requested'){
    const controls=document.createElement('div');controls.className='tvRequestAction';
@@ -164,10 +165,10 @@ function wrapNewApprovals(){
    approve.onclick=()=>take('approve');reject.onclick=()=>take('reject');controls.append(approve,reject);row.append(controls);
   }else{const status=document.createElement('div');status.className='tvStatusLine';status.textContent=item.status==='draft_pr'?'Draft pull request ready to review':'Approved for preparation · not deployed';row.append(status)}
  }
- if(show.length>2){const more=document.createElement('span');more.className='tvStatusLine';more.textContent='+'+(show.length-2)+' additional requests · rotates on next update';target.append(more)}
+ if(show.length>2){const more=document.createElement('span');more.className='tvStatusLine';more.textContent='+'+(show.length-2)+' additional requests · rotating automatically';target.append(more)}
 }
 async function pollRequests(){
- try{const r=await fetch('/api/github-app/changes',{credentials:'same-origin',cache:'no-store'});if(!r.ok)throw Error('No approval data');const j=await r.json();requests=Array.isArray(j.items)?j.items:[];changesOK=true;knownChanges=requests.length}
+ try{const r=await fetch('/api/github-app/changes',{credentials:'same-origin',cache:'no-store'});if(!r.ok)throw Error('No approval data');const j=await r.json();requests=Array.isArray(j.items)?j.items:[];const sig=requests.filter(x=>x.status==='requested').map(x=>x.id).join(',');if(sig!==approvalSignature){approvalIndex=0;approvalSignature=sig}changesOK=true;knownChanges=requests.length}
  catch(e){changesOK=false}wrapNewApprovals()
 }
 function tick(){
@@ -177,7 +178,7 @@ function tick(){
 let pollTimer=null;async function pollAll(){await Promise.all([pollDisplay(),pollRequests()]);tick()}
 pollAll();tick();
 pollTimer=setInterval(()=>{if(!document.hidden)pollAll()},4500);
-setInterval(()=>{if(!document.hidden){insightIndex+=2;detailIndex+=2;carouselData()}},9500);
+setInterval(()=>{if(!document.hidden){insightIndex+=2;detailIndex+=2;approvalIndex+=2;carouselData();wrapNewApprovals()}},9500);
 setInterval(tick,15000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)pollAll()});
 window.addEventListener('pagehide',()=>{clearInterval(pollTimer)});
