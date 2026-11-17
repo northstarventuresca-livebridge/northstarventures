@@ -139,8 +139,8 @@ public final class Companion extends Activity {
    .setPriority(NotificationCompat.PRIORITY_HIGH).setCategory(NotificationCompat.CATEGORY_REMINDER).setAutoCancel(true)
    .setContentIntent(PendingIntent.getActivity(c,5,open,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE));
   int unique=message.hashCode();
-  Intent snooze=new Intent(c,ActionReceiver.class).setAction("snooze").setData(Uri.parse("polaris://snooze/"+Integer.toHexString(unique))).putExtra("message",message);
-  builder.addAction(0,"Remind in 15m",PendingIntent.getBroadcast(c,unique^6,snooze,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE));
+  Intent talk=new Intent(Intent.ACTION_VIEW,Uri.parse(SERVER+"/")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+  builder.addAction(0,"Talk to Polaris",PendingIntent.getActivity(c,unique^6,talk,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE));
   if(idsJson!=null&&!idsJson.isEmpty()){
    Intent later=new Intent(c,ActionReceiver.class).setAction("defer").setData(Uri.parse("polaris://defer/"+Integer.toHexString(unique))).putExtra("ids",idsJson);
    builder.addAction(0,"Check again in 3 days",PendingIntent.getBroadcast(c,unique^7,later,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE));
