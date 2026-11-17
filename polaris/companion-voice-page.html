@@ -85,7 +85,16 @@ async function onRealtimeEvent(event){
    try{question=JSON.parse(part.arguments||"{}").question||""}catch{}
    status("Checking Polaris project and memory…");
    let answer;
-   try{const d=await post("/api/companion/voice/ask",{question});answer=d.reply||"I couldn't find an answer."}
+   try{
+    const d=await post("/api/companion/voice/ask",{question});
+    answer=d.reply||"I couldn't find an answer.";
+    if(d.display?.updated===true){
+      answer+="\n\n[Verified backend action: Polaris TV Live Display was updated with this project result. Source status: "+(d.display.source||"source-scoped answer")+"]";
+      transcript("Screen","Updated the TV Live Display for "+(d.display.project||"this project")+".");
+    }else if(d.display?.error){
+      answer+="\n\n[TV display not updated: "+d.display.error+"]";
+    }
+   }
    catch(e){answer="I couldn't reach Polaris's records: "+e.message}
    if(!dc||dc.readyState!=="open")return;
    dc.send(JSON.stringify({type:"conversation.item.create",item:{type:"function_call_output",call_id:part.call_id,output:answer}}));
