@@ -283,6 +283,10 @@ public final class Companion extends Activity {
   button("Set STORE using current location",()->{
    String value=name.getText().toString().trim();if(value.length()<2){message("Enter a store name first.");return;}saveHere(value,"store");
   });
+  text("🎙 Polaris Voice Calling",17);
+  button("Start a live Polaris conversation",()->startActivity(new Intent(this,VoiceCall.class)));
+  button("TEST incoming Polaris call",()->VoiceCall.ring(this,"Would you like to talk now?"));
+  text("Answer / Call back in 5 min / Ignore. For this beta, incoming calls can be simulated here; instant remote calls need push notification setup.",12);
   button("TEST notification",()->notifyUser(this,"Polaris • Test","Hey, your Polaris reminders are working.",null));
   button("Sync reminder list",()->new Thread(()->{
    try{JSONArray arr=api("/api/companion/sync",token(this),null).getJSONArray("entries");
