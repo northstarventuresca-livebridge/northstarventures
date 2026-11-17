@@ -1,0 +1,33 @@
+name: Polaris Companion Android APK
+on:
+  push:
+    branches: ['feature/polaris-android-reminders']
+    paths: ['polaris-android/**', '.github/workflows/polaris-companion-apk.yml']
+  workflow_dispatch:
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - name: Install Android SDK
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platforms;android-35" "build-tools;35.0.0"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.11.1
+      - name: Build APK
+        run: gradle -p polaris-android :app:assembleDebug --no-daemon --stacktrace
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Polaris-Companion-debug-apk
+          path: polaris-android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
