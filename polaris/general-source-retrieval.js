@@ -13,7 +13,8 @@ async function pkGitHubActivity(env,project,question){
  const q=String(question||"").toLowerCase();
  const genericWords=["what","did","the","and","are","our","was","work","latest","with","that","those","today","yesterday","last","this","updated","recent","progress","have","from","they","there","been","project","projects"];
  const terms=q.split(/[^a-z0-9]+/).filter(t=>t.length>=4&&!genericWords.includes(t));
- const selected=rows.filter(row=>row.visibility==="public"||!!polarisRepoToken(env,row.path));
+ const appEnabled=Boolean(env.POLARIS_GITHUB_APP_ID&&env.POLARIS_GITHUB_APP_PRIVATE_KEY);
+ const selected=rows.filter(row=>row.visibility==="public"||!!polarisRepoToken(env,row.path)||(appEnabled&&!!paValidRepo(row.path)));
  if(!selected.length)return "[GITHUB READ PERMISSIONS] "+rows.length+" repositories are catalogued for "+project+", but none currently has live file/commit read access in Polaris. Do not guess code changes.";
  const ranked=selected.map(row=>{
   const repo=String(row.path||"").toLowerCase();
@@ -28,10 +29,10 @@ async function pkGitHubActivity(env,project,question){
  const results=await Promise.all(take.map(async row=>{
   const repo=row.path.split("/");
   if(repo.length!==2)return null;
-  const token=polarisRepoToken(env,row.path);
   const headers={accept:"application/vnd.github+json","user-agent":"Polaris-ProjectResearch/1.0","x-github-api-version":"2022-11-28"};
-  if(token)headers.authorization="Bearer "+token;
   try{
+   const token=polarisRepoToken(env,row.path)||(appEnabled&&paValidRepo(row.path)?(await paGithubInstallationToken(env,row.path,"read")).token:null);
+   if(token)headers.authorization="Bearer "+token;
    const endpoint="https://api.github.com/repos/"+encodeURIComponent(repo[0])+"/"+encodeURIComponent(repo[1])+"/commits?per_page=6";
    const response=await fetch(endpoint,{headers,signal:AbortSignal.timeout(7000)});
    if(!response.ok)return {name:row.name,status:"HTTP "+response.status};
