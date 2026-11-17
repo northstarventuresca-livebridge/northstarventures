@@ -7,6 +7,14 @@ function pcVoiceReply(value,status=200){
 }
 async function pcVoiceApi(request,env,url){
  const path=url.pathname;
+ if(path==="/api/companion/voice/show-website"){
+  if(request.method!=="POST")return pcVoiceReply({error:"POST required"},405);
+  const device=await pcDevice(request,env);if(!device)return pcVoiceReply({error:"Pair a Polaris phone first"},401);
+  if(!env.POLARIS_DB)return pcVoiceReply({error:"Polaris dashboard unavailable"},503);
+  let input;try{const raw=await request.text();if(raw.length>850)throw Error("Invalid request");input=JSON.parse(raw)}catch{return pcVoiceReply({error:"Invalid website request"},400)}
+  try{const result=await pcQueueWebsiteOnTv(env,input.project,input.request);return pcVoiceReply(result,result.ok?200:400)}
+  catch(e){return pcVoiceReply({error:"Unable to queue the verified website"},503)}
+ }
  if(path==="/api/companion/voice/speak"){
   if(request.method!=="POST")return pcVoiceReply({error:"POST required"},405);
   const device=await pcDevice(request,env);
@@ -52,6 +60,7 @@ async function pcVoiceApi(request,env,url){
 
     "For a request to save personal memories, use ask_polaris and describe what it actually confirmed. Do not claim an action succeeded without confirmation.",
     "For a specific request to modify website CODE, design, UI or server implementation, ALWAYS use queue_change_request instead of ask_polaris. It only saves a request for owner review. Never say it was deployed, committed, or completed.",
+    "If the owner says bring up, open, display or show a PROJECT WEBSITE on the TV or second screen, use show_project_website. That tool queues a verified official website URL for the TV. Do NOT claim a new tab opened unless tool confirms the queued link was delivered; the TV may require a one-time Enable Site Tab click due to popup restrictions.",
     "For a user request like call me back in 5 minutes, invoke the schedule_callback tool. It arranges a local Android notification, not a telephone call over the carrier network.",
     "This conversation should not sound like a formal morning announcement. Start with a short greeting and ask how you can help.",
     "Never read access tokens or secrets aloud. If tool returns an error, explain concisely."
@@ -64,6 +73,7 @@ async function pcVoiceApi(request,env,url){
       description:"Search verified Polaris project knowledge, Monaco renovation journal snapshots, authorized live GitHub code/commits and personal memory. Pass the user's original question verbatim; do not paraphrase or wrap it as 'the owner asked'. Use for any factual question about their projects, tasks, repositories, Cloudflare, or history. Results are source-scoped, and unavailable connections must not be invented.",
       parameters:{type:"object",properties:{question:{type:"string",description:"User's precise request or question, retaining relevant detail."}},required:["question"],additionalProperties:false}},
       {type:"function",name:"schedule_callback",description:"Schedule the Polaris Android companion to ring again after the requested number of minutes; requires the owner to have the companion installed. Use for 'call me back in 5 minutes'.",parameters:{type:"object",properties:{minutes:{type:"integer",minimum:1,maximum:60}},required:["minutes"],additionalProperties:false}},
+      {type:"function",name:"show_project_website",description:"Show an existing project website on Polaris TV: queues a verified official URL for an existing project, automatically updates TV QR; an already armed TV site tab will navigate. Use for 'bring up the LiveBridge website' or 'open Monica website on my TV', not for answering informational questions or making code changes.",parameters:{type:"object",properties:{project:{type:"string",description:"Project name, for example Monica's House, LiveBridge, TapBin, Great Church, Polaris"},request:{type:"string",description:"Original user instruction, if project name uncertain"}},required:["project"],additionalProperties:false}},
       {type:"function",name:"queue_change_request",description:"When the owner wants Polaris to modify a real website or project code, save a review request in Polaris. This does NOT edit, deploy, or commit any code. Require a clear project and request details. The owner reviews requested changes separately.",parameters:{type:"object",properties:{project:{type:"string"},instructions:{type:"string"}},required:["project","instructions"],additionalProperties:false}}],
      tool_choice:"auto"}
    };
