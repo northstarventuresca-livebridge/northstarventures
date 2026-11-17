@@ -87,6 +87,22 @@ async function polarisCompanionHandle(request,env,url){
   const rows=r.results||[];
   return pcReply({ok:true,device_id:device.id,server_today:new Intl.DateTimeFormat("en-CA",{timeZone:"America/Edmonton",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date()),entries:rows,refresh_after_minutes:30});
  }
+ if(path==="/api/companion/defer"&&request.method==="POST"){
+  const input=await pcParseJson(request,3000);
+  const ids=Array.isArray(input?.ids)?Array.from(new Set(input.ids.filter(x=>/^[0-9a-f-]{36}$/i.test(String(x))))).slice(0,12):[];
+  const days=Number(input?.days);
+  if(!ids.length||!Number.isInteger(days)||days<1||days>30)return pcReply({error:"Choose one or more valid reminders and 1–30 days"},400);
+  const now=new Date().toISOString();
+  const parts=new Intl.DateTimeFormat("en-CA",{timeZone:"America/Edmonton",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date());
+  const dateParts=Object.fromEntries(parts.map(x=>[x.type,x.value]));
+  const target=new Date(Date.UTC(Number(dateParts.year),Number(dateParts.month)-1,Number(dateParts.day)+days)).toISOString().slice(0,10);
+  let changed=0;
+  for(const id of ids){
+   const result=await env.POLARIS_DB.prepare("UPDATE polaris_personal_memory SET due_date=?,updated_at=? WHERE id=? AND status='open' AND kind!='store'").bind(target,now,id).run();
+   if(result.meta?.changes===1)changed++;
+  }
+  return pcReply({ok:true,changed,remind_on:target,reply:"Okay, I'll check back in "+days+" days."});
+ }
  if(path==="/api/companion/complete"&&request.method==="POST"){
   const input=await pcParseJson(request);
   if(!/^[0-9a-f-]{36}$/i.test(String(input?.id||"")))return pcReply({error:"Invalid reminder"},400);
