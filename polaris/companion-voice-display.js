@@ -69,6 +69,34 @@ async function pcPublishVoiceDisplay(env,question,answer) {
    }
   }
  }
+ if(answer.livebridgeVocabulary){
+  const info=answer.livebridgeVocabulary;
+  title="LIVEBRIDGE · CUSTOM DICTIONARY";
+  if(info.ok){
+   subtitle="Feature developed on a protected test branch. Automated checks "+(info.ciPass?"PASSED":"not confirmed")+". Browser preview and live recognition testing remain.";
+   data.metrics=[
+    {label:"STATUS",value:info.isolated?"TEST BRANCH":"REVIEW",note:"Production rollout not verified"},
+    {label:"COMMITS AHEAD",value:String(info.ahead),note:"Relative to main"},
+    {label:"CI TESTS",value:info.ciPass?"PASS":"CHECK",note:"GitHub automated workflow"},
+    {label:"LIVE DEPLOYMENT",value:"NOT VERIFIED",note:"Requires explicit review"}
+   ];
+   data.items=[
+    {title:"BUILT: ORGANIZATION DICTIONARY",detail:"Correct spelling, pronunciation guide, commonly misheard forms, add/edit/remove UI, isolated per organization, maximum 100 terms."},
+    {title:"NEXT: REAL-AUDIO TEST",detail:"Run browser preview and test spoken recognition of Jachin (Jake-in), mistaken as Jack in or Jacqueline, before release approval."}
+   ];
+   data.details=[
+    {title:"SOURCE",detail:"GitHub "+info.repo+" · "+info.branch},
+    {title:"BRANCH STATUS",detail:String(info.ahead)+" commits ahead of main, "+String(info.behind)+" behind"},
+    {title:"CHECKED",detail:info.checkedAt},
+    {title:"PRODUCTION",detail:"Isolated test work; no verified production deployment"}
+   ];
+   verified="Live GitHub comparison and automated workflow status, checked "+info.checkedAt;
+  }else{
+   subtitle="LiveBridge vocabulary source status could not be checked right now. Last documented work was on a test branch.";
+   data.items=[{title:"LIVE STATUS UNAVAILABLE",detail:"GitHub source verification failed; no production claim made."}];
+   verified="Live GitHub check unavailable · documented historical test work only";
+  }
+ }
  if(!data.items.length)data.items=[{title:"POLARIS ANSWER",detail:spoken.slice(0,540)}];
  if(!data.details.length)data.details=[
   {title:"YOU ASKED",detail:questionText},
