@@ -98,7 +98,7 @@ async function polarisCompanionHandle(request,env,url){
   const target=new Date(Date.UTC(Number(dateParts.year),Number(dateParts.month)-1,Number(dateParts.day)+days)).toISOString().slice(0,10);
   let changed=0;
   for(const id of ids){
-   const result=await env.POLARIS_DB.prepare("UPDATE polaris_personal_memory SET due_date=?,updated_at=? WHERE id=? AND status='open' AND kind!='store'").bind(target,now,id).run();
+   const result=await env.POLARIS_DB.prepare("UPDATE polaris_personal_memory SET due_date=?,updated_at=? WHERE id=? AND status='open'").bind(target,now,id).run();
    if(result.meta?.changes===1)changed++;
   }
   return pcReply({ok:true,changed,remind_on:target,reply:"Okay, I'll check back in "+days+" days."});
