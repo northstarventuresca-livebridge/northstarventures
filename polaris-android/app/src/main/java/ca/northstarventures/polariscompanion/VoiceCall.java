@@ -5,6 +5,8 @@ import android.app.*;
 import android.content.*;
 import android.content.pm.PackageManager;
 import android.media.AudioManager;
+import android.media.session.MediaSession;
+import android.media.session.PlaybackState;
 import android.net.Uri;
 import android.os.*;
 import android.view.*;
@@ -25,6 +27,8 @@ public final class VoiceCall extends Activity {
  private AudioManager audioManager;
  private int previousMode=AudioManager.MODE_NORMAL;
  private TextView status;
+ private MediaSession headsetSession;
+ private long lastHeadsetPress=0;
 
  /** A local incoming VoIP-style invitation; actual remote push requires FCM. */
  public static void ring(Context context,String subject) {
@@ -106,6 +110,7 @@ public final class VoiceCall extends Activity {
   web=new WebView(this);
   LinearLayout.LayoutParams params=new LinearLayout.LayoutParams(-1,0,1);root.addView(web,params);
   setContentView(root);
+  registerHeadsetControls();
   if(Companion.token(this).isEmpty()){
    status.setText("This phone isn't paired. Open Polaris Companion first.");return;
   }
@@ -113,6 +118,52 @@ public final class VoiceCall extends Activity {
    status.setText("Allow the microphone to begin a private conversation.");
    ActivityCompat.requestPermissions(this,new String[]{Manifest.permission.RECORD_AUDIO},AUDIO_PERMISSION);
   }else initWeb();
+ }
+ private static boolean headsetKey(int code){
+  return code==KeyEvent.KEYCODE_HEADSETOOK||code==KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE||
+    code==KeyEvent.KEYCODE_MEDIA_PLAY||code==KeyEvent.KEYCODE_MEDIA_PAUSE;
+ }
+ private void toggleFromHeadset(){
+  long now=android.os.SystemClock.elapsedRealtime();
+  if(now-lastHeadsetPress<500)return; // Some headsets deliver a media and key event for one press.
+  lastHeadsetPress=now;
+  runOnUiThread(()->{
+   if(web==null)return;
+   web.evaluateJavascript("window.PolarisPhone && window.PolarisPhone.toggleMute && window.PolarisPhone.toggleMute()",null);
+  });
+ }
+ private void registerHeadsetControls(){
+  if(headsetSession!=null)return;
+  try{
+   headsetSession=new MediaSession(this,"Polaris Voice Headset");
+   headsetSession.setFlags(MediaSession.FLAG_HANDLES_MEDIA_BUTTONS|MediaSession.FLAG_HANDLES_TRANSPORT_CONTROLS);
+   headsetSession.setCallback(new MediaSession.Callback(){
+    @Override public boolean onMediaButtonEvent(Intent intent){
+     KeyEvent event=Build.VERSION.SDK_INT>=33?
+       intent.getParcelableExtra(Intent.EXTRA_KEY_EVENT,KeyEvent.class):
+       (KeyEvent)intent.getParcelableExtra(Intent.EXTRA_KEY_EVENT);
+     if(event!=null&&headsetKey(event.getKeyCode())){
+      if(event.getAction()==KeyEvent.ACTION_UP)toggleFromHeadset();
+      return true;
+     }
+     return super.onMediaButtonEvent(intent);
+    }
+    @Override public void onPlay(){toggleFromHeadset();}
+    @Override public void onPause(){toggleFromHeadset();}
+   });
+   headsetSession.setPlaybackState(new PlaybackState.Builder()
+     .setState(PlaybackState.STATE_PLAYING,PlaybackState.PLAYBACK_POSITION_UNKNOWN,1.0f)
+     .setActions(PlaybackState.ACTION_PLAY_PAUSE|PlaybackState.ACTION_PLAY|PlaybackState.ACTION_PAUSE)
+     .build());
+   headsetSession.setActive(true);
+  }catch(Exception e){status.setText("Polaris connected. Headset controls may require manual mute.");}
+ }
+ @Override public boolean dispatchKeyEvent(KeyEvent event){
+  if(headsetKey(event.getKeyCode())){
+   if(event.getAction()==KeyEvent.ACTION_UP)toggleFromHeadset();
+   return true;
+  }
+  return super.dispatchKeyEvent(event);
  }
  private boolean permittedOrigin(Uri uri){
   return uri!=null && "https".equalsIgnoreCase(uri.getScheme())
@@ -174,6 +225,10 @@ public final class VoiceCall extends Activity {
   }
  }
  @Override protected void onDestroy(){
+  if(headsetSession!=null){
+   try{headsetSession.setActive(false);headsetSession.release();}catch(Exception ignored){}
+   headsetSession=null;
+  }
   if(web!=null){
    try{web.evaluateJavascript("window.PolarisPhone && window.PolarisPhone.hangUp()",null);}catch(Exception ignored){}
    web.stopLoading();web.destroy();web=null;
