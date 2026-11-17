@@ -107,7 +107,7 @@ public final class Companion extends Activity {
   if(!enabled(c)||token(c).isEmpty()||!permission(c))return;
   List<Geofence> fences=new ArrayList<>();
   for(Place p:places(c)){
-   int type=p.type.equals("home")?Geofence.GEOFENCE_TRANSITION_EXIT:p.type.equals("store")?Geofence.GEOFENCE_TRANSITION_DWELL:Geofence.GEOFENCE_TRANSITION_ENTER;
+   int type=p.type.equals("home")?Geofence.GEOFENCE_TRANSITION_EXIT:(p.type.equals("store")||p.type.equals("storage"))?Geofence.GEOFENCE_TRANSITION_DWELL:Geofence.GEOFENCE_TRANSITION_ENTER;
    try{fences.add(new Geofence.Builder().setRequestId(p.id).setCircularRegion(p.lat,p.lon,p.type.equals("store")?250:200)
     .setTransitionTypes(type).setLoiteringDelay(120000).setNotificationResponsiveness(120000).setExpirationDuration(Geofence.NEVER_EXPIRE).build());}catch(Exception ignored){}
   }
@@ -121,14 +121,15 @@ public final class Companion extends Activity {
   }catch(SecurityException ignored){}
  }
  static void schedule(Context c){
-  if(!enabled(c)||token(c).isEmpty())return;
+  if(!enabled(c)||token(c).isEmpty()||!SmartContext.morning(c))return;
   Calendar date=Calendar.getInstance();date.set(Calendar.HOUR_OF_DAY,7);date.set(Calendar.MINUTE,0);date.set(Calendar.SECOND,0);date.set(Calendar.MILLISECOND,0);
   if(date.getTimeInMillis()<=System.currentTimeMillis())date.add(Calendar.DAY_OF_YEAR,1);
   AlarmManager alarm=(AlarmManager)c.getSystemService(Context.ALARM_SERVICE);
   if(alarm!=null)alarm.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP,date.getTimeInMillis(),
    PendingIntent.getBroadcast(c,2,new Intent(c,MorningReceiver.class),PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE));
  }
- static void notifyUser(Context c,String title,String message,String id){
+ static void notifyUser(Context c,String title,String message,String id){notifyUser(c,title,message,id,null);}
+ static void notifyUser(Context c,String title,String message,String id,String idsJson){
   if(Build.VERSION.SDK_INT>=33&&ContextCompat.checkSelfPermission(c,Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED)return;
   NotificationManager manager=(NotificationManager)c.getSystemService(Context.NOTIFICATION_SERVICE);if(manager==null)return;
   if(Build.VERSION.SDK_INT>=26)manager.createNotificationChannel(new NotificationChannel("polaris-reminder","Polaris Reminders",NotificationManager.IMPORTANCE_HIGH));
@@ -137,8 +138,13 @@ public final class Companion extends Activity {
    .setContentTitle(title).setContentText(message).setStyle(new NotificationCompat.BigTextStyle().bigText(message))
    .setPriority(NotificationCompat.PRIORITY_HIGH).setCategory(NotificationCompat.CATEGORY_REMINDER).setAutoCancel(true)
    .setContentIntent(PendingIntent.getActivity(c,5,open,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE));
-  Intent snooze=new Intent(c,ActionReceiver.class).setAction("snooze").putExtra("message",message);
-  builder.addAction(0,"Remind in 15m",PendingIntent.getBroadcast(c,6,snooze,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE));
+  int unique=message.hashCode();
+  Intent snooze=new Intent(c,ActionReceiver.class).setAction("snooze").setData(Uri.parse("polaris://snooze/"+Integer.toHexString(unique))).putExtra("message",message);
+  builder.addAction(0,"Remind in 15m",PendingIntent.getBroadcast(c,unique^6,snooze,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE));
+  if(idsJson!=null&&!idsJson.isEmpty()){
+   Intent later=new Intent(c,ActionReceiver.class).setAction("defer").setData(Uri.parse("polaris://defer/"+Integer.toHexString(unique))).putExtra("ids",idsJson);
+   builder.addAction(0,"Check again in 3 days",PendingIntent.getBroadcast(c,unique^7,later,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE));
+  }
   if(id!=null){
    Intent done=new Intent(c,ActionReceiver.class).setAction("done").putExtra("id",id);
    builder.addAction(0,"Done",PendingIntent.getBroadcast(c,Math.abs(id.hashCode()),done,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE));
@@ -146,26 +152,25 @@ public final class Companion extends Activity {
   manager.notify((int)(System.currentTimeMillis()%300000),builder.build());
  }
  static void fire(Context c,String event,String place){
-  if(!enabled(c)||token(c).isEmpty())return;
-  String day=today();JSONArray data=memory(c);List<JSONObject> hits=new ArrayList<>();
-  for(int i=0;i<data.length();i++){
-   JSONObject row=data.optJSONObject(i);if(row==null)continue;
+  if(!enabled(c)||token(c).isEmpty()||!SmartContext.smart(c))return;
+  JSONArray records=memory(c);List<JSONObject> hits=new ArrayList<>();
+  for(int i=0;i<records.length();i++){
+   JSONObject row=records.optJSONObject(i);if(row==null)continue;
    String kind=row.optString("kind"),due=row.optString("due_date"),store=row.optString("store");
-   boolean hit=false;
-   if((event.equals("morning")||event.equals("home")||event.equals("jobsite"))&&kind.equals("bring"))
-    hit=due.isEmpty()||due.compareTo(day)<=0;
+   boolean relevant=false;
+   if(event.equals("morning")&&kind.equals("bring"))relevant=SmartContext.morning(c)&&due.equals(today());
+   if((event.equals("home")||event.equals("jobsite"))&&kind.equals("bring"))relevant=SmartContext.due(row,today());
    if(event.equals("store")&&kind.equals("store")&&!store.isEmpty()){
-    String a=store.toLowerCase(Locale.ROOT),b=place.toLowerCase(Locale.ROOT);hit=a.contains(b)||b.contains(a);
+    String a=store.toLowerCase(Locale.ROOT),b=place.toLowerCase(Locale.ROOT);relevant=a.contains(b)||b.contains(a);
    }
-   if(hit)hits.add(row);
+   if(event.equals("storage")){
+    String a=(store+" "+row.optString("context")+" "+row.optString("item")).toLowerCase(Locale.ROOT);
+    relevant=a.contains("storage")||a.contains(place.toLowerCase(Locale.ROOT));
+   }
+   if(relevant)hits.add(row);
   }
-  if(hits.isEmpty())return;
-  String key="fired_"+event+"_"+place.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]","")+"_"+day;
-  if(prefs(c).getBoolean(key,false))return;
-  StringJoiner combined=new StringJoiner("; ");for(JSONObject row:hits)combined.add(row.optString("item"));
-  String title=event.equals("store")?"Polaris • "+place:event.equals("home")?"Polaris • Before you go":event.equals("jobsite")?"Polaris • Job site":"Polaris • Morning checklist";
-  notifyUser(c,title,"Hey, don't forget: "+combined,hits.size()==1?hits.get(0).optString("id"):null);
-  prefs(c).edit().putBoolean(key,true).apply();
+  if(hits.isEmpty()&&event.equals("storage")){SmartContext.storagePrompt(c,place);return;}
+  SmartContext.deliver(c,event.equals("storage")?"store":event,place,hits);
  }
  static void doAsync(BroadcastReceiver receiver,Context c,String reason,String place){
   final BroadcastReceiver.PendingResult pending=receiver.goAsync();
@@ -178,6 +183,7 @@ public final class Companion extends Activity {
    for(Geofence fence:event.getTriggeringGeofences()){
     for(Place p:places(c))if(p.id.equals(fence.getRequestId())){
      String reason=p.type.equals("store")&&event.getGeofenceTransition()==Geofence.GEOFENCE_TRANSITION_DWELL?"store":
+      p.type.equals("storage")&&event.getGeofenceTransition()==Geofence.GEOFENCE_TRANSITION_DWELL?"storage":
       p.type.equals("home")&&event.getGeofenceTransition()==Geofence.GEOFENCE_TRANSITION_EXIT?"home":
       p.type.equals("jobsite")&&event.getGeofenceTransition()==Geofence.GEOFENCE_TRANSITION_ENTER?"jobsite":null;
      if(reason!=null)doAsync(this,c,reason,p.name);
@@ -196,6 +202,14 @@ public final class Companion extends Activity {
    if("done".equals(i.getAction())){
     final BroadcastReceiver.PendingResult pending=goAsync();String id=i.getStringExtra("id");
     new Thread(()->{try{api("/api/companion/complete",token(c),new JSONObject().put("id",id));}catch(Exception ignored){}finally{pending.finish();}}).start();
+   }else if("defer".equals(i.getAction())){
+    final BroadcastReceiver.PendingResult pending=goAsync();
+    String ids=i.getStringExtra("ids");
+    new Thread(()->{try{
+     JSONArray items=new JSONArray(ids==null?"[]":ids);
+     api("/api/companion/defer",token(c),new JSONObject().put("ids",items).put("days",3));
+     memory(c);
+    }catch(Exception ignored){}finally{pending.finish();}},"PolarisLater").start();
    }else if("snooze".equals(i.getAction())){
     Intent later=new Intent(c,ActionReceiver.class).setAction("show").putExtra("message",i.getStringExtra("message"));
     AlarmManager alarm=(AlarmManager)c.getSystemService(Context.ALARM_SERVICE);
@@ -240,6 +254,22 @@ public final class Companion extends Activity {
   on.setChecked(enabled(this));layout.addView(on);
   on.setOnCheckedChangeListener((view,checked)->{enabled(this,checked);if(checked){permissions();register(this);schedule(this);}else clearFences(this);});
   button("Grant / check permissions",this::permissions);
+  text("Assistant behaviour",17);
+  CheckBox followups=new CheckBox(this);followups.setText("Helpful check-ins (one follow-up, not repeated nags)");followups.setTextColor(Color.WHITE);
+  followups.setChecked(SmartContext.smart(this));layout.addView(followups);
+  followups.setOnCheckedChangeListener((view,yes)->prefs(this).edit().putBoolean("smart_followups",yes).apply());
+  CheckBox storageCheck=new CheckBox(this);storageCheck.setText("Storage: occasionally ask what I need (max weekly)");storageCheck.setTextColor(Color.WHITE);
+  storageCheck.setChecked(SmartContext.storage(this));layout.addView(storageCheck);
+  storageCheck.setOnCheckedChangeListener((view,yes)->prefs(this).edit().putBoolean("smart_storage",yes).apply());
+  CheckBox mornings=new CheckBox(this);mornings.setText("Morning checklist (only items due today)");mornings.setTextColor(Color.WHITE);
+  mornings.setChecked(SmartContext.morning(this));layout.addView(mornings);
+  mornings.setOnCheckedChangeListener((view,yes)->{
+   prefs(this).edit().putBoolean("smart_mornings",yes).apply();
+   if(yes)schedule(this);
+   else {AlarmManager alarm=(AlarmManager)getSystemService(Context.ALARM_SERVICE);
+    if(alarm!=null)alarm.cancel(PendingIntent.getBroadcast(this,2,new Intent(this,MorningReceiver.class),PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE));}
+  });
+  text("Quiet 9 PM–8 AM • Max two proactive prompts daily • No access to texts or cameras.",12);
   text("Saved places (only on this phone)",17);
   List<Place> list=places(this);
   if(list.isEmpty())text("No places yet. Set these when you are physically at each place.",12);
@@ -248,6 +278,7 @@ public final class Companion extends Activity {
    .setNegativeButton("Cancel",null).show());
   button("Set HOME using current location",()->saveHere("Home","home"));
   button("Set MONICA'S HOUSE using current location",()->saveHere("Monica's House","jobsite"));
+  button("Set STORAGE UNIT using current location",()->saveHere("My Storage Unit","storage"));
   EditText name=new EditText(this);name.setHint("Store name e.g. RONA");name.setHintTextColor(Color.LTGRAY);name.setTextColor(Color.WHITE);layout.addView(name);
   button("Set STORE using current location",()->{
    String value=name.getText().toString().trim();if(value.length()<2){message("Enter a store name first.");return;}saveHere(value,"store");
