@@ -158,6 +158,14 @@ async function pcPublishVoiceDisplay(env,question,answer) {
   if(brief?.points?.length){
    data.brief=brief;
    data.visualStyle="action-brief";
+   // Preserve comprehensive source entries for QR details, but keep the TV
+   // support column concise and task-oriented.
+   data.fullDetails=data.details.slice();
+   const statusDetails=[];
+   if(brief.next?.length)statusDetails.push({title:"UP NEXT / PLANNED",detail:brief.next.join(" · ")});
+   statusDetails.push({title:"SOURCE CHECK",detail:brief.sourceNote+
+      (visualSourceAt?" · Source updated "+visualSourceAt:"")});
+   data.details=statusDetails;
    if(!visualNotes.length){
     data.items=brief.points.map(x=>({title:x.label,detail:x.detail}));
    }
