@@ -26,7 +26,7 @@ try{
   if(b.next?.length){addText('h2','',$('next'),'UP NEXT');for(const x of b.next)addText('p','muted',$('next'),'• '+x)}
  }
  if(Array.isArray(payload.metrics)&&payload.metrics.length){$('metricSection').hidden=false;for(const m of payload.metrics){const x=addText('div','metric',$('metrics'),'');addText('small','',x,m.label);addText('b','',x,m.value);if(m.note)addText('small','',x,m.note)}}
- const notes=$('notes');const extras=[...(Array.isArray(payload.items)?payload.items:[]),...(Array.isArray(payload.details)?payload.details:[])].slice(0,35);
+ const notes=$('notes');const extras=[...(Array.isArray(payload.items)?payload.items:[]),...(Array.isArray(payload.details)?payload.details:[]),...(Array.isArray(payload.fullDetails)?payload.fullDetails:[])].slice(0,50);
  if(!extras.length)addText('p','muted',notes,'No additional details are saved for this visual update.');
  for(const it of extras){const box=addText('div','note',notes,'');addText('strong','',box,it.title||it.label||'Details');addText('p','',box,it.detail||it.description||it.value||'')}
 }catch(e){text('status','Unable to load');text('title','Display details unavailable');text('subtitle',e.message)}
