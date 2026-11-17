@@ -46,16 +46,23 @@ async function paGithubAppApi(env,path,method="GET",payload=null){
  if(!response.ok)throw new Error("GitHub App endpoint returned HTTP "+response.status);
  return response.json();
 }
+const PA_GITHUB_TOKEN_CACHE = new Map();
 async function paGithubInstallationToken(env,repository,permission="read"){
  const info=paValidRepo(repository);
  if(!info)throw new Error("Repository is outside the approved GitHub accounts");
+ const cacheKey=repository+"#"+permission;
+ const cached=PA_GITHUB_TOKEN_CACHE.get(cacheKey);
+ if(cached && cached.expires>Date.now()+90_000) return cached.data;
  const install=await paGithubAppApi(env,"/repos/"+encodeURIComponent(info.owner)+"/"+encodeURIComponent(info.name)+"/installation");
  if(!install?.id||install.account?.login!==info.owner)throw new Error("Polaris has not been installed on this repository");
  const rights={contents:permission==="write"?"write":"read",pull_requests:permission==="write"?"write":"read"};
  const session=await paGithubAppApi(env,"/app/installations/"+install.id+"/access_tokens","POST",
    {repositories:[info.name],permissions:rights});
  if(typeof session.token!=="string"||session.token.length<30)throw new Error("GitHub did not return a valid installation token");
- return {token:session.token,expiresAt:session.expires_at,repo:info};
+ const data={token:session.token,expiresAt:session.expires_at,repo:info};
+ const expires=Date.parse(session.expires_at)||Date.now()+900_000;
+ PA_GITHUB_TOKEN_CACHE.set(cacheKey,{data,expires});
+ return data;
 }
 async function paGithubRepoRequest(env,repository,path,options={}){
  const inst=await paGithubInstallationToken(env,repository,options.write?"write":"read");
