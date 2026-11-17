@@ -23,3 +23,15 @@ To test: create a pairing code at https://polaris.northstarventures.ca/memory, e
 - These alerts cannot prove an item was picked up. A completion acknowledgement determines its status.
 
 Future staged integrations: optional learning of repeated unnamed stops, calendar and leave-time context, Health Connect, explicit selected-conversation capture, and consented camera event metadata. None of those sources is enabled or scanned in this beta.
+
+## Beta v0.3 — Live voice calling
+- Start **Start a live Polaris conversation** to open WebRTC speech-to-speech through the OpenAI Realtime API.
+- Tap **TEST incoming Polaris call** for an actual Android high-priority Polaris voice invitation with **Answer**, **Call back in 5 min**, and **Ignore**.
+- Accepting requests microphone permission. WebRTC audio is used while the phone call screen stays open; headset selection follows Android audio routing.
+- Speak normally, interrupt the assistant, and ask about saved project work. Voice model invokes an authenticated device-scoped `ask_polaris` tool backed by the existing Polaris reasoning API.
+- Say **Call me back in five minutes** while in the call: the `schedule_callback` voice function schedules another *local Android notification*.
+- Long-term OpenAI keys remain server-side; Android receives an ephemeral 90-second client secret. Paired device tokens stay encrypted in Android Keystore.
+- Sessions are capped at 24 starts per device per day; actual OpenAI audio usage may be billed separately from ChatGPT.
+- **Not yet supported:** instant unsolicited server-initiated ringing while the app is closed; this requires an authenticated push transport such as FCM. The Test call works locally, and callbacks use Android alarms that may be delayed by Doze. This is not an actual cellular-network call.
+- **Not yet supported:** continuous audio when app is in background/locked. No microphone streaming until the user answers and grants permission.
+- **Not the exact ChatGPT app session:** Projects and memories go through Polaris's own connected API and read-only snapshots. ChatGPT app's private tools and context are not automatically inherited.
