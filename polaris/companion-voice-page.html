@@ -54,7 +54,19 @@ async function onRealtimeEvent(event){
  if(event.type==="response.output_audio_transcript.done"){transcript("Polaris",event.transcript);return}
  if(event.type==="response.done"){
   for(const part of event.response?.output||[]){
-   if(part.type!=="function_call"||part.name!=="ask_polaris")continue;
+   if(part.type!=="function_call")continue;
+   if(part.name==="schedule_callback"){
+    let minutes=5;try{minutes=Number(JSON.parse(part.arguments||"{}").minutes)}catch{}
+    minutes=Math.max(1,Math.min(60,Math.round(minutes||5)));
+    window.location.href="polarisvoice://callback?minutes="+minutes;
+    if(dc?.readyState==="open"){
+     dc.send(JSON.stringify({type:"conversation.item.create",item:{type:"function_call_output",call_id:part.call_id,output:"Android companion scheduled a local callback invitation in "+minutes+" minutes. The user can end this conversation now."}}));
+     dc.send(JSON.stringify({type:"response.create"}));
+    }
+    transcript("System","Callback requested for "+minutes+" minutes from now.");
+    continue;
+   }
+   if(part.name!=="ask_polaris")continue;
    let question="";
    try{question=JSON.parse(part.arguments||"{}").question||""}catch{}
    status("Checking Polaris project and memory…");
