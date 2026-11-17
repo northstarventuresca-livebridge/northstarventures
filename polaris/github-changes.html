@@ -1,0 +1,49 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Polaris • Change Requests</title>
+<style>:root{color-scheme:dark;font:15px system-ui;background:#061521;color:#e5f7ff}*{box-sizing:border-box}body{margin:0;padding:20px;background:radial-gradient(ellipse at 30% 0%,#174359,#081b29 65%);min-height:100dvh}main{max-width:850px;margin:auto}h1{font-size:25px}small,.muted{color:#a5c0cf}.panel,.item{background:#0a2738;border:1px solid #255269;border-radius:15px;padding:16px;margin:15px 0}input,select,textarea,button{font:inherit;border-radius:10px;padding:11px;max-width:100%;color:#eafaff}input,select,textarea{background:#0b1b2a;border:1px solid #57829a;width:100%}textarea{min-height:95px;resize:vertical}button{cursor:pointer;background:#126f76;border:1px solid #66bbb4;font-weight:700}button:disabled{opacity:.5;cursor:wait}label{display:block;margin:12px 0 6px}header{display:flex;align-items:center;justify-content:space-between;gap:10px}a{color:#9be5db}#status{min-height:24px;color:#93e1ce;margin:10px 0}span.tag{border:1px solid #6b9aaa;border-radius:50px;padding:4px 9px;font-size:12px}p{line-height:1.5;white-space:pre-wrap;word-break:break-word}.meta{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0}</style></head><body><main>
+<header><h1>Polaris • Changes</h1><a href="/">Dashboard</a></header>
+<p class="muted">Requests from your voice conversations appear here. Nothing is deployed automatically. Code changes require a separate reviewed draft and your confirmation.</p>
+<section class="panel"><h2>Request a website change</h2>
+<form id="new"><label for="project">Project</label><select id="project" required>
+<option value="Monica's House">Monica's House</option>
+<option value="Great Church">Great Church</option>
+<option value="LiveBridge">LiveBridge</option>
+<option value="TapBin">TapBin</option>
+<option value="Healing the Heart">Healing the Heart</option>
+<option value="Polaris">Polaris</option>
+<option value="Home of Hope">Home of Hope</option>
+<option value="Songwriters Compass">Songwriters Compass</option>
+<option value="Other">Other</option></select>
+<label for="instructions">Requested change</label><textarea id="instructions" required minlength="12" maxlength="1800" placeholder="Describe what you want Polaris to change, and how it should behave."></textarea>
+<p><button type="submit">Save request for review</button></p></form>
+<div id="status" aria-live="polite"></div></section>
+<header><h2>Change request history</h2><button id="refresh">Refresh</button></header><div id="items" aria-live="polite">Loading…</div>
+</main><script>
+"use strict";
+const $=x=>document.getElementById(x),items=$("items");
+const safeText=(node,str)=>{node.textContent=str==null?"":String(str)};
+async function refresh(){
+ $("refresh").disabled=true;
+ try{const r=await fetch("/api/github-app/changes",{credentials:"same-origin",cache:"no-store"});const data=await r.json();if(!r.ok)throw Error(data.error||"Sign in required");
+  items.replaceChildren();if(!data.items?.length){safeText(items,"No change requests yet.");return}
+  for(const item of data.items){
+   const card=document.createElement("section");card.className="item";
+   const h=document.createElement("h3");safeText(h,item.project+" • "+item.status);card.append(h);
+   const meta=document.createElement("div");meta.className="meta";safeText(meta,(item.repository||"Repository not assigned")+" · "+new Date(item.requested_at).toLocaleString());card.append(meta);
+   const desc=document.createElement("p");safeText(desc,item.request_text);card.append(desc);
+   if(item.proposal?.summary){const p=document.createElement("p");safeText(p,"Prepared draft: "+item.proposal.summary);card.append(p)}
+   if(item.last_error){const p=document.createElement("p");safeText(p,item.last_error);card.append(p)}
+   if(item.pr_url){const a=document.createElement("a");a.href=item.pr_url;a.rel="noopener noreferrer";a.target="_blank";a.textContent="Review GitHub pull request";card.append(a)}
+   items.append(card);
+  }
+ }catch(e){safeText(items,e.message)}
+ finally{$("refresh").disabled=false}
+}
+$("refresh").onclick=refresh;
+$("new").onsubmit=async event=>{event.preventDefault();const button=$("new").querySelector("button");button.disabled=true;safeText($("status"),"Saving request…");
+ try{const res=await fetch("/api/github-app/changes",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json","x-polaris-action":"1"},body:JSON.stringify({project:$("project").value,instructions:$("instructions").value})});
+ const json=await res.json();if(!res.ok||!json.ok)throw Error(json.error||"Request not saved");
+ safeText($("status"),"Saved for review. No website changed.");$("instructions").value="";await refresh();
+ }catch(e){safeText($("status"),e.message)}finally{button.disabled=false}
+};
+refresh();
+</script></body></html>
