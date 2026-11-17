@@ -29,6 +29,8 @@ async function pcPublishVoiceDisplay(env,question,answer) {
  let subtitle=spoken.slice(0,360);
  let verified="Conversation answer; no live source verification asserted";
  let view="project";
+ const site=pcProjectSite(project,question);
+ if(site&&pcSiteSafeUrl(site.url))data.siteUrl=site.url;
  let visualNotes=[],visualSourceAt=null,visualVerified=false;
  const monica=/\bmonica\b/i.test(project);
  if(monica){
@@ -169,5 +171,17 @@ async function pcPublishVoiceDisplay(env,question,answer) {
   "ON CONFLICT(id) DO UPDATE SET revision=polaris_display_state.revision+1,view=excluded.view,project=excluded.project,"+
   "title=excluded.title,subtitle=excluded.subtitle,payload=excluded.payload,updated_at=excluded.updated_at")
   .bind(view,project,title,subtitle,body,updatedAt).run();
+ // Preserve the exact revision referenced by the QR, even after later requests.
+ try{
+  const latest=await env.POLARIS_DB.prepare(
+   "SELECT revision,view,project,title,subtitle,payload,updated_at FROM polaris_display_state WHERE id='main'").first();
+  if(latest){
+   await env.POLARIS_DB.prepare(
+    "INSERT OR REPLACE INTO polaris_display_history(revision,view,project,title,subtitle,payload,updated_at) VALUES(?,?,?,?,?,?,?)")
+    .bind(latest.revision,latest.view,latest.project,latest.title,latest.subtitle,latest.payload,latest.updated_at).run();
+   await env.POLARIS_DB.prepare(
+    "DELETE FROM polaris_display_history WHERE revision NOT IN (SELECT revision FROM polaris_display_history ORDER BY revision DESC LIMIT 120)").run();
+  }
+ }catch(e){console.error("TV history archiving unavailable",String(e?.name||"error"))}
  return {published:true,project,source:verified,updatedAt};
 }
