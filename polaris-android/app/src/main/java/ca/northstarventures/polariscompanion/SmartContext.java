@@ -28,16 +28,17 @@ public final class SmartContext {
  static boolean quiet(){
   Calendar c=Calendar.getInstance();
   int hour=c.get(Calendar.HOUR_OF_DAY);
-  return hour<8||hour>=21;
+  return hour<7||hour>=21;
  }
  static String day(){return Companion.today();}
  static String key(String text){return text.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]","").substring(0,Math.min(50,text.replaceAll("[^a-z0-9]","").length()));}
  static boolean notifiedToday(Context c,String id){
-  return Companion.prefs(c).getBoolean("smart_item_"+day()+"_"+id,false);
+  long last=Companion.prefs(c).getLong("smart_item_time_"+id,0);
+  return last>0&&System.currentTimeMillis()-last<3L*24*60*60*1000;
  }
  static void markNotified(Context c,List<JSONObject> rows){
   android.content.SharedPreferences.Editor edit=Companion.prefs(c).edit();
-  for(JSONObject row:rows)edit.putBoolean("smart_item_"+day()+"_"+row.optString("id"),true);
+  for(JSONObject row:rows)edit.putLong("smart_item_time_"+row.optString("id"),System.currentTimeMillis());
   int total=Companion.prefs(c).getInt("smart_count_"+day(),0);
   edit.putInt("smart_count_"+day(),total+1).apply();
  }
@@ -103,7 +104,8 @@ public final class SmartContext {
    List<JSONObject> remaining=new ArrayList<>();
    for(int i=0;i<live.length();i++){
     JSONObject item=live.optJSONObject(i);if(item==null)continue;
-    for(int j=0;j<list.length();j++)if(item.optString("id").equals(list.optString(j)))remaining.add(item);
+    for(int j=0;j<list.length();j++)if(item.optString("id").equals(list.optString(j))&&
+      (item.optString("due_date").isEmpty()||item.optString("due_date").compareTo(day())<=0))remaining.add(item);
    }
    if(remaining.isEmpty())return; // A done item is no longer in the active Polaris list.
    if(quiet())return; // No waking users at night for a casual check-in.
@@ -112,7 +114,7 @@ public final class SmartContext {
    StringJoiner names=new StringJoiner("; ");
    JSONArray remainingIds=new JSONArray();
    for(JSONObject item:remaining){names.add(item.optString("item"));remainingIds.put(item.optString("id"));}
-   String message="Quick check: did you get "+names+"? I haven't marked "+(remaining.size()==1?"it":"them")+" done yet. You can mark it complete or ask me again in three days.";
+   String message="Quick check: did you get "+names+"? I haven't heard whether "+(remaining.size()==1?"it's":"they're")+" done. Tap Done, or ask me again in three days.";
    Companion.notifyUser(c,"Polaris • Quick check-in",message,remaining.size()==1?remaining.get(0).optString("id"):null,remainingIds.toString());
    Companion.prefs(c).edit().putBoolean(batchKey,true).apply();
   }catch(Exception ignored){}
