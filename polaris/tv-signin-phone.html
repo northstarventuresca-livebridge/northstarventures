@@ -1,0 +1,48 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Polaris • Approve Screen</title>
+<style>:root{color-scheme:dark}*{box-sizing:border-box}body{background:radial-gradient(ellipse at 50% 15%,#183f5f,#060f1d 70%);color:#e7faff;min-height:100dvh;display:grid;place-items:center;margin:0;padding:18px;font:15px system-ui,sans-serif}
+main{width:min(440px,100%);border:1px solid #4899bb;border-radius:17px;padding:25px;background:#071f31;box-shadow:0 0 70px #0008;text-align:center}
+h1{font-size:24px;margin-top:4px}p{font-size:13px;color:#a6c4d6;line-height:1.6}
+#pairCode{letter-spacing:.28em;font-size:29px;font-weight:850;color:#9cf0d8;margin:16px}
+button{background:linear-gradient(115deg,#148578,#206bb9);border:1px solid #78d8e6;border-radius:10px;color:white;font:750 14px system-ui;width:100%;padding:16px;cursor:pointer}
+button:disabled{opacity:.5}label{display:flex;gap:10px;align-items:flex-start;text-align:left;margin:18px 0;font-size:13px;line-height:1.5}
+#status{padding:9px;min-height:46px;color:#9be8d5}a{color:#9fe3fb}</style></head>
+<body><main><div style="font-size:36px">✦</div><h1>Approve a Polaris screen</h1>
+<p>Only approve a screen you recognize. Check that the six-digit number below matches the number on that TV or computer.</p>
+<h2 id="device">Checking pairing request…</h2><div id="pairCode">••••••</div>
+<label><input id="remember" type="checkbox" style="margin-top:4px"><span><strong>Remember this screen for 30 days</strong> (only for a device you own). Leave unchecked for a temporary, 2-hour session.</span></label>
+<button id="approve" type="button" disabled>Verify phone passkey & approve</button>
+<div id="status" role="status">Loading approval details…</div>
+<p><a href="/">Back to Polaris</a></p></main>
+<script>(function(){'use strict';
+const $=id=>document.getElementById(id),ticket=new URLSearchParams(location.search).get('ticket');
+let info=null;
+const to=b=>btoa(String.fromCharCode(...new Uint8Array(b))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+const from=s=>Uint8Array.from(atob(s.replace(/-/g,'+').replace(/_/g,'/')+'='.repeat((4-s.length%4)%4)),c=>c.charCodeAt(0));
+async function post(path,body,approval=false){
+ const res=await fetch(path,{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json',...(approval?{'x-polaris-action':'1'}:{})},body:JSON.stringify(body)}),data=await res.json();
+ if(!res.ok)throw Error(data.error||'Unable to verify passkey');return data;
+}
+async function load(){
+ if(!/^[A-Za-z0-9_-]{43}$/.test(ticket||''))throw Error('This pairing link is invalid.');
+ const r=await fetch('/api/device-signin/info?ticket='+encodeURIComponent(ticket),{credentials:'same-origin',cache:'no-store'}),data=await r.json();if(!r.ok)throw Error(data.error||'Pairing unavailable');
+ info=data;$('pairCode').textContent=data.verifyCode;$('device').textContent=data.device;$('approve').disabled=false;
+ $('status').textContent='Ready. Please compare the numbers on both screens.';
+}
+$('approve').onclick=async()=>{
+ if(!info)return;
+ if(!confirm('Does '+info.verifyCode+' match the code on the screen you want to unlock?'))return;
+ $('approve').disabled=true;$('status').textContent='Verifying your secure phone passkey…';
+ try{
+  const response=await post('/api/passkey/options',{mode:'login'}),o=response.options;
+  o.challenge=from(o.challenge);o.allowCredentials=(o.allowCredentials||[]).map(x=>({...x,id:from(x.id)}));
+  const cred=await navigator.credentials.get({publicKey:o});
+  if(!cred)throw Error('Passkey was not selected');
+  await post('/api/passkey/verify',{mode:'login',credentialId:to(cred.rawId),clientDataJSON:to(cred.response.clientDataJSON),authenticatorData:to(cred.response.authenticatorData),signature:to(cred.response.signature)});
+  $('status').textContent='Passkey verified. Approving your screen…';
+  const approval=await post('/api/device-signin/approve',{ticket,verifyCode:info.verifyCode,remember:$('remember').checked},true);
+  $('status').textContent='✓ Screen approved for '+approval.duration+'. You can return to your TV or computer.';
+  $('approve').textContent='Screen approved';$('approve').disabled=true;
+ }catch(e){$('status').textContent=e.message;$('approve').disabled=false}
+};
+load().catch(e=>{$('status').textContent=e.message;$('device').textContent='Unable to approve screen'});
+})();</script></body></html>
