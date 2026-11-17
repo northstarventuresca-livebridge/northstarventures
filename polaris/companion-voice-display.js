@@ -29,6 +29,7 @@ async function pcPublishVoiceDisplay(env,question,answer) {
  let subtitle=spoken.slice(0,360);
  let verified="Conversation answer; no live source verification asserted";
  let view="project";
+ let visualNotes=[],visualSourceAt=null,visualVerified=false;
  const monica=/\bmonica\b/i.test(project);
  if(monica){
   const intent=pgWorkIntent(question,project);
@@ -49,6 +50,9 @@ async function pcPublishVoiceDisplay(env,question,answer) {
        Math.round(facts.snapshotAgeMinutes/60)+" HR",note:facts.snapshotMayBeStale?"Snapshot may be outdated":"Synced snapshot"}
     ];
     const rows=Array.isArray(facts.entries)?facts.entries:[];
+    visualNotes=rows.map(x=>String(x.notes||"").trim()).filter(Boolean);
+    visualSourceAt=facts.sourceUpdatedAt;
+    visualVerified=true;
     data.items=rows.filter(r=>r.title||r.notes).slice(-8).map((r,i)=>({
       title:pcDisplaySafe(r.title||("Recorded session "+(i+1)),100),
       detail:pcDisplaySafe((r.minutes?String(r.minutes)+" logged min · ":"")+(r.notes||"No notes entered"),420)
@@ -136,6 +140,28 @@ async function pcPublishVoiceDisplay(env,question,answer) {
   {title:"POLARIS REPLIED",detail:spoken.slice(0,600)}
  ];
  data.details.push({title:"VISUAL UPDATE",detail:"Generated from the latest authenticated phone conversation. "+verified});
+ // Build a visual brief separately from the spoken voice answer. For Monica
+ // use original journal sentences, preserving attempted and unfinished work.
+ // For other projects, ground the brief in the actual answer and mark source scope.
+ try{
+  const discoveryTime=answer.sourceDiscovery?.checkedAt||answer.livebridgeVocabulary?.checkedAt||null;
+  const verified=visualVerified||answer.sourceDiscovery?.ok===true||answer.livebridgeVocabulary?.ok===true||answer.verified_source===true;
+  const brief=await pcVisualBrief(env,{
+   question,project,sourceNotes:visualNotes,spoken,
+   sourceUpdatedAt:visualSourceAt||discoveryTime,
+   verified,sourceLabel:visualVerified?"Monica's House journal":
+    answer.sourceDiscovery?.ok?"GitHub source comparison":
+    answer.livebridgeVocabulary?.ok?"GitHub feature status":"Conversation answer"
+  });
+  if(brief?.points?.length){
+   data.brief=brief;
+   data.visualStyle="action-brief";
+   if(!visualNotes.length){
+    data.items=brief.points.map(x=>({title:x.label,detail:x.detail}));
+   }
+  }
+ }catch(e){console.error("Polaris visual brief unavailable",String(e?.name||"error").slice(0,65))}
+
  const body=JSON.stringify(data);
  const updatedAt=new Date().toISOString();
  await env.POLARIS_DB.prepare(
