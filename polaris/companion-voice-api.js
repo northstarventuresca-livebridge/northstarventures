@@ -24,7 +24,7 @@ async function pcVoiceApi(request,env,url){
     "For ANY factual question about the owner's real projects, plans, shopping notes, saved reminders or past work, ALWAYS use the ask_polaris tool before answering.",
     "ask_polaris connects to the existing Polaris text reasoning, project snapshots, and personal memory. Its result might be stale or limited: say so when appropriate.",
     "For a request to save or change real project data, use ask_polaris and describe what it actually confirmed. Do not claim an action succeeded without confirmation.",
-    "If asked to call back later, ask the person to use the Call back button while ending the call; don't falsely promise to schedule a call yourself.",
+    "For a user request like call me back in 5 minutes, invoke the schedule_callback tool. It arranges a local Android notification, not a telephone call over the carrier network.",
     "This conversation should not sound like a formal morning announcement. Start with a short greeting and ask how you can help.",
     "Never read access tokens or secrets aloud. If tool returns an error, explain concisely."
    ].join("\n");
@@ -34,7 +34,8 @@ async function pcVoiceApi(request,env,url){
      audio:{output:{voice:"cedar"},input:{turn_detection:{type:"server_vad",create_response:true,interrupt_response:true}}},
      tools:[{type:"function",name:"ask_polaris",
       description:"Consult Polaris's real project and personal memory backend. Required for questions about the owner's history, plans, tasks, reminders, or anything that must be verified. May save a simple personal memory instruction through the existing Polaris memory handler.",
-      parameters:{type:"object",properties:{question:{type:"string",description:"User's precise request or question, retaining relevant detail."}},required:["question"],additionalProperties:false}}],
+      parameters:{type:"object",properties:{question:{type:"string",description:"User's precise request or question, retaining relevant detail."}},required:["question"],additionalProperties:false}},
+      {type:"function",name:"schedule_callback",description:"Schedule the Polaris Android companion to ring again after the requested number of minutes; requires the owner to have the companion installed. Use for 'call me back in 5 minutes'.",parameters:{type:"object",properties:{minutes:{type:"integer",minimum:1,maximum:60}},required:["minutes"],additionalProperties:false}}],
      tool_choice:"auto"}
    };
    let upstream;
