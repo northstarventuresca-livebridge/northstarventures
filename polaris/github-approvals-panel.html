@@ -26,23 +26,23 @@ const toggle=document.getElementById('polarisApprovalToggle'),panel=document.get
 toggle.addEventListener('click',()=>{const open=panel.classList.toggle('open');toggle.setAttribute('aria-expanded',String(open));if(open)load()});
 panel.querySelector('.paClose').onclick=()=>{panel.classList.remove('open');toggle.setAttribute('aria-expanded','false')};
 async function load(){if(busy)return;busy=true;
- try{const r=await fetch('/api/github-app/changes',{cache:'no-store',credentials:'same-origin'});if(!r.ok)return;const d=await r.json();const pending=(d.items||[]).filter(x=>x.status==='requested');count.hidden=!pending.length;count.textContent=String(pending.length);
- if(known!==pending.length){known=pending.length;if(pending.length)toggle.title=pending.length+' requests awaiting approval'}
+ try{const r=await fetch('/api/github-app/changes',{cache:'no-store',credentials:'same-origin'});if(!r.ok)return;const d=await r.json();const pending=(d.items||[]).filter(x=>x.status==='requested');const active=(d.items||[]).filter(x=>['approved_for_preparation','preparing','prepared','draft_pr'].includes(x.status));count.hidden=!pending.length;count.textContent=String(pending.length);
+ if(known!==pending.length){const newlyAdded=pending.length>known;known=pending.length;if(pending.length)toggle.title=pending.length+' requests awaiting approval';if(newlyAdded&&pending.length){panel.classList.add('open');toggle.setAttribute('aria-expanded','true')}}
  if(!panel.classList.contains('open'))return;
- items.replaceChildren();if(!pending.length){items.textContent='No requests are waiting for approval.';return}
- for(const item of pending){const card=document.createElement('article'),head=document.createElement('strong'),info=document.createElement('small'),desc=document.createElement('p'),actions=document.createElement('div');
- head.textContent=item.project;info.textContent=(item.repository||'Repository unassigned')+' · '+new Date(item.requested_at).toLocaleString();desc.textContent=item.request_text;actions.className='paActions';
+ items.replaceChildren();if(!pending.length&&!active.length){items.textContent='No pending or active change requests.';return}
+ for(const item of [...pending,...active].slice(0,8)){const card=document.createElement('article'),head=document.createElement('strong'),info=document.createElement('small'),desc=document.createElement('p'),actions=document.createElement('div');
+ head.textContent=item.project+' · '+(item.status==='requested'?'Awaiting approval':item.status==='approved_for_preparation'?'Approved for draft preparation':item.status==='draft_pr'?'Draft ready for review':item.status);info.textContent=(item.repository||'Repository unassigned')+' · '+new Date(item.requested_at).toLocaleString();desc.textContent=item.request_text;actions.className='paActions';
  const approve=document.createElement('button'),reject=document.createElement('button');approve.textContent='Approve for draft';reject.textContent='Reject';reject.className='paReject';
  const send=async decision=>{const msg=decision==='approve'?'Approve preparation of a draft for '+item.project+'? This does NOT deploy the change.':'Reject this request?';if(!confirm(msg))return;
  approve.disabled=reject.disabled=true;
- try{const r=await fetch('/api/github-app/changes/decision',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json','x-polaris-action':'1'},body:JSON.stringify({id:item.id,decision})}),d=await r.json();if(!r.ok||!d.ok)throw Error(d.error||'Approval could not be saved');await load()}
+ try{const r=await fetch('/api/github-app/changes/decision',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json','x-polaris-action':'1'},body:JSON.stringify({id:item.id,decision})}),d=await r.json();if(!r.ok||!d.ok)throw Error(d.error||'Approval could not be saved');card.remove();known=-1;setTimeout(load,0)}
  catch(e){alert(e.message);approve.disabled=reject.disabled=false}
  };
  approve.onclick=()=>send('approve');reject.onclick=()=>send('reject');
- actions.append(approve,reject);card.append(head,info,desc,actions);items.append(card)
+ if(item.status==='requested')actions.append(approve,reject);card.append(head,info,desc);if(item.status==='requested')card.append(actions);if(item.pr_url){const link=document.createElement('a');link.href=item.pr_url;link.textContent='Review draft on GitHub';link.target='_blank';link.rel='noopener';card.append(link)}items.append(card)
  }
  }catch(e){if(panel.classList.contains('open'))items.textContent='Unable to refresh requests.'}
  finally{busy=false}
 }
-load();setInterval(()=>{if(!document.hidden)load()},6500);
+load();setInterval(()=>{if(!document.hidden)load()},5000);
 })();</script>
