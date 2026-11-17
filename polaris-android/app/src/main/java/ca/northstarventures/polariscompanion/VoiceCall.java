@@ -139,7 +139,7 @@ public final class VoiceCall extends Activity {
    @Override public boolean shouldOverrideUrlLoading(WebView view,WebResourceRequest request){
     Uri uri=request.getUrl();
     if("polarisvoice".equals(uri.getScheme()) && "callback".equals(uri.getHost())){
-     int minutes=5;try{minutes=Integer.parseInt(uri.getQueryParameter("minutes"))}catch(Exception ignored){}
+     int minutes=5;try{minutes=Integer.parseInt(uri.getQueryParameter("minutes"));}catch(Exception ignored){}
      schedule(VoiceCall.this,minutes);
      status.setText("Polaris callback scheduled in "+minutes+" minutes.");
      return true;
@@ -162,7 +162,7 @@ public final class VoiceCall extends Activity {
  }
  @Override protected void onDestroy(){
   if(web!=null){
-   try{web.evaluateJavascript("window.PolarisPhone && window.PolarisPhone.hangUp()",null)}catch(Exception ignored){}
+   try{web.evaluateJavascript("window.PolarisPhone && window.PolarisPhone.hangUp()",null);}catch(Exception ignored){}
    web.stopLoading();web.destroy();web=null;
   }
   if(audioManager!=null)audioManager.setMode(previousMode);
