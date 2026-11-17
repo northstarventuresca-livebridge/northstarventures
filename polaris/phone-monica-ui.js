@@ -117,9 +117,10 @@
  function journalDisplay(){journalPane.style.display=journalMode?"block":"none";persistJournal();ready()}
  jText.addEventListener("input",persistJournal);
  function journalTrigger(s){
-  const t=String(s||"").toLowerCase();
-  return /\b(?:journal|dictat(?:e|ion)|work log|what i did today)\b/.test(t)&&
-    /\b(?:monica|timer|entry|today|work)\b/.test(t);
+  const t=String(s||"").toLowerCase().replace(/^(?:(?:hey|okay|ok)\s+)*polaris[\s,:;.-]*/,"").trim();
+  if(/^(?:what|why|when|where|how|which|was|were|did|do|can you|could you|would you|tell me|give me|show me|summari[sz]e|review|list)\b/.test(t))return false;
+  return /^(?:start|begin|open|create|record|take|dictate|journal)\b[\s\S]{0,90}\b(?:journal|dictation|work log|work journal|entry|what i did today)\b/.test(t)||
+    /^(?:journal|dictation|work log|work journal)$/.test(t);
  }
  function journalEndMarker(s){
   const text=String(s||"");
