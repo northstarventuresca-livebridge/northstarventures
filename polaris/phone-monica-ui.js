@@ -351,7 +351,23 @@
    reply.textContent="Please choose the exact Monica task before starting its timer.";
    setStatus("Task-specific timer needs a task selection.");voiceInFlight=false;ready();return;
   }
-  const request=timerAction
+  const taskAdd=!timerAction && !/^(?:what|why|how|where|when|is|are|do)\b/i.test(trimmed) &&
+   /\b(?:upstairs|main floor|basement|downstairs|lower level|outside|backyard|frontyard)\b/i.test(trimmed) &&
+   /\b(?:bathroom|washroom|kitchen|bedroom|hallway|living room|dining room|entrance|laundry|furnace room|yard)\b/i.test(trimmed) &&
+   /\b(?:i want to|i would like to|i'd like to|we need to|i need to|add|install|replace|repair|paint|fix|consider|put in|we should|plan to)\b/i.test(trimmed);
+  const request=taskAdd
+   ?fetch("/api/monica/sign",{method:"POST",credentials:"same-origin",
+     headers:{"content-type":"application/json"},
+     body:JSON.stringify({action:"task-add",notes:trimmed.slice(0,4000)})})
+    .then(async r=>{
+     const signed=await r.json();
+     if(!r.ok||!signed.ok||!signed.token)throw Error(signed.error||"Could not authorize Monaco task");
+     return fetch("https://monicas-house.rwyers.workers.dev/api/polaris/task",{
+      method:"POST",mode:"cors",credentials:"omit",
+      headers:{"authorization":"Bearer "+signed.token,"content-type":"application/json"},
+      body:JSON.stringify(signed.command)});
+    })
+   :timerAction
    ?fetch("/api/monica/sign",{method:"POST",credentials:"same-origin",
      headers:{"content-type":"application/json"},body:JSON.stringify({action:timerAction})})
      .then(async r=>{
@@ -372,6 +388,12 @@
   request.then(async r=>{
    let d;try{d=await r.json()}catch{throw Error("Could not read the timer response")}
    if(!r.ok)throw Error(d.error||"Could not read Monica's timer");
+   if(taskAdd){
+    if(!d.ok)throw Error(d.error||"Monica did not add the task");
+    return (d.unchanged?"Already saved":"Added")+" under Monica's House, "+d.areaLabel+", "+d.roomLabel+
+      ": "+String(d.title||"Potential renovation task")+
+      ". The full spoken instructions"+(d.measurements?.length?" and "+d.measurements.length+" measurements":"")+" are in the task notes.";
+   }
    if(timerAction){
     if(!d.ok)throw Error(d.error||"Monica timer action failed");
     if(d.unchanged)return "Monica's timer was already in that state. Nothing changed.";
