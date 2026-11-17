@@ -97,6 +97,38 @@ async function pcPublishVoiceDisplay(env,question,answer) {
    verified="Live GitHub check unavailable · documented historical test work only";
   }
  }
+ if(answer.sourceDiscovery?.ok && Array.isArray(answer.sourceDiscovery.matches)){
+  const discovery=answer.sourceDiscovery;
+  const match=discovery.matches.find(x=>!x.error);
+  if(match){
+   title=(project+" · "+String(match.branch||"").split("/").pop()).toUpperCase().slice(0,145);
+   subtitle="Verified GitHub development branch: "+match.status+" compared with "+match.base+
+    ". "+match.ahead+" commits ahead; deployment not confirmed.";
+   const runs=Array.isArray(match.runs)?match.runs:[];
+   const recent=runs[0];
+   data.metrics=[
+    {label:"SOURCE BRANCH",value:match.status==="ahead"?"UNMERGED":String(match.status||"UNKNOWN").toUpperCase(),note:"Compared with "+match.base},
+    {label:"COMMITS AHEAD",value:String(match.ahead),note:match.behind+" behind default branch"},
+    {label:"CI STATUS",value:recent?String(recent.result).toUpperCase():"NOT CHECKED",note:"Latest discovered workflow"},
+    {label:"LIVE STATUS",value:"UNVERIFIED",note:"GitHub branches are not deployments"}
+   ];
+   data.items=(match.files||[]).slice(0,8).map(x=>({title:pcDisplaySafe(x.path,120),detail:pcDisplaySafe(x.status||"changed",60)}));
+   if(!data.items.length)data.items=[{title:"SOURCE BRANCH FOUND",detail:match.repo+" · "+match.branch}];
+   data.details=[
+    {title:"REPOSITORY",detail:match.repo},
+    {title:"BRANCH",detail:match.branch},
+    {title:"LATEST COMMITS",detail:(match.commits||[]).map(c=>c.message).join(" · ").slice(0,600)},
+    {title:"SOURCE CHECK",detail:discovery.checkedAt+" · "+discovery.repositoriesChecked+" repositories inspected"},
+    {title:"NEXT STEPS",detail:spoken.slice(0,500)}
+   ];
+   verified="GitHub branch and CI data checked "+discovery.checkedAt+"; live deployment unverified";
+  }else if(Array.isArray(discovery.commits)&&discovery.commits.length){
+   data.items=discovery.commits.slice(0,7).map(x=>({title:x.repo,detail:x.message+" · "+x.date}));
+   data.details=[{title:"SOURCE CHECK",detail:"Recent matching commits · "+discovery.checkedAt},
+    {title:"SCOPE",detail:discovery.repositoriesChecked+" repositories scanned; older branches may not have been included"}];
+   verified="Recent commit history checked "+discovery.checkedAt+"; no deployment conclusion";
+  }
+ }
  if(!data.items.length)data.items=[{title:"POLARIS ANSWER",detail:spoken.slice(0,540)}];
  if(!data.details.length)data.details=[
   {title:"YOU ASKED",detail:questionText},
