@@ -85,8 +85,21 @@ public final class VoiceCall extends Activity {
   audioManager=(AudioManager)getSystemService(Context.AUDIO_SERVICE);
   if(audioManager!=null){previousMode=audioManager.getMode();audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);}
   LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setBackgroundColor(Color.rgb(5,25,40));
-  status=new TextView(this);status.setTextColor(Color.rgb(176,240,224));status.setPadding(16,16,16,12);
-  status.setText("Polaris • Voice connection");root.addView(status);
+  LinearLayout top=new LinearLayout(this);
+  top.setOrientation(LinearLayout.HORIZONTAL);
+  top.setGravity(Gravity.CENTER_VERTICAL);
+  status=new TextView(this);status.setTextColor(Color.rgb(176,240,224));status.setPadding(16,16,8,12);
+  status.setText("Polaris • Voice connection");
+  top.addView(status,new LinearLayout.LayoutParams(0,LinearLayout.LayoutParams.WRAP_CONTENT,1));
+  Button settings=new Button(this);settings.setText("⚙");settings.setAllCaps(false);
+  settings.setTextSize(18);settings.setContentDescription("Polaris reminder and device settings");
+  settings.setMinWidth(42);settings.setMinimumWidth(42);
+  settings.setOnClickListener(view->{
+   startActivity(new Intent(VoiceCall.this,Companion.class).putExtra("open_settings",true));
+   finish();
+  });
+  top.addView(settings,new LinearLayout.LayoutParams(62,54));
+  root.addView(top);
   Button end=new Button(this);end.setText("Hang up");end.setAllCaps(false);
   end.setOnClickListener(v->finish());
   root.addView(end);
