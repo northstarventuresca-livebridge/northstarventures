@@ -100,7 +100,12 @@ public final class SmartContext {
   try{
    JSONArray list=new JSONArray(idsJson==null?"[]":idsJson);
    if(list.length()==0)return;
-   JSONArray live=Companion.memory(c);
+   JSONArray live;
+   try{
+    JSONObject latest=Companion.api("/api/companion/sync",Companion.token(c),null);
+    live=latest.getJSONArray("entries");
+    Companion.prefs(c).edit().putString("cache",live.toString()).apply();
+   }catch(Exception offline){return;} // Don't claim a task is unfinished without current server confirmation.
    List<JSONObject> remaining=new ArrayList<>();
    for(int i=0;i<live.length();i++){
     JSONObject item=live.optJSONObject(i);if(item==null)continue;
