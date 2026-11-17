@@ -251,7 +251,7 @@ public final class Companion extends Activity {
   text("✦ Polaris Settings",24);text("Location reminders • Private to this phone",13);
   status=text("",13);status.setTextColor(Color.rgb(125,225,210));
   if(token(this).isEmpty()){
-   text("Open Polaris Memory and create a 12-character pairing code.",15);
+   text("To connect this new app, open Polaris website below, sign in, and tap Create 10-minute pairing code. Return here and enter it.",15);
    EditText entry=new EditText(this);entry.setHint("Pairing code");entry.setHintTextColor(Color.LTGRAY);entry.setTextColor(Color.WHITE);layout.addView(entry);
    button("Pair phone",()->{
     message("Pairing securely…");
@@ -262,7 +262,7 @@ public final class Companion extends Activity {
      }catch(Exception e){runOnUiThread(()->message("Pairing failed: "+e.getMessage()));}
     }).start();
    });
-   button("Open Polaris Memory",()->startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(SERVER+"/memory"))));
+   button("CREATE PAIRING CODE ON WEBSITE",()->startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(SERVER+"/memory#polarisCompanionPanel"))));
    return;
   }
   text("✓ Linked to Polaris Memory",15);
