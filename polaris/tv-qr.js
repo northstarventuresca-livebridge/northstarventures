@@ -1,6 +1,6 @@
 // First-party standalone QR code generator (QR version 6-L), no third-party calls.
 function polarisQrMatrix(text){
-const data=new TextEncoder().encode(text);
+const data=typeof TextEncoder==='undefined'?Uint8Array.from(text,c=>c.charCodeAt(0)):new TextEncoder().encode(text);
 if(data.length>133)throw Error('Sign-in URL too long for QR rendering');
 const bits=[];const append=(value,length)=>{for(let i=length-1;i>=0;i--)bits.push((value>>>i)&1)};
 append(4,4);append(data.length,8);for(const b of data)append(b,8);
