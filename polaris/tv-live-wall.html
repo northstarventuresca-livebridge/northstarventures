@@ -1,0 +1,184 @@
+<style id="polaris-tv-wall-styles">
+#polarisTVWall{display:none}
+body.tv-mode{margin:0!important;overflow:hidden!important;height:100dvh!important}
+body.tv-mode>main,body.tv-mode>#eventFlash,body.tv-mode>#polarisApprovalMount{display:none!important}
+body.tv-mode #polarisTVWall{display:grid;grid-template-rows:auto minmax(0,1fr) auto;position:fixed;inset:0;z-index:2147482000;width:100vw;height:100dvh;overflow:hidden;padding:clamp(9px,1.35vh,22px) clamp(12px,1.55vw,29px);gap:clamp(8px,1.05vh,15px);color:#eafaff;background:radial-gradient(ellipse at 15% -25%,#154a71 0%,transparent 50%),radial-gradient(ellipse at 92% 94%,#152946 0%,transparent 55%),#04101f;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;font-size:clamp(12px,1.07vw,19px);line-height:1.38}
+#polarisTVWall *{box-sizing:border-box;min-width:0}
+#polarisTVWall .tvTop{display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid #357a9f6e;padding:0 3px clamp(7px,1vh,15px);min-height:0}
+#polarisTVWall .tvBrand{display:flex;align-items:center;gap:12px;font-weight:860;letter-spacing:.18em;font-size:clamp(18px,1.6vw,32px)}
+#polarisTVWall .tvMark{display:grid;place-items:center;color:#81f3ff;background:#0a3550;border-radius:11px;border:1px solid #54c8f2;padding:2px 11px;font-size:1.25em}
+#polarisTVWall .tvTopRight{display:flex;align-items:center;justify-content:flex-end;gap:clamp(7px,1vw,16px)}
+#polarisTVWall .tvTag{font-size:clamp(9px,.88vw,15px);font-weight:800;letter-spacing:.05em;padding:6px 11px;border:1px solid #388aa6;border-radius:20px;background:#0a3043;white-space:nowrap}
+#polarisTVWall .tvLive{color:#7dffce;border-color:#2cbda0}
+#polarisTVWall .tvQuiet{color:#ffc987;border-color:#99764b}
+#polarisTVWall button{font:700 clamp(10px,.84vw,15px) system-ui;cursor:pointer}
+#polarisTVWall .tvIconBtn{background:#123551;color:#d5f4ff;border:1px solid #3d86a8;border-radius:8px;padding:7px 12px}
+#polarisTVWall .tvLayout{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(300px,.85fr);gap:clamp(9px,1vw,17px);min-height:0}
+#polarisTVWall .tvLeft{display:grid;grid-template-rows:minmax(0,1.2fr) auto minmax(0,.95fr);gap:clamp(8px,.9vh,14px);min-height:0}
+#polarisTVWall .tvSurface{border:1px solid #35779b70;border-radius:clamp(11px,1.1vw,20px);background:linear-gradient(135deg,#102d49db,#071d32f2);box-shadow:inset 0 1px #ffffff09,0 8px 25px #0002;overflow:hidden}
+#polarisTVWall .tvHero{padding:clamp(12px,1.4vw,25px);display:grid;grid-template-columns:minmax(0,1fr) auto;gap:clamp(8px,1vw,20px);align-items:center}
+#polarisTVWall .tvKicker{font-weight:850;letter-spacing:.11em;font-size:clamp(9px,.85vw,14px);color:#67dbf9;text-transform:uppercase}
+#polarisTVWall .tvHero h1{font-size:clamp(23px,2.6vw,51px);line-height:1.08;letter-spacing:-.03em;margin:clamp(7px,1.2vh,16px) 0;font-weight:850;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+#polarisTVWall .tvHero p{font-size:clamp(12px,1.3vw,23px);line-height:1.42;color:#b5d7e8;margin:0;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+#polarisTVWall .tvCore{position:relative;width:clamp(82px,11vw,182px);height:clamp(82px,11vw,182px);display:grid;place-items:center;border:1px dashed #5cbfdf8c;border-radius:50%;background:radial-gradient(circle,#0c5883 0%,#08324d 30%,transparent 64%);box-shadow:0 0 25px #1883a62c;flex-shrink:0}
+#polarisTVWall .tvCore:before{content:"";position:absolute;inset:18%;border:2px solid #75ecfb;border-radius:50%;border-left-color:transparent;animation:tvRotate 14s linear infinite}
+#polarisTVWall .tvCore b{font-size:clamp(35px,5.5vw,79px);color:#99faff;text-shadow:0 0 26px #5cc9ff}
+@keyframes tvRotate{to{transform:rotate(360deg)}}
+#polarisTVWall .tvMetrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:clamp(7px,.8vw,14px)}
+#polarisTVWall .tvMetric{padding:clamp(9px,1vw,18px);display:flex;flex-direction:column;justify-content:center;min-height:clamp(75px,11vh,132px)}
+#polarisTVWall .tvMetricLabel{font-size:clamp(9px,.77vw,14px);letter-spacing:.04em;color:#9bdaf2;font-weight:820;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#polarisTVWall .tvMetricValue{font-size:clamp(22px,2.4vw,43px);font-weight:850;line-height:1.2;margin:6px 0;color:#e8faff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#polarisTVWall .tvMetricNote{font-size:clamp(9px,.76vw,14px);color:#90b9d0;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+#polarisTVWall .tvBottom{padding:clamp(10px,1.2vw,19px);min-height:0;display:flex;flex-direction:column}
+#polarisTVWall .tvTitleRow{display:flex;justify-content:space-between;gap:9px;align-items:center;font-size:clamp(10px,.95vw,16px);letter-spacing:.07em;font-weight:850;color:#90ddf8;margin-bottom:8px}
+#polarisTVWall .tvInfoList{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;min-height:0;flex:1}
+#polarisTVWall .tvInfo{border:1px solid #346b8b66;border-radius:10px;background:#0a2840b6;padding:clamp(8px,.75vw,14px);min-height:0;overflow:hidden}
+#polarisTVWall .tvInfo strong{display:block;font-size:clamp(10px,1vw,17px);font-weight:800;color:#f0fbff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#polarisTVWall .tvInfo p{font-size:clamp(10px,.94vw,16px);line-height:1.4;color:#a6d0e4;margin:5px 0 0;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+#polarisTVWall .tvRight{display:grid;grid-template-rows:minmax(0,1.06fr) minmax(0,.94fr);gap:clamp(8px,.9vh,14px);min-height:0}
+#polarisTVWall .tvQueue,#polarisTVWall .tvDetails{padding:clamp(10px,1.1vw,19px);display:flex;flex-direction:column;min-height:0}
+#polarisTVWall .tvQueue.waiting{border-color:#eeb96c;box-shadow:0 0 30px #e5a94824}
+#polarisTVWall .tvQueueTitle{display:flex;justify-content:space-between;align-items:center;gap:6px}
+#polarisTVWall .tvQueueCount{display:grid;place-items:center;min-width:31px;height:28px;padding:0 8px;background:#19536f;color:#c6f8ff;border-radius:30px;font-weight:850}
+#polarisTVWall .tvQueue.waiting .tvQueueCount{background:#e2a65d;color:#1b2233}
+#polarisTVWall .tvStatusLine{font-size:clamp(10px,.9vw,15px);color:#a4c0d0;margin:7px 0 10px}
+#polarisTVWall .tvQueueItems{display:flex;flex-direction:column;gap:8px;min-height:0;flex:1;overflow:hidden}
+#polarisTVWall .tvRequest{border:1px solid #41677f;background:#0a283e;border-radius:10px;padding:9px 11px;min-height:0;overflow:hidden}
+#polarisTVWall .tvRequest strong{font-size:clamp(11px,1.05vw,18px);display:block}
+#polarisTVWall .tvRequest p{font-size:clamp(10px,.88vw,16px);line-height:1.33;margin:4px 0 5px;color:#c0d9e5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+#polarisTVWall .tvRequestAction{display:flex;gap:7px;margin-top:5px;align-items:center}
+#polarisTVWall .tvApproveBtn,#polarisTVWall .tvRejectBtn{border-radius:8px;border:1px solid #4b9da7;padding:7px 12px;color:#e7fdff;background:#075f65}
+#polarisTVWall .tvRejectBtn{background:#223449;color:#c5d9ea;border-color:#43627c}
+#polarisTVWall .tvEmpty{display:flex;align-items:center;justify-content:center;flex:1;color:#99cad7;font-size:clamp(13px,1.15vw,21px);line-height:1.5;text-align:center;min-height:0}
+#polarisTVWall .tvDetailsList{flex:1;min-height:0;display:flex;flex-direction:column;gap:8px;overflow:hidden}
+#polarisTVWall .tvDetail{background:#0a283e;padding:clamp(9px,1vw,15px);border-radius:9px;border:1px solid #305975;flex:1;min-height:0;overflow:hidden}
+#polarisTVWall .tvDetail strong{font-size:clamp(10px,.98vw,17px);display:block;color:#ebfaff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#polarisTVWall .tvDetail p{font-size:clamp(11px,.95vw,17px);color:#9fcadf;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;margin:4px 0 0}
+#polarisTVWall .tvFooter{min-height:0;display:flex;align-items:center;justify-content:space-between;gap:12px;color:#8bb9d2;font-size:clamp(9px,.83vw,14px);padding:0 4px;white-space:nowrap}
+#polarisTVWall .tvFootLeft{display:flex;align-items:center;gap:10px;flex:1}
+#polarisTVWall .tvFootRight{display:flex;align-items:center;gap:9px}
+#polarisTVWall .tvProgressTrack{height:5px;background:#153951;border-radius:7px;overflow:hidden;min-width:55px;flex:1;max-width:190px}
+#polarisTVWall #tvProgressFill{height:100%;background:#49e4c3;width:0;transition:width .5s}
+#polarisTVWall .tvBadgeOld{color:#ffd089}
+#polarisTVWall .tvLast{font-weight:750;white-space:nowrap;max-width:35vw;overflow:hidden;text-overflow:ellipsis}
+@media(max-width:980px){#polarisTVWall .tvCore{width:80px;height:80px}#polarisTVWall .tvHero{grid-template-columns:minmax(0,1fr) 80px}#polarisTVWall .tvTop{gap:5px}#polarisTVWall .tvBrand{letter-spacing:.09em}#polarisTVWall .tvTag:nth-child(2){display:none}#polarisTVWall .tvMetrics{gap:6px}#polarisTVWall .tvMetric{padding:8px}#polarisTVWall .tvLayout{grid-template-columns:minmax(0,1.45fr) minmax(255px,.95fr)}}
+@media(max-height:650px){body.tv-mode #polarisTVWall{gap:7px;padding:8px 11px}#polarisTVWall .tvTop{padding-bottom:5px}#polarisTVWall .tvHero h1{font-size:clamp(21px,2.4vw,34px);margin:5px 0}#polarisTVWall .tvHero p{-webkit-line-clamp:2}#polarisTVWall .tvCore{width:75px;height:75px}#polarisTVWall .tvMetric{min-height:68px}#polarisTVWall .tvMetricValue{font-size:clamp(19px,2vw,30px);margin:3px 0}#polarisTVWall .tvInfo p{-webkit-line-clamp:2}#polarisTVWall .tvRight{grid-template-rows:minmax(0,1.15fr) minmax(0,.85fr)}}
+@media(max-width:650px){#polarisTVWall .tvLayout{grid-template-columns:minmax(0,1fr) minmax(195px,.9fr)}#polarisTVWall .tvCore{display:none}#polarisTVWall .tvHero{grid-template-columns:1fr}#polarisTVWall .tvMetricNote{display:none}#polarisTVWall .tvInfoList{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){#polarisTVWall .tvCore:before{animation:none}}
+</style>
+<section id="polarisTVWall" aria-label="Polaris automatic television monitoring view">
+<header class="tvTop"><div class="tvBrand"><span class="tvMark" aria-hidden="true">✦</span><span>POLARIS</span></div><div class="tvTopRight"><span id="tvNet" class="tvTag tvLive">● CONNECTING</span><span class="tvTag">LIVE DISPLAY · TV MODE</span><button type="button" id="tvFullScreen" class="tvIconBtn" title="Fullscreen TV view">⛶ FULLSCREEN</button><button type="button" id="tvExit" class="tvIconBtn" title="Use classic display layout">CLASSIC</button></div></header>
+<div class="tvLayout">
+<section class="tvLeft" aria-label="Current Polaris result">
+<article class="tvSurface tvHero"><div><div class="tvKicker"><span id="tvProject">NORTH STAR VENTURES</span> · <span id="tvStage">WAITING FOR AN UPDATE</span></div><h1 id="tvTitle">POLARIS · READY</h1><p id="tvSubtitle">Your project and activity updates will appear here automatically.</p></div><div class="tvCore" aria-hidden="true"><b>✦</b></div></article>
+<div class="tvMetrics" id="tvMetrics" aria-label="Verified project metrics"><div class="tvMetric tvSurface"><div class="tvMetricLabel">DISPLAY</div><div class="tvMetricValue">READY</div><div class="tvMetricNote">Waiting for verified data</div></div></div>
+<article class="tvSurface tvBottom"><div class="tvTitleRow"><span id="tvHighlightsTitle">PROJECT HIGHLIGHTS</span><span id="tvCycle">AUTO ROTATE</span></div><div id="tvHighlights" class="tvInfoList"><div class="tvInfo"><strong>Ready</strong><p>Your latest verified project information will display here.</p></div></div></article>
+</section>
+<aside class="tvRight"><section id="tvQueue" class="tvSurface tvQueue" aria-label="Pending website approvals"><div class="tvQueueTitle"><span class="tvKicker">✦ WEBSITE CHANGE REQUESTS</span><span id="tvApprovalCount" class="tvQueueCount">0</span></div><p id="tvApprovalSummary" class="tvStatusLine">Checking requests…</p><div id="tvApprovalItems" class="tvQueueItems"><div class="tvEmpty">Checking for approvals…</div></div></section>
+<section class="tvSurface tvDetails" aria-label="Additional verified update details"><div class="tvTitleRow"><span>VERIFIED ACTIVITY</span><span id="tvActivityPage">LATEST</span></div><div id="tvDetailItems" class="tvDetailsList"><div class="tvEmpty">Waiting for project activity</div></div></section>
+</aside></div>
+<footer class="tvFooter"><div class="tvFootLeft"><span id="tvVerified" class="tvLast">Waiting for last verified update</span><span class="tvProgressTrack"><span id="tvProgressFill" style="display:block"></span></span><span id="tvProgressLabel"></span></div><div class="tvFootRight"><span id="tvPoll">SYNCING</span><span id="tvClock"></span></div></footer>
+</section>
+<script>(function(){'use strict';
+const wall=document.getElementById('polarisTVWall');if(!wall)return;
+const el=id=>document.getElementById(id);
+const param=new URLSearchParams(location.search).get('tv');
+const override=(()=>{try{return localStorage.getItem('polaris.display.tv.mode')}catch{return null}})();
+const looksLandscape=window.innerWidth>=850&&window.innerWidth/window.innerHeight>=1.24;
+const tvUA=/SmartTV|Tizen|Web0S|WebOS|Roku|HbbTV|Android TV|GoogleTV|CrKey|BRAVIA|AFTM|AFTT/i.test(navigator.userAgent);
+const enabled=param==='1'||(param!=='0'&&override!=='off'&&(override==='on'||tvUA||looksLandscape));
+function setMode(on){document.body.classList.toggle('tv-mode',!!on);try{localStorage.setItem('polaris.display.tv.mode',on?'on':'off')}catch{}}
+if(!enabled){wall.remove();return}document.body.classList.add('tv-mode');
+if(param==='1'||param==='0')try{localStorage.setItem('polaris.display.tv.mode',param==='1'?'on':'off')}catch{}
+el('tvExit').onclick=()=>{setMode(false);location.replace('/display?tv=0')};
+el('tvFullScreen').onclick=()=>{if(document.fullscreenElement){document.exitFullscreen?.()}else document.documentElement.requestFullscreen?.().catch(()=>{})};
+const str=(v,limit=220)=>String(v==null?'':v).slice(0,limit);
+const formatDate=v=>{const d=new Date(v);return isNaN(d)?'Unknown':new Intl.DateTimeFormat('en-CA',{timeZone:'America/Edmonton',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',hour12:true}).format(d)};
+function ageLabel(value){const n=Date.parse(value);if(!Number.isFinite(n))return 'Time unverified';const ms=Math.max(0,Date.now()-n);if(ms<90000)return 'Just updated';if(ms<3600000)return Math.round(ms/60000)+' min ago';if(ms<86400000)return Math.round(ms/3600000)+' hr ago';return Math.floor(ms/86400000)+' days ago'}
+let revision=null,lastUpdate=null,insights=[],details=[],lastItemsKey='',lastRevisionAt=0,insightIndex=0,detailIndex=0,knownChanges=-1,requests=[],changesOK=false,updateOK=false;
+const addCard=(className,parent,title,description)=>{const card=document.createElement('div');card.className=className;const h=document.createElement('strong');h.textContent=str(title,130);const p=document.createElement('p');p.textContent=str(description,380);card.append(h,p);parent.append(card);return card};
+function carouselData(){
+ const list=el('tvHighlights'),extra=el('tvDetailItems');list.replaceChildren();extra.replaceChildren();
+ const a=insights.length?insights:[{title:'No items supplied',detail:'The latest update did not include project highlights'}];
+ const b=details.length?details:[{title:'Waiting for activity',detail:'Verified details will appear when Polaris sends an update'}];
+ for(let i=0;i<Math.min(2,a.length);i++){const item=a[(insightIndex+i)%a.length];addCard('tvInfo',list,item.title||item.label||'PROJECT DETAIL',item.detail||item.description||item.value||'')}
+ for(let i=0;i<Math.min(2,b.length);i++){const item=b[(detailIndex+i)%b.length];addCard('tvDetail',extra,item.title||item.label||'VERIFIED ACTIVITY',item.detail||item.description||item.value||'')}
+ el('tvCycle').textContent=insights.length>2?'ROTATING '+(insightIndex+1)+'/'+insights.length:'LATEST';
+ el('tvActivityPage').textContent=details.length>2?'ROTATING '+(detailIndex+1)+'/'+details.length:'LATEST';
+}
+function renderMetrics(p){
+ const metrics=(Array.isArray(p.metrics)?p.metrics:[]).slice(0,4),target=el('tvMetrics');target.replaceChildren();
+ if(!metrics.length)metrics.push({label:'STATUS',value:p.progress?.stage||'READY',note:'No verified metrics supplied'});
+ for(const item of metrics){const card=document.createElement('div');card.className='tvMetric tvSurface';for(const [className,value] of [['tvMetricLabel',item.label],['tvMetricValue',item.value],['tvMetricNote',item.note]]){const node=document.createElement('div');node.className=className;node.textContent=str(value,130);node.title=str(value,250);card.append(node)}target.append(card)}
+}
+function getItems(arr){return Array.isArray(arr)?arr.filter(x=>x&&typeof x==='object').slice(0,18):[]}
+function renderDisplay(state){
+ if(!state||typeof state!=='object')return;
+ updateOK=true;
+ if(revision===state.revision)return;
+ revision=state.revision;lastUpdate=state.updated_at||null;lastRevisionAt=Date.now();
+ let p={};try{p=typeof state.payload==='string'?JSON.parse(state.payload||'{}'):state.payload||{}}catch{}
+ el('tvProject').textContent=str(state.project||'POLARIS',50).toUpperCase();
+ el('tvTitle').textContent=str(state.title||'POLARIS · READY',140);
+ el('tvSubtitle').textContent=str(state.subtitle||'Waiting for a new request',480);
+ const progress=p.progress||{},stage=str(progress.message||progress.label||'VERIFIED UPDATE',65);
+ el('tvStage').textContent=stage.toUpperCase();
+ const percent=Number(progress.percent);el('tvProgressFill').style.width=Number.isFinite(percent)?Math.max(0,Math.min(100,percent))+'%':'0%';
+ el('tvProgressLabel').textContent=Number.isFinite(percent)?Math.round(percent)+'%':'';renderMetrics(p);
+ insights=getItems(p.items||p.priorities);details=getItems(p.details||p.highlights);
+ if(state.view==='portfolio'&&Array.isArray(p.projects)&&p.projects.length){insights=getItems(p.projects).map(x=>({title:x.name||x.project||'Project',detail:x.description||x.note||x.summary||''}));}
+ insightIndex=0;detailIndex=0;carouselData();
+}
+function refreshAge(){
+ if(!lastUpdate)return;
+ const age=Date.now()-Date.parse(lastUpdate);
+ el('tvVerified').textContent='LAST VERIFIED '+formatDate(lastUpdate)+' · '+ageLabel(lastUpdate).toUpperCase();
+ el('tvVerified').classList.toggle('tvBadgeOld',age>86400000);
+ const net=el('tvNet');net.textContent=updateOK?'● '+(age>86400000?'HISTORICAL SNAPSHOT':'CONNECTED'):'● RECONNECTING';
+ net.className='tvTag '+(updateOK&&age<=86400000?'tvLive':'tvQuiet');
+}
+async function pollDisplay(){
+ try{const r=await fetch('/api/display-state',{credentials:'same-origin',cache:'no-store'});if(!r.ok)throw Error('Display unavailable');const j=await r.json();renderDisplay(j.state);updateOK=true}
+ catch(e){updateOK=false}refreshAge()
+}
+function wrapNewApprovals(){
+ const count=requests.filter(x=>x.status==='requested').length,queue=el('tvQueue');queue.classList.toggle('waiting',count>0);el('tvApprovalCount').textContent=String(count);
+ el('tvApprovalSummary').textContent=!changesOK?'Reconnecting to approval queue…':count?count+' request'+(count===1?' needs':'s need')+' your approval':requests.some(x=>x.status==='approved_for_preparation')?'Approved changes are awaiting preparation':'No approvals waiting · watching automatically';
+ const target=el('tvApprovalItems');target.replaceChildren();
+ const show=requests.filter(x=>x.status==='requested');
+ const chosen=show.length?show:requests.filter(x=>['approved_for_preparation','preparing','prepared','draft_pr'].includes(x.status)).slice(0,2);
+ if(!chosen.length){const div=document.createElement('div');div.className='tvEmpty';div.textContent='✓ Nothing needs your approval';target.append(div);return}
+ for(const item of chosen.slice(0,2)){
+  const row=addCard('tvRequest',target,item.project||'Project request',item.request_text||'');
+  if(item.status==='requested'){
+   const controls=document.createElement('div');controls.className='tvRequestAction';
+   const approve=document.createElement('button');approve.textContent='✓ APPROVE DRAFT';approve.className='tvApproveBtn';
+   const reject=document.createElement('button');reject.textContent='REJECT';reject.className='tvRejectBtn';
+   const take=async decision=>{
+    const msg=decision==='approve'?'Approve preparing this change as a draft? No live website will be changed.':'Reject this change request?';
+    if(!window.confirm(msg))return;
+    approve.disabled=reject.disabled=true;el('tvPoll').textContent='SAVING DECISION…';
+    try{const r=await fetch('/api/github-app/changes/decision',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json','x-polaris-action':'1'},body:JSON.stringify({id:item.id,decision})}),j=await r.json();if(!r.ok||!j.ok)throw Error(j.error||'Approval unsuccessful');await pollRequests()}
+    catch(e){alert(e.message);approve.disabled=reject.disabled=false}
+   };
+   approve.onclick=()=>take('approve');reject.onclick=()=>take('reject');controls.append(approve,reject);row.append(controls);
+  }else{const status=document.createElement('div');status.className='tvStatusLine';status.textContent=item.status==='draft_pr'?'Draft pull request ready to review':'Approved for preparation · not deployed';row.append(status)}
+ }
+ if(show.length>2){const more=document.createElement('span');more.className='tvStatusLine';more.textContent='+'+(show.length-2)+' additional requests · rotates on next update';target.append(more)}
+}
+async function pollRequests(){
+ try{const r=await fetch('/api/github-app/changes',{credentials:'same-origin',cache:'no-store'});if(!r.ok)throw Error('No approval data');const j=await r.json();requests=Array.isArray(j.items)?j.items:[];changesOK=true;knownChanges=requests.length}
+ catch(e){changesOK=false}wrapNewApprovals()
+}
+function tick(){
+ el('tvClock').textContent=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Edmonton',weekday:'short',hour:'numeric',minute:'2-digit',hour12:true}).format(new Date()).toUpperCase();
+ el('tvPoll').textContent=updateOK&&changesOK?'● AUTO UPDATING':'● RETRYING SOURCES';refreshAge()
+}
+let pollTimer=null;async function pollAll(){await Promise.all([pollDisplay(),pollRequests()]);tick()}
+pollAll();tick();
+pollTimer=setInterval(()=>{if(!document.hidden)pollAll()},4500);
+setInterval(()=>{if(!document.hidden){insightIndex+=2;detailIndex+=2;carouselData()}},9500);
+setInterval(tick,15000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)pollAll()});
+window.addEventListener('pagehide',()=>{clearInterval(pollTimer)});
+})();</script>
