@@ -66,6 +66,20 @@ async function onRealtimeEvent(event){
     transcript("System","Callback requested for "+minutes+" minutes from now.");
     continue;
    }
+   if(part.name==="queue_change_request"){
+    let args={};try{args=JSON.parse(part.arguments||"{}")}catch{}
+    status("Saving website change request…");
+    let message;
+    try{const saved=await post("/api/companion/voice/change-request",{project:args.project,instructions:args.instructions});message="Saved your request for "+saved.project+". Review it in Polaris's Changes page. I haven't modified the website."}
+    catch(e){message="I couldn't save that website change request: "+e.message}
+    if(dc?.readyState==="open"){
+     dc.send(JSON.stringify({type:"conversation.item.create",item:{type:"function_call_output",call_id:part.call_id,output:message}}));
+     dc.send(JSON.stringify({type:"response.create"}));
+    }
+    transcript("System",message);
+    status("Connected • listening");
+    continue;
+   }
    if(part.name!=="ask_polaris")continue;
    let question="";
    try{question=JSON.parse(part.arguments||"{}").question||""}catch{}
