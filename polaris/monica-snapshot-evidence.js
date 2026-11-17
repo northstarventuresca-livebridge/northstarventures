@@ -3,7 +3,7 @@ function pmWorkQuestion(raw,project){
  if(/\b(?:hoh|home of hope|tapbin|livebridge|songwriters|compass|great church|northstar)\b/i.test(text))return null;
  const query=/\b(?:what|which|how|tell|show|list|summari[sz]e|summary|recap|review|report|give me|what's)\b/i.test(text);
  if(!query)return null;
- const journal=/\b(?:journal|time (?:entry|entries|journal)|work(?:ed|ing)?|accomplish(?:ed|ments)?|got done|did today|did this week|finished|unfinished|outstanding|pending|still to do|left to do|completed|renovation)\b/i.test(text);
+ const journal=/\b(?:journal|time (?:entry|entries|journal)|work(?:ed|ing)?|accomplish(?:ed|ments)?|got done|get done|did today|did this week|finished|unfinished|outstanding|pending|still to do|left to do|completed|renovation)\b/i.test(text);
  if(!journal)return null;
  const hasSpecific=/\b(?:monica|house|project|journal|time entr|renovation|done|unfinished|outstanding|left to do|i (?:do|did|get|got|work))\b/i.test(text);
  if(!hasSpecific&&!/^(?:what did i|get me a summary)/i.test(text))return null;
