@@ -55,7 +55,7 @@ async function paGithubInstallationToken(env,repository,permission="read"){
  if(cached && cached.expires>Date.now()+90_000) return cached.data;
  const install=await paGithubAppApi(env,"/repos/"+encodeURIComponent(info.owner)+"/"+encodeURIComponent(info.name)+"/installation");
  if(!install?.id||install.account?.login!==info.owner)throw new Error("Polaris has not been installed on this repository");
- const rights={contents:permission==="write"?"write":"read",pull_requests:permission==="write"?"write":"read"};
+ const rights={contents:permission==="write"?"write":"read",pull_requests:permission==="write"?"write":"read",actions:"read"};
  const session=await paGithubAppApi(env,"/app/installations/"+install.id+"/access_tokens","POST",
    {repositories:[info.name],permissions:rights});
  if(typeof session.token!=="string"||session.token.length<30)throw new Error("GitHub did not return a valid installation token");
