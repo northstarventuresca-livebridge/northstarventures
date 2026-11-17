@@ -161,7 +161,7 @@ public final class Companion extends Activity {
    if(event.equals("morning")&&kind.equals("bring"))relevant=SmartContext.morning(c)&&due.equals(today());
    if((event.equals("home")||event.equals("jobsite"))&&kind.equals("bring"))relevant=SmartContext.due(row,today());
    if(event.equals("store")&&kind.equals("store")&&!store.isEmpty()){
-    String a=store.toLowerCase(Locale.ROOT),b=place.toLowerCase(Locale.ROOT);relevant=a.contains(b)||b.contains(a);
+    String a=store.toLowerCase(Locale.ROOT),b=place.toLowerCase(Locale.ROOT);relevant=(due.isEmpty()||due.compareTo(today())<=0)&&(a.contains(b)||b.contains(a));
    }
    if(event.equals("storage")){
     String a=(store+" "+row.optString("context")+" "+row.optString("item")).toLowerCase(Locale.ROOT);
@@ -269,7 +269,7 @@ public final class Companion extends Activity {
    else {AlarmManager alarm=(AlarmManager)getSystemService(Context.ALARM_SERVICE);
     if(alarm!=null)alarm.cancel(PendingIntent.getBroadcast(this,2,new Intent(this,MorningReceiver.class),PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE));}
   });
-  text("Quiet 9 PM–8 AM • Max two proactive prompts daily • No access to texts or cameras.",12);
+  text("Quiet 9 PM–7 AM • Max two proactive prompts daily • No access to texts or cameras.",12);
   text("Saved places (only on this phone)",17);
   List<Place> list=places(this);
   if(list.isEmpty())text("No places yet. Set these when you are physically at each place.",12);
