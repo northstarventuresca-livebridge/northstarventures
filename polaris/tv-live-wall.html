@@ -78,9 +78,29 @@ body.tv-mode #polarisTVWall{display:grid;grid-template-rows:auto minmax(0,1fr) a
 #polarisTVWall .tvBriefFlag{color:#91e8ef;font-size:clamp(8px,.7vw,12px);text-transform:uppercase;letter-spacing:.08em;font-weight:730;margin-bottom:4px}
 @media(max-height:700px){#polarisTVWall .tvBriefPoint{padding:5px 7px}#polarisTVWall .tvBriefPoint p{-webkit-line-clamp:1}#polarisTVWall .tvBriefFlag{margin-bottom:1px}}
 
+
+/* QR shortcuts: direct phone access to full details and verified project sites */
+#polarisTVWall .tvRight{grid-template-rows:minmax(74px,.34fr) minmax(0,1.23fr) minmax(116px,.61fr)}
+#polarisTVWall .tvRight.has-approvals{grid-template-rows:minmax(0,.95fr) minmax(0,.8fr) minmax(114px,.55fr)}
+#polarisTVWall .tvQRPanel{padding:clamp(7px,.8vw,14px);min-height:0;display:flex;flex-direction:column;justify-content:center}
+#polarisTVWall .tvQRRow{display:flex;align-items:center;gap:clamp(13px,1vw,21px);justify-content:space-evenly;flex:1;min-height:0}
+#polarisTVWall .tvQRLink{display:flex;align-items:center;gap:clamp(8px,.85vw,15px);color:#e5faff;text-decoration:none;min-width:0;max-width:48%;flex:1}
+#polarisTVWall .tvQRIcon{background:#fff;padding:5px;border-radius:7px;flex-shrink:0}
+#polarisTVWall .tvQRIcon svg{display:block;width:clamp(64px,7vw,115px);height:auto;max-height:14vh}
+#polarisTVWall .tvQRLink strong{display:block;font-size:clamp(11px,1vw,18px);line-height:1.25;font-weight:850}
+#polarisTVWall .tvQRLink small{font-size:clamp(9px,.76vw,13px);color:#93d7e3;display:block;margin-top:4px}
+#polarisTVWall .tvQRStatus{color:#9ecbdf;font-size:clamp(8px,.78vw,13px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:5px}
+#polarisTVWall .tvQRLink[hidden]{display:none}
+#polarisTVWall .tvSiteActive .tvQRIcon{box-shadow:0 0 12px #6af7d298}
+@media(max-height:700px){
+ #polarisTVWall .tvRight{grid-template-rows:minmax(60px,.25fr) minmax(0,1.24fr) minmax(96px,.57fr)}
+ #polarisTVWall .tvRight.has-approvals{grid-template-rows:minmax(0,.95fr) minmax(0,.8fr) minmax(96px,.55fr)}
+ #polarisTVWall .tvQRIcon svg{width:clamp(53px,5.6vw,87px)}
+}
+
 </style>
 <section id="polarisTVWall" aria-label="Polaris automatic television monitoring view">
-<header class="tvTop"><div class="tvBrand"><span class="tvMark" aria-hidden="true">✦</span><span>POLARIS</span></div><div class="tvTopRight"><span id="tvNet" class="tvTag tvLive">● CONNECTING</span><span class="tvTag">LIVE DISPLAY · TV MODE</span><button type="button" id="tvFullScreen" class="tvIconBtn" title="Fullscreen TV view">⛶ FULLSCREEN</button><button type="button" id="tvExit" class="tvIconBtn" title="Use classic display layout">CLASSIC</button></div></header>
+<header class="tvTop"><div class="tvBrand"><span class="tvMark" aria-hidden="true">✦</span><span>POLARIS</span></div><div class="tvTopRight"><span id="tvNet" class="tvTag tvLive">● CONNECTING</span><span class="tvTag">LIVE DISPLAY · TV MODE</span><button type="button" id="tvArmSiteTab" class="tvIconBtn" title="Enable a separate website tab for voice commands">▣ SITE TAB</button><button type="button" id="tvFullScreen" class="tvIconBtn" title="Fullscreen TV view">⛶ FULLSCREEN</button><button type="button" id="tvExit" class="tvIconBtn" title="Use classic display layout">CLASSIC</button></div></header>
 <div class="tvLayout">
 <section id="tvLeft" class="tvLeft" aria-label="Current Polaris result">
 <article class="tvSurface tvHero"><div><div class="tvKicker"><span id="tvProject">NORTH STAR VENTURES</span> · <span id="tvStage">WAITING FOR AN UPDATE</span></div><h1 id="tvTitle">POLARIS · READY</h1><p id="tvSubtitle">Your project and activity updates will appear here automatically.</p></div><div class="tvCore" aria-hidden="true"><b>✦</b></div></article>
@@ -89,9 +109,16 @@ body.tv-mode #polarisTVWall{display:grid;grid-template-rows:auto minmax(0,1fr) a
 </section>
 <aside class="tvRight"><section id="tvQueue" class="tvSurface tvQueue" aria-label="Pending website approvals"><div class="tvQueueTitle"><span class="tvKicker">✦ WEBSITE CHANGE REQUESTS</span><span id="tvApprovalCount" class="tvQueueCount">0</span></div><p id="tvApprovalSummary" class="tvStatusLine">Checking requests…</p><div id="tvApprovalItems" class="tvQueueItems"><div class="tvEmpty">Checking for approvals…</div></div></section>
 <section class="tvSurface tvDetails" aria-label="Additional verified update details"><div class="tvTitleRow"><span>VERIFIED ACTIVITY</span><span id="tvActivityPage">LATEST</span></div><div id="tvDetailItems" class="tvDetailsList"><div class="tvEmpty">Waiting for project activity</div></div></section>
+<section class="tvSurface tvQRPanel" aria-label="Scan for full details or project website">
+ <div class="tvQRRow">
+  <a class="tvQRLink" id="tvDetailsQR" href="/details" target="_blank" rel="noopener noreferrer"><span id="tvDetailsQRIcon" class="tvQRIcon" aria-hidden="true"></span><span><strong>MORE DETAILS</strong><small>Scan on phone</small></span></a>
+  <a class="tvQRLink" id="tvSiteQR" href="#" target="_blank" rel="noopener noreferrer" hidden><span id="tvSiteQRIcon" class="tvQRIcon" aria-hidden="true"></span><span><strong>VIEW SITE</strong><small id="tvSiteQRLabel">Scan for website</small></span></a>
+ </div><div class="tvQRStatus" id="tvQRStatus">Shortcuts are ready.</div>
+ </section>
 </aside></div>
 <footer class="tvFooter"><div class="tvFootLeft"><span id="tvVerified" class="tvLast">Waiting for last verified update</span><span class="tvProgressTrack"><span id="tvProgressFill" style="display:block"></span></span><span id="tvProgressLabel"></span></div><div class="tvFootRight"><span id="tvPoll">SYNCING</span><span id="tvClock"></span></div></footer>
 </section>
+<script src="/tv-qr.js"></script>
 <script>(function(){'use strict';
 const wall=document.getElementById('polarisTVWall');if(!wall)return;
 const el=id=>document.getElementById(id);
@@ -102,12 +129,80 @@ const tvUA=/SmartTV|Tizen|Web0S|WebOS|Roku|HbbTV|Android TV|GoogleTV|CrKey|BRAVI
 const enabled=param==='1'||(param!=='0'&&override!=='off'&&(override==='on'||tvUA||looksLandscape));
 function setMode(on){document.body.classList.toggle('tv-mode',!!on);try{localStorage.setItem('polaris.display.tv.mode',on?'on':'off')}catch{}}
 if(!enabled){wall.remove();return}document.body.classList.add('tv-mode');
+// This TV is now a visual-only companion. Never narrate/replay or activate its mic.
+try{pvEnabled=false;pvStop(true);pvMicStop();if(typeof pvUI==='function')pvUI()}catch(e){}
+try{localStorage.setItem('polaris.display.voice.enabled','off')}catch(e){}
 if(param==='1'||param==='0')try{localStorage.setItem('polaris.display.tv.mode',param==='1'?'on':'off')}catch{}
 el('tvExit').onclick=()=>{setMode(false);location.replace('/display?tv=0')};
+
+const verifiedWebsiteHosts=new Set(["monicas-house.rwyers.workers.dev","livebridge.ca","tapbin.ca",
+ "greatchurch.ca","healingtheheart.ca","compass.northstarventures.ca","hohs.northstarventures.ca",
+ "northstarventures.ca","polaris.northstarventures.ca"]);
+function safeWebsite(url){
+ try{const u=new URL(url);return u.protocol==='https:'&&verifiedWebsiteHosts.has(u.hostname)&&
+  u.username===''&&u.password===''?u.href:null}catch{return null}
+}
+function makeQr(parent,url){
+ parent.replaceChildren();
+ try{
+  const text=String(url||'');
+  if(typeof polarisQrSvg!=='function'||new TextEncoder().encode(text).length>133)throw Error('QR not ready');
+  parent.innerHTML=polarisQrSvg(text);
+ }catch{
+  const fallback=document.createElement('span');fallback.textContent='OPEN';fallback.style.color='#132c46';parent.append(fallback);
+ }
+}
+function renderShortcuts(){
+ const more=el('tvDetailsQR'),site=el('tvSiteQR');
+ const detailsUrl='https://polaris.northstarventures.ca/details'+(revision!=null?'?rev='+encodeURIComponent(revision):'');
+ more.href=detailsUrl;makeQr(el('tvDetailsQRIcon'),detailsUrl);
+ const url=safeWebsite(websiteCommandUrl||projectSiteUrl);
+ site.hidden=!url;
+ if(url){site.href=url;makeQr(el('tvSiteQRIcon'),url);
+  el('tvSiteQRLabel').textContent=websiteCommandUrl?'Open '+(websiteCommandProject||'site'):'Scan on phone'}
+}
+el('tvArmSiteTab').onclick=()=>{
+ try{
+  if(websiteTab&&!websiteTab.closed){websiteTab.focus();return}
+  websiteTab=window.open('about:blank','polarisProjectWebsite');
+  if(!websiteTab){el('tvQRStatus').textContent='Popup blocked — QR still works.';return}
+  try{
+   websiteTab.document.write('<!doctype html><title>Polaris Site Tab</title><body style="background:#081b2b;color:#9fe6ef;font:24px system-ui;padding:50px">✦ Polaris is ready. Return to the Live Display and ask the phone to show a website.</body>');
+   websiteTab.document.close();
+  }catch{}
+  el('tvArmSiteTab').textContent='▣ TAB READY';
+  el('tvQRStatus').textContent='Website tab enabled for voice commands.';
+  websiteTab.blur();window.focus();
+ }catch{el('tvQRStatus').textContent='Site tab unavailable; scan QR instead.'}
+};
+async function pollWebsiteCommand(){
+ try{
+  const r=await fetch('/api/tv/website-command',{credentials:'same-origin',cache:'no-store'});
+  if(!r.ok)return;
+  const response=await r.json(),cmd=response.command||null;
+  if(!websiteInitialized){
+   websiteInitialized=true;lastSiteCommandId=cmd?.id||null;
+   return;
+  }
+  if(!cmd||cmd.id===lastSiteCommandId)return;
+  lastSiteCommandId=cmd.id;
+  const url=safeWebsite(cmd.url);
+  if(!url)return;
+  websiteCommandUrl=url;websiteCommandProject=String(cmd.project||'').slice(0,60);
+  el('tvQRStatus').textContent='Website ready: '+websiteCommandProject+' · scan QR or select View Site.';
+  renderShortcuts();
+  if(websiteTab&&!websiteTab.closed){
+   try{websiteTab.location.href=url;el('tvQRStatus').textContent='Opened '+websiteCommandProject+' in the prepared site tab.'}
+   catch{el('tvQRStatus').textContent='Please scan the website QR — browser blocked the tab.'}
+  }
+ }catch{}
+}
+
 el('tvFullScreen').onclick=()=>{if(document.fullscreenElement){document.exitFullscreen?.()}else document.documentElement.requestFullscreen?.().catch(()=>{})};
 const str=(v,limit=220)=>String(v==null?'':v).slice(0,limit);
 const formatDate=v=>{const d=new Date(v);return isNaN(d)?'Unknown':new Intl.DateTimeFormat('en-CA',{timeZone:'America/Edmonton',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',hour12:true}).format(d)};
 function ageLabel(value){const n=Date.parse(value);if(!Number.isFinite(n))return 'Time unverified';const ms=Math.max(0,Date.now()-n);if(ms<90000)return 'Just updated';if(ms<3600000)return Math.round(ms/60000)+' min ago';if(ms<86400000)return Math.round(ms/3600000)+' hr ago';return Math.floor(ms/86400000)+' days ago'}
+let websiteTab=null,lastSiteCommandId=null,websiteInitialized=false,websiteCommandUrl=null,websiteCommandProject=null,projectSiteUrl=null;
 let brief=null,revision=null,lastUpdate=null,insights=[],details=[],lastItemsKey='',lastRevisionAt=0,insightIndex=0,detailIndex=0,approvalIndex=0,approvalSignature='',knownChanges=-1,requests=[],changesOK=false,updateOK=false;
 const addCard=(className,parent,title,description)=>{const card=document.createElement('div');card.className=className;const h=document.createElement('strong');h.textContent=str(title,130);const p=document.createElement('p');p.textContent=str(description,380);card.append(h,p);parent.append(card);return card};
 function carouselData(){
@@ -158,6 +253,7 @@ function renderDisplay(state){
  updateOK=true;
  if(revision===state.revision)return;
  revision=state.revision;lastUpdate=state.updated_at||null;lastRevisionAt=Date.now();
+ websiteCommandUrl=null;websiteCommandProject=null;
  let p={};try{p=typeof state.payload==='string'?JSON.parse(state.payload||'{}'):state.payload||{}}catch{}
  el('tvProject').textContent=str(state.project||'POLARIS',50).toUpperCase();
  el('tvTitle').textContent=str(state.title||'POLARIS · READY',140);
@@ -166,6 +262,7 @@ function renderDisplay(state){
  el('tvStage').textContent=stage.toUpperCase();
  const percent=Number(progress.percent);el('tvProgressFill').style.width=Number.isFinite(percent)?Math.max(0,Math.min(100,percent))+'%':'0%';
  el('tvProgressLabel').textContent=Number.isFinite(percent)?Math.round(percent)+'%':'';renderMetrics(p);
+ projectSiteUrl=safeWebsite(p.siteUrl);renderShortcuts();
  brief=p.brief&&Array.isArray(p.brief.points)&&p.brief.points.length?p.brief:null;
  el('tvLeft').classList.toggle('is-brief',!!brief);
  insights=getItems(p.items||p.priorities);details=getItems(p.details||p.highlights);
@@ -218,7 +315,7 @@ function tick(){
  el('tvClock').textContent=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Edmonton',weekday:'short',hour:'numeric',minute:'2-digit',hour12:true}).format(new Date()).toUpperCase();
  el('tvPoll').textContent=updateOK&&changesOK?'● AUTO UPDATING':'● RETRYING SOURCES';refreshAge()
 }
-let pollTimer=null;async function pollAll(){await Promise.all([pollDisplay(),pollRequests()]);tick()}
+let pollTimer=null;async function pollAll(){await Promise.all([pollDisplay(),pollRequests(),pollWebsiteCommand()]);tick()}
 pollAll();tick();
 pollTimer=setInterval(()=>{if(!document.hidden)pollAll()},4500);
 setInterval(()=>{if(!document.hidden){insightIndex+=2;detailIndex+=2;approvalIndex+=2;carouselData();wrapNewApprovals()}},9500);
