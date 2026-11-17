@@ -102,7 +102,7 @@ async function pgDiscoveryInspectRepo(env,repo,terms){
  return {repo,base,branches:matches,commits,branchesExamined:branches.length,incomplete};
 }
 async function pgDiscoveryInspectBranch(env,repo,base,branch,terms){
- const suffix=encodeURIComponent(base)+"..."+branch.split("/").map(encodeURIComponent).join("%2F");
+ const suffix=encodeURIComponent(base)+"..."+branch.split("/").map(encodeURIComponent).join("/");
  const [comparison,ci]=await Promise.allSettled([
   paGithubRepoRequest(env,repo,"/compare/"+suffix),
   paGithubRepoRequest(env,repo,"/actions/runs?branch="+encodeURIComponent(branch)+"&per_page=5")
