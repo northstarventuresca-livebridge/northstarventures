@@ -1,0 +1,38 @@
+<style>
+#polarisTvQrButton{width:100%;margin-top:13px;background:linear-gradient(110deg,#126d69,#1763a0);color:white;font:800 13px system-ui;border:1px solid #56bce8;border-radius:11px;padding:14px;cursor:pointer}
+#polarisTvQrPanel{display:none;margin:12px auto 0;border-radius:14px;padding:15px;background:#071f32;border:1px solid #388bac;color:#e8f8ff;text-align:center}
+#polarisTvQrPanel svg{width:min(220px,100%);height:auto;display:block;margin:12px auto;border:7px solid white;border-radius:8px}
+#polarisTvQrPanel .code{letter-spacing:.28em;font:800 24px system-ui;color:#96f8da;margin:8px}
+#polarisTvQrPanel p{font:12px/1.5 system-ui;margin:8px 0;color:#b9d9e8}
+#polarisTvQrPanel a{color:#85e4fb;word-wrap:break-word}
+</style><script src="/tv-qr.js"></script>
+<script>(function(){'use strict';
+const card=document.querySelector('main.card')||document.querySelector('.card');if(!card||!window.fetch)return;
+const button=document.createElement('button');button.type='button';button.id='polarisTvQrButton';button.textContent='📱 UNLOCK WITH PHONE · QR CODE';
+const panel=document.createElement('div');panel.id='polarisTvQrPanel';
+const title=document.createElement('div'),code=document.createElement('div'),qr=document.createElement('div'),msg=document.createElement('p'),fallback=document.createElement('a');
+title.textContent='SCAN WITH YOUR PHONE';code.className='code';msg.textContent='Your phone will ask for its passkey. Match the code on both screens before approving.';
+fallback.target='_blank';fallback.rel='noopener';fallback.textContent='Open approval link manually';
+panel.append(title,qr,code,msg,fallback);card.append(button,panel);
+let polling=null,expiry=0;
+async function post(path,data){const r=await fetch(path,{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify(data)}),j=await r.json();if(!r.ok)throw Error(j.error||'Pairing unavailable');return j}
+const stop=()=>{if(polling){clearInterval(polling);polling=null}};
+async function poll(id,target){
+ if(Date.now()>expiry){stop();msg.textContent='QR expired. Click the QR button again to refresh.';button.disabled=false;return}
+ try{const result=await post('/api/device-signin/poll',{id});
+  if(result.status==='authenticated'){stop();msg.textContent='Phone approved. Unlocking this screen…';location.replace(result.target||target);return}
+  if(result.status!=='pending'){stop();msg.textContent='Pairing is no longer available. Try again.';button.disabled=false}
+ }catch(e){if(Date.now()>expiry){stop();msg.textContent='Pairing expired. Try again.';button.disabled=false}}
+}
+button.onclick=async()=>{stop();panel.style.display='block';qr.textContent='Creating secure QR code…';code.textContent='';fallback.hidden=true;msg.textContent='Preparing phone approval…';button.disabled=true;
+ try{const target=['/','/command','/display','/assistant'].includes(location.pathname)?location.pathname:'/';
+ const result=await post('/api/device-signin/start',{target});
+ qr.innerHTML=polarisQrSvg(result.approveUrl);code.textContent=result.verifyCode;
+ fallback.href=result.approveUrl;fallback.hidden=false;
+ msg.textContent='Scan the QR with your phone. Confirm '+result.verifyCode+' appears on your phone, then approve using your passkey. Expires in 5 minutes.';
+ expiry=Date.now()+result.expiresIn*1000;
+ polling=setInterval(()=>poll(result.id,target),2500);poll(result.id,target);
+ }catch(e){qr.textContent='';msg.textContent=e.message;button.disabled=false}
+};
+window.addEventListener('pagehide',stop);
+})();</script>
