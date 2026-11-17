@@ -7,6 +7,27 @@ function pcVoiceReply(value,status=200){
 }
 async function pcVoiceApi(request,env,url){
  const path=url.pathname;
+ if(path==="/api/companion/voice/speak"){
+  if(request.method!=="POST")return pcVoiceReply({error:"POST required"},405);
+  const device=await pcDevice(request,env);
+  if(!device)return pcVoiceReply({error:"Polaris phone pairing required"},401);
+  if(!env.AI)return pcVoiceReply({error:"Draco voice service is unavailable"},503);
+  let data;try{const raw=await request.text();if(raw.length>1100)throw Error("Too much text");data=JSON.parse(raw)}catch{return pcVoiceReply({error:"Invalid speech request"},400)}
+  const text=String(data?.text||"").trim().slice(0,550);
+  if(text.length<1||text.length>500)return pcVoiceReply({error:"Speech text must be 1–500 characters"},400);
+  try{
+   const session=await env.POLARIS_DB.prepare("SELECT id FROM polaris_voice_sessions WHERE device_id=? AND created_at>? LIMIT 1")
+    .bind(device.id,new Date(Date.now()-6*3600000).toISOString()).first();
+   if(!session)return pcVoiceReply({error:"Start a Polaris phone conversation first"},401);
+   const result=await env.AI.run("@cf/deepgram/aura-2-en",{speaker:"draco",encoding:"mp3",text},{returnRawResponse:true});
+   const body=result instanceof Response?(result.ok?result.body:null):result;
+   if(!body)return pcVoiceReply({error:"Draco voice synthesis temporarily unavailable"},503);
+   return new Response(body,{status:200,headers:{"content-type":"audio/mpeg","cache-control":"private, no-store","x-content-type-options":"nosniff","x-polaris-voice":"aura-2-draco"}});
+  }catch(e){
+   console.error("Polaris Draco TTS unavailable",String(e?.name||"error").slice(0,45));
+   return pcVoiceReply({error:"Draco voice synthesis temporarily unavailable"},503);
+  }
+ }
  if(path==="/api/companion/voice/session"||path==="/api/companion/voice/ask"){
   if(request.method!=="POST")return pcVoiceReply({error:"POST required"},405);
   const device=await pcDevice(request,env);
@@ -19,7 +40,7 @@ async function pcVoiceApi(request,env,url){
    if((past?.n||0)>=24)return pcVoiceReply({error:"Daily voice session limit reached (24)."},429);
    const instructions=[
     "You are Polaris, the same named personal-assistant persona used in Polaris's project dashboard and chat.",
-    "Talk naturally and concisely, with warm British conversational phrasing. You are NOT the ChatGPT app session; do not claim to inherit its private connected-app permissions.",
+    "Talk naturally and concisely, with warm British conversational phrasing. You generate TEXT only and the Polaris client renders that text using its selected British Draco voice at 1.25x speed; never narrate technical voice details. You are NOT the ChatGPT app session; do not claim to inherit its private connected-app permissions.",
     "You are in a live audio conversation with the owner. Listen, let the owner interrupt, and respond conversationally.",
     "For ANY factual question about the owner's real projects, plans, shopping notes, saved reminders, Github/Cloudflare files or past work, ALWAYS use ask_polaris BEFORE answering.",
     "When calling ask_polaris, pass the owner's actual words as closely as possible. Do not rewrite as 'the owner asked' or invent search instructions: the question itself is the query.",
@@ -37,8 +58,8 @@ async function pcVoiceApi(request,env,url){
    ].join("\n");
    const data={
     expires_after:{anchor:"created_at",seconds:90},
-    session:{type:"realtime",model:PC_VOICE_MODEL,instructions,
-     audio:{output:{voice:"cedar"},input:{turn_detection:{type:"server_vad",create_response:true,interrupt_response:true}}},
+    session:{type:"realtime",model:PC_VOICE_MODEL,instructions,output_modalities:["text"],
+     audio:{input:{turn_detection:{type:"server_vad",create_response:true,interrupt_response:true}}},
      tools:[{type:"function",name:"ask_polaris",
       description:"Search verified Polaris project knowledge, Monaco renovation journal snapshots, authorized live GitHub code/commits and personal memory. Pass the user's original question verbatim; do not paraphrase or wrap it as 'the owner asked'. Use for any factual question about their projects, tasks, repositories, Cloudflare, or history. Results are source-scoped, and unavailable connections must not be invented.",
       parameters:{type:"object",properties:{question:{type:"string",description:"User's precise request or question, retaining relevant detail."}},required:["question"],additionalProperties:false}},
