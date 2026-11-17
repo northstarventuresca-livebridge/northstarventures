@@ -34,6 +34,74 @@ button.primary{background:#64e0be;border:0;color:#052b39}button.hang{background:
 "use strict";
 (()=>{
 let token="",peer=null,dc=null,microphone=null,connected=false,muted=false,starting=false,callClosed=false;
+const dracoAudio=new Audio();
+dracoAudio.preload="auto";
+dracoAudio.preservesPitch=true;
+let speechQueue=[],speechBuffer="",speechBusy=false,speechEpoch=0,currentSpeechFetch=null,activeSpeechResolve=null,responseHadTextDelta=false,generatedAnswer="";
+const DRACO_SPEED=1.25;
+function stopDraco(){
+ speechEpoch++;speechQueue=[];speechBuffer="";generatedAnswer="";
+ if(currentSpeechFetch){currentSpeechFetch.abort();currentSpeechFetch=null}
+ dracoAudio.pause();dracoAudio.removeAttribute("src");dracoAudio.load();
+ if(activeSpeechResolve){const done=activeSpeechResolve;activeSpeechResolve=null;done()}
+}
+function enqueueDraco(text){
+ const clean=String(text||"").replace(/[*#_]/g,"").replace(/\s+/g," ").trim();
+ if(!clean)return;
+ speechQueue.push(clean);
+ void playDraco();
+}
+function flushSpeech(final=false){
+ while(speechBuffer.trim()){
+  const m=speechBuffer.match(/^([\s\S]*?[.!?](?=\s|$))\s*/);
+  if(m){enqueueDraco(m[1]);speechBuffer=speechBuffer.slice(m[0].length);continue;}
+  if(speechBuffer.length>185){
+   const upto=speechBuffer.lastIndexOf(" ",175),cut=upto>85?upto:175;
+   enqueueDraco(speechBuffer.slice(0,cut));speechBuffer=speechBuffer.slice(cut).trimStart();continue;
+  }
+  if(final){enqueueDraco(speechBuffer);speechBuffer="";}
+  break;
+ }
+}
+async function playDraco(){
+ if(speechBusy)return;
+ speechBusy=true;
+ try{
+  while(speechQueue.length&&connected){
+   const text=speechQueue.shift(),epoch=speechEpoch,controller=new AbortController();
+   currentSpeechFetch=controller;
+   let src=null;
+   try{
+    const response=await fetch("/api/companion/voice/speak",{
+     method:"POST",cache:"no-store",headers:{"content-type":"application/json","authorization":"Bearer "+token},
+     body:JSON.stringify({text}),signal:controller.signal
+    });
+    if(!response.ok)throw Error("Draco audio temporarily unavailable ("+response.status+")");
+    const blob=await response.blob();
+    if(epoch!==speechEpoch||!connected)continue;
+    src=URL.createObjectURL(blob);
+    dracoAudio.src=src;dracoAudio.playbackRate=DRACO_SPEED;dracoAudio.preservesPitch=true;
+    status("Polaris • speaking in Draco");
+    await new Promise(resolve=>{
+     let settled=false;
+     const done=()=>{if(settled)return;settled=true;dracoAudio.onended=null;dracoAudio.onerror=null;activeSpeechResolve=null;resolve()};
+     activeSpeechResolve=done;dracoAudio.onended=done;dracoAudio.onerror=done;
+     dracoAudio.play().catch(e=>{if(epoch===speechEpoch)status("Tap the screen once to enable Polaris audio.");done()});
+    });
+   }catch(e){
+    if(epoch===speechEpoch&&e?.name!=="AbortError")status("Draco voice temporarily unavailable; transcript is still shown.");
+   }finally{
+    if(currentSpeechFetch===controller)currentSpeechFetch=null;
+    if(src)URL.revokeObjectURL(src);
+   }
+  }
+ }finally{
+  speechBusy=false;
+  if(connected&&speechQueue.length){void playDraco()}
+  else if(connected&&speechQueue.length===0)status(muted?"Microphone muted":"Connected • listening");
+ }
+}
+
 const $=id=>document.getElementById(id);
 function status(s){$("status").textContent=s}
 function transcript(role,text){
@@ -49,10 +117,28 @@ async function post(path,data){
  return body;
 }
 async function onRealtimeEvent(event){
+ if(event.type==="input_audio_buffer.speech_started"){
+  stopDraco();status("Listening • you can interrupt Polaris");return;
+ }
+ if(event.type==="response.created"){responseHadTextDelta=false;generatedAnswer="";return}
+ if(event.type==="response.output_text.delta"&&typeof event.delta==="string"){
+  responseHadTextDelta=true;generatedAnswer+=event.delta;speechBuffer+=event.delta;
+  flushSpeech(false);return;
+ }
+ if(event.type==="response.output_text.done"){
+  if(!responseHadTextDelta&&typeof event.text==="string"){speechBuffer+=event.text;generatedAnswer=event.text}
+  flushSpeech(true);return;
+ }
  if(event.type==="error"){const msg=event.error?.message||"Voice connection reported an error";status(msg.slice(0,200));return}
  if(event.type==="conversation.item.input_audio_transcription.completed"){transcript("You",event.transcript);return}
  if(event.type==="response.output_audio_transcript.done"){transcript("Polaris",event.transcript);return}
  if(event.type==="response.done"){
+  if(!responseHadTextDelta&&!generatedAnswer){
+   const finalText=(event.response?.output||[]).flatMap(o=>(o.content||[]).filter(c=>c.type==="output_text").map(c=>c.text||"")).join(" ").trim();
+   if(finalText){speechBuffer+=finalText;generatedAnswer=finalText}
+  }
+  flushSpeech(true);
+  if(generatedAnswer.trim())transcript("Polaris",generatedAnswer.trim());
   for(const part of event.response?.output||[]){
    if(part.type!=="function_call")continue;
    if(part.name==="schedule_callback"){
@@ -143,6 +229,7 @@ async function start(){
  finally{starting=false}
 }
 function stop(finished=true){
+ stopDraco();
  if(dc){try{dc.close()}catch{}dc=null}
  if(peer){try{peer.close()}catch{}peer=null}
  if(microphone){microphone.getTracks().forEach(t=>t.stop());microphone=null}
