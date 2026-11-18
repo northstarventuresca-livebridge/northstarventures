@@ -7,7 +7,7 @@ on:
       - ".github/workflows/polaris-context-android.yml"
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
 jobs:
   android-apk:
     runs-on: ubuntu-latest
@@ -35,6 +35,16 @@ jobs:
           test -s polaris-context-android/app/build/outputs/apk/debug/app-debug.apk
           $ANDROID_HOME/build-tools/35.0.0/aapt dump badging polaris-context-android/app/build/outputs/apk/debug/app-debug.apk | head -4
           $ANDROID_HOME/build-tools/35.0.0/apksigner verify --verbose polaris-context-android/app/build/outputs/apk/debug/app-debug.apk
+      - name: Publish signed beta APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp polaris-context-android/app/build/outputs/apk/debug/app-debug.apk /tmp/Polaris-Context-GPS-v1-beta.apk
+          gh release create polaris-context-gps-v1-beta /tmp/Polaris-Context-GPS-v1-beta.apk \
+            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --title "Polaris Context GPS (Beta)" \
+            --notes "Background GPS and device context recorder for Polaris. Installs alongside the existing Polaris voice app. Pair from Polaris > Memory before starting." \
+            --prerelease
       - uses: actions/upload-artifact@v4
         with:
           name: Polaris-Context-GPS-v1
