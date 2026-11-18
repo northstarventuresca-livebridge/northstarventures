@@ -1,0 +1,39 @@
+name: Polaris Android GPS Collector Build
+on:
+  push:
+    branches: [feature/polaris-context-collector-android]
+    paths:
+      - "polaris-context-android/**"
+      - ".github/workflows/polaris-context-android.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  android-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - name: Install Android SDK
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+      - name: Assemble signed debug APK
+        working-directory: polaris-context-android
+        run: gradle --no-daemon --stacktrace assembleDebug
+      - name: Check APK and app package
+        run: |
+          test -s polaris-context-android/app/build/outputs/apk/debug/app-debug.apk
+          $ANDROID_HOME/build-tools/35.0.0/aapt dump badging polaris-context-android/app/build/outputs/apk/debug/app-debug.apk | head -4
+          $ANDROID_HOME/build-tools/35.0.0/apksigner verify --verbose polaris-context-android/app/build/outputs/apk/debug/app-debug.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Polaris-Context-GPS-v1
+          path: polaris-context-android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
