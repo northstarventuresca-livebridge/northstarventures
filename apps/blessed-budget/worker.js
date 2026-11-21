@@ -96,7 +96,7 @@ async function route(req,env,u,url){
  }
  if(p==="/api/auth/signup"&&method==="POST"){
   const b=await bodyJSON(req),mail=email(b.email),pass=String(b.password||"");
-  const setup=mail==="northstarventures.ca@gmail.com";
+  const setup=mail==="rwyers@gmail.com";
   if(setup){
    if(!env.OWNER_SETUP_CODE||String(b.setup_code||"")!==env.OWNER_SETUP_CODE)return bad("Administrator setup code required",403);
    if(await db.prepare("SELECT 1 ok FROM users WHERE role='owner'").first())return bad("Owner account already created",409);
