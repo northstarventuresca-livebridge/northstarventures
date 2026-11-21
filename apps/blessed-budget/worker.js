@@ -81,7 +81,7 @@ async function getDashboard(db,u,h,period,anchor) {
 }
 function normAI(out){const t=typeof out==="string"?out:(out.response||out.result?.response||JSON.stringify(out));const match=t.match(/\{[\s\S]*\}/);if(!match)throw Error("Could not read details from image. Please enter manually.");return JSON.parse(match[0])}
 async function scanPhoto(env,bytes,mime,type,categories){
- const b64=Array.from(bytes,(b)=>String.fromCharCode(b)).join("");
+ let b64="";for(let i=0;i<bytes.length;i+=32768)b64+=String.fromCharCode(...bytes.subarray(i,i+32768));
  const image="data:"+mime+";base64,"+btoa(b64);
  const instructions=type==="income"?"Read this pay stub. Return JSON ONLY: {\"source\":\"employer\", \"gross\":0, \"net\":0, \"date\":\"YYYY-MM-DD\"}. Gross is pre-deduction pay and net is take-home pay. Use only clearly readable numbers.":"Read this purchase receipt. Return JSON ONLY: {\"merchant\":\"store\", \"total\":0, \"date\":\"YYYY-MM-DD\", \"category\":\"exact available category name\", \"items\":[{\"name\":\"item\", \"qty\":1, \"price\":0}]}. Total includes tax, items price as shown. Available categories: "+categories.map(x=>x.name).join(", ")+". If category uncertain use Other. No invented data.";
  const response=await env.AI.run("@cf/meta/llama-3.2-11b-vision-instruct",{messages:[{role:"system",content:"Read financial documents carefully. Output only valid JSON. Never guess unreadable amounts."},{role:"user",content:instructions}],image,max_tokens:1100,temperature:0});
@@ -147,6 +147,22 @@ async function route(req,env,u,url){
   const h=await addHouse(db,uid,clean(b.household,90)||clean(b.name,90)+" budget",u.id);
   await audit(db,u,h,"admin_created_user",mail);
   return J({ok:true,id:uid,household_id:h});
+ }
+ if(p==="/api/admin/reset-password"&&method==="POST"){
+  if(u.role==="user")return bad("Admin only",403);
+  const b=await bodyJSON(req);
+  const target=await db.prepare("SELECT id,role,created_by FROM users WHERE id=?").bind(b.user_id).first();
+  if(!target||target.role==="owner"||target.id===u.id)return bad("This password cannot be reset here",403);
+  if(u.role!=="owner"&&target.created_by!==u.id)return bad("Only accounts you created can be reset by you",403);
+  const pass=String(b.password||"");
+  if(pass.length<10||!/[A-Za-z]/.test(pass)||!/[0-9]/.test(pass))return bad("Password needs 10+ characters, letters and numbers");
+  const salt=randomString(),hash=await passwordHash(pass,salt);
+  await db.batch([
+   db.prepare("UPDATE users SET salt=?,password_hash=?,must_change=1 WHERE id=?").bind(salt,hash,target.id),
+   db.prepare("DELETE FROM sessions WHERE user_id=?").bind(target.id)
+  ]);
+  await audit(db,u,null,"password_reset",target.id);
+  return J({ok:true});
  }
  if(p==="/api/admin/role"&&method==="POST"){
   if(u.role!=="owner")return bad("Owner only",403);
