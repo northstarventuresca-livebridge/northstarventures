@@ -79,12 +79,12 @@ async function getDashboard(db,u,h,period,anchor) {
  ]);
  return {house,range:{start,end,period,scale},income:incomes.results,expenses:expenses.results,categories:categories.results,giving:giving.results,members:members.results};
 }
-function normAI(out){const t=typeof out==="string"?out:(out.response||out.result?.response||JSON.stringify(out));const match=t.match(/\{[\s\S]*\}/);if(!match)throw Error("Could not read details from image. Please enter manually.");return JSON.parse(match[0])}
+function normAI(out){const t=typeof out==="string"?out:(out.answer||out.response||out.result?.answer||out.result?.response||JSON.stringify(out));const match=t.match(/\{[\s\S]*\}/);if(!match)throw Error("Could not read details from image. Please enter manually.");return JSON.parse(match[0])}
 async function scanPhoto(env,bytes,mime,type,categories){
  let b64="";for(let i=0;i<bytes.length;i+=32768)b64+=String.fromCharCode(...bytes.subarray(i,i+32768));
  const image="data:"+mime+";base64,"+btoa(b64);
  const instructions=type==="income"?"Read this pay stub. Return JSON ONLY: {\"source\":\"employer\", \"gross\":0, \"net\":0, \"date\":\"YYYY-MM-DD\"}. Gross is pre-deduction pay and net is take-home pay. Use only clearly readable numbers.":"Read this purchase receipt. Return JSON ONLY: {\"merchant\":\"store\", \"total\":0, \"date\":\"YYYY-MM-DD\", \"category\":\"exact available category name\", \"items\":[{\"name\":\"item\", \"qty\":1, \"price\":0}]}. Total includes tax, items price as shown. Available categories: "+categories.map(x=>x.name).join(", ")+". If category uncertain use Other. No invented data.";
- const response=await env.AI.run("@cf/meta/llama-3.2-11b-vision-instruct",{messages:[{role:"system",content:"Read financial documents carefully. Output only valid JSON. Never guess unreadable amounts."},{role:"user",content:instructions}],image,max_tokens:1100,temperature:0});
+ const response=await env.AI.run("@cf/moondream/moondream3.1-9B-A2B",{task:"query",image,question:instructions,max_tokens:1200,reasoning:false,temperature:0});
  return normAI(response);
 }
 async function bodyJSON(req){try{return await req.json()}catch{throw Error("Invalid request body")}}
