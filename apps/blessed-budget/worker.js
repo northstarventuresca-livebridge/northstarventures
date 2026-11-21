@@ -96,9 +96,13 @@ async function route(req,env,u,url){
  }
  if(p==="/api/auth/signup"&&method==="POST"){
   const b=await bodyJSON(req),mail=email(b.email),pass=String(b.password||"");
-  if(mail==="northstarventures.ca@gmail.com")return bad("This address belongs to the administrator. Please use your existing login.",403);
+  const setup=mail==="northstarventures.ca@gmail.com";
+  if(setup){
+   if(!env.OWNER_SETUP_CODE||String(b.setup_code||"")!==env.OWNER_SETUP_CODE)return bad("Administrator setup code required",403);
+   if(await db.prepare("SELECT 1 ok FROM users WHERE role='owner'").first())return bad("Owner account already created",409);
+  }
   if(await db.prepare("SELECT 1 ok FROM users WHERE email=?").bind(mail).first())return bad("Email already registered",409);
-  const uid=await addAccount(db,mail,pass,b.name,null);
+  const uid=await addAccount(db,mail,pass,b.name,null,setup?"owner":"user");
   const h=await addHouse(db,uid,(clean(b.name,70)||"My")+" household",uid);
   await audit(db,{id:uid},h,"signup");
   return J({ok:true},200,{"set-cookie":await session(db,uid)});
