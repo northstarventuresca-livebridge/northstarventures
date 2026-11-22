@@ -91,7 +91,7 @@ async function bodyJSON(req){try{return await req.json()}catch{throw Error("Inva
 async function route(req,env,u,url){
  const db=env.DB,p=url.pathname,method=req.method;
  if(p==="/api/me"&&method==="GET"){
-  if(!u)return J({user:null});
+  if(!u)return J({user:null,owner_setup_pending:!(await db.prepare("SELECT 1 ok FROM users WHERE role='owner'").first())});
   return J({user:u,households:await households(db,u)});
  }
  if(p==="/api/auth/signup"&&method==="POST"){
@@ -112,6 +112,16 @@ async function route(req,env,u,url){
   const lock=await db.prepare("SELECT attempts,window_start FROM login_limits WHERE email=?").bind(mail).first();
   if(lock&&lock.attempts>=8&&now()-lock.window_start<900)return bad("Too many attempts. Try again after 15 minutes.",429);
   const user=await db.prepare("SELECT * FROM users WHERE email=?").bind(mail).first();
+  if(!user&&mail==="rwyers@gmail.com"&&String(b.setup_code||"")){
+   if(!env.OWNER_SETUP_CODE||String(b.setup_code)!==env.OWNER_SETUP_CODE)return bad("Administrator setup code is incorrect",403);
+   if(await db.prepare("SELECT 1 ok FROM users WHERE role='owner'").first())return bad("Administrator account has already been initialized",409);
+   const uid=await addAccount(db,mail,pass,"NorthStar Administrator",null,"owner");
+   const householdId=await addHouse(db,uid,"My Blessed Budget",uid);
+   await db.prepare("DELETE FROM login_limits WHERE email=?").bind(mail).run();
+   await audit(db,{id:uid},householdId,"owner_initialized_at_login");
+   return J({ok:true,created_owner:true},200,{"set-cookie":await session(db,uid)});
+  }
+  if(!user&&mail==="rwyers@gmail.com")return bad("Your administrator account is not created yet. Enter the administrator setup code with your new password to create it.",401);
   const good=user?((await passwordHash(pass,user.salt))===user.password_hash):false;
   if(!good){
    await db.prepare("INSERT INTO login_limits(email,attempts,window_start) VALUES(?,1,?) ON CONFLICT(email) DO UPDATE SET attempts=CASE WHEN ?-window_start>900 THEN 1 ELSE attempts+1 END,window_start=CASE WHEN ?-window_start>900 THEN ? ELSE window_start END").bind(mail,now(),now(),now(),now()).run();
