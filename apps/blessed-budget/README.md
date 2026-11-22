@@ -26,6 +26,17 @@ Cloudflare Worker: `blessed-budget` on the NSV account
 
 **Before the first owner account can be registered**, the Cloudflare Worker requires a secret binding named `OWNER_SETUP_CODE`. Set a unique one-time setup code in the Cloudflare dashboard and use it when registering `rwyers@gmail.com`. The first login or signup using that address with the correct setup code and a new strong password creates the global owner account and its household. Once the owner is enrolled, later logins require only email and password; the setup code is no longer needed. Do not commit the code to GitHub or include it in public client code.
 
+## Installed app and device authentication
+
+- Installable PWA at the production hostname with a manifest, Android/native install prompt where supported, and a manual **Add to Home Screen** guide for iPhone Safari
+- Generated BLESSED launcher icons (180px, 192px, 512px) are stored in private R2 under `app/icons/` and served by the Worker at `/icons/icon-*.png`
+- Service worker is **network-only** for budget data. It does not cache financial records offline
+- Authentication sessions use an HttpOnly, Secure, SameSite=Strict cookie with a 90-day maximum age, so installed apps normally stay signed in
+- Optional WebAuthn ES256 passkeys for device user verification (Face ID / Touch ID / Android fingerprint or phone PIN). User must sign in with a password first, then enable a passkey in Settings after re-entering their password
+- Device-auth login uses one-time D1 challenges, origin/RP verification, authenticator UV/UP flags, ECDSA signature verification, and sign counter checks. Passkeys can be individually revoked
+- The global owner administrator has a dedicated Administration panel to change other users\' temporary passwords. Admin reset invalidates all sessions and deletes saved passkeys for the target. Mentors may reset passwords only for accounts they created
+- iOS Home Screen installation requires Safari Share → Add to Home Screen; Apple does not expose an automatic install prompt to websites
+
 ## Security and operations
 
 Receipts and paystubs are private R2 objects accessible only through authenticated household-specific API routes. Budgets are scoped by access checks on every operation. Pending reviews are never automatically approved. Admin role assignments and viewing grants are owner-controlled. Password reset invalidates sessions.
