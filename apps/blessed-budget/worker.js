@@ -1,10 +1,12 @@
 import { HTML } from "./ui.js";
+import { passkeyRoute } from "./passkeys.js";
 
 const PRESETS=[
 ["Housing","house"],["Rent / Mortgage","house"],["Property Tax","house"],["Home Insurance","shield"],["Car Insurance","car"],["Health / Life Insurance","shield"],["Electricity","zap"],["Natural Gas / Heat","flame"],["Water / Sewer","droplets"],["Garbage / Recycling","trash"],["Cell Phone","smartphone"],["Internet","wifi"],["Streaming Services","play"],["Subscriptions","repeat"],["Groceries","basket"],["Restaurants / Coffee","coffee"],["Fuel","fuel"],["Car Payments","car"],["Vehicle Maintenance","wrench"],["Public Transit","bus"],["Clothing","shirt"],["Household Supplies","package"],["Medical / Dental","heart"],["Childcare / School","book"],["Gifts","gift"],["Entertainment","sparkles"],["Travel / Vacation","plane"],["Debt Payments","credit"],["Emergency Fund","piggy"],["Savings","piggy"],["Pets","paw"],["Charity / Other Giving","heart"],["Other","wallet"]];
 const GIVE=[["tithe",10],["offering",0],["firstfruits",2.5],["poor",3.33],["future",6.7]];
 const ID=()=>crypto.randomUUID();
 const now=()=>Math.floor(Date.now()/1000);
+const SESSION_MAX_AGE=90*24*60*60;
 const J=(x,status=200,headers={})=>new Response(JSON.stringify(x),{status,headers:{"content-type":"application/json; charset=utf-8","cache-control":"no-store","x-content-type-options":"nosniff",...headers}});
 const bad=(message,status=400)=>J({error:message},status);
 const cents=v=>{const n=Number(v);if(!Number.isFinite(n)||n<0||n>1e9)throw Error("Invalid amount");return Math.round(n*100)};
@@ -35,8 +37,8 @@ async function addHouse(db,user,name,creator) {
 }
 async function session(db,user) {
  const token=randomString(),hash=await sha(token);
- await db.prepare("INSERT INTO sessions(token_hash,user_id,expires_at) VALUES(?,?,?)").bind(hash,user,now()+2592000).run();
- return "__Host-bless_session="+token+"; Path=/; Secure; HttpOnly; SameSite=Strict; Max-Age=2592000";
+ await db.prepare("INSERT INTO sessions(token_hash,user_id,expires_at) VALUES(?,?,?)").bind(hash,user,now()+SESSION_MAX_AGE).run();
+ return "__Host-bless_session="+token+"; Path=/; Secure; HttpOnly; SameSite=Strict; Max-Age="+SESSION_MAX_AGE;
 }
 async function actor(req,db) {
  const match=(req.headers.get("cookie")||"").match(/(?:^|;\s*)__Host-bless_session=([a-f0-9]{48})/);
@@ -135,6 +137,7 @@ async function route(req,env,u,url){
   if(m)await db.prepare("DELETE FROM sessions WHERE token_hash=?").bind(await sha(m[1])).run();
   return J({ok:true},200,{"set-cookie":"__Host-bless_session=; Path=/; Secure; HttpOnly; SameSite=Strict; Max-Age=0"});
  }
+ if(p.startsWith("/api/passkeys/"))return passkeyRoute(req,env,u,url,{session,passwordHash,audit});
  if(!u)return bad("Please sign in",401);
  if(p==="/api/auth/change-password"&&method==="POST"){
   const b=await bodyJSON(req),old=await db.prepare("SELECT salt,password_hash FROM users WHERE id=?").bind(u.id).first();
@@ -173,7 +176,8 @@ async function route(req,env,u,url){
   const salt=randomString(),hash=await passwordHash(pass,salt);
   await db.batch([
    db.prepare("UPDATE users SET salt=?,password_hash=?,must_change=1 WHERE id=?").bind(salt,hash,target.id),
-   db.prepare("DELETE FROM sessions WHERE user_id=?").bind(target.id)
+   db.prepare("DELETE FROM sessions WHERE user_id=?").bind(target.id),
+   db.prepare("DELETE FROM passkeys WHERE user_id=?").bind(target.id)
   ]);
   await audit(db,u,null,"password_reset",target.id);
   return J({ok:true});
@@ -317,6 +321,26 @@ export default {
  async fetch(req,env) {
   try{
    const url=new URL(req.url),method=req.method;
+   if(method==="GET"&&url.pathname==="/manifest.webmanifest"){
+    return new Response(JSON.stringify({
+     id:"/",name:"Blessed — Budget with Purpose",short_name:"BLESSED",
+     description:"Steward faithfully. Give joyfully. Budget with purpose.",
+     start_url:"/",scope:"/",display:"standalone",background_color:"#0b1225",theme_color:"#7254e7",
+     lang:"en-CA",categories:["finance","lifestyle"],
+     icons:[{src:"/icons/icon-192.png",sizes:"192x192",type:"image/png",purpose:"any maskable"},
+            {src:"/icons/icon-512.png",sizes:"512x512",type:"image/png",purpose:"any maskable"}]
+    }),{headers:{"content-type":"application/manifest+json; charset=utf-8","cache-control":"public, max-age=600","x-content-type-options":"nosniff"}});
+   }
+   if(method==="GET"&&url.pathname==="/sw.js"){
+    const sw="self.addEventListener('install',()=>self.skipWaiting());self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;const u=new URL(e.request.url);if(u.origin!==self.location.origin)return;if(u.pathname.startsWith('/api/')||u.pathname==='/receipt')return;e.respondWith(fetch(e.request));});";
+    return new Response(sw,{headers:{"content-type":"application/javascript; charset=utf-8","cache-control":"no-store","service-worker-allowed":"/","x-content-type-options":"nosniff"}});
+   }
+   if(method==="GET"&&/^\/icons\/icon-(192|512|180)\.png$/.test(url.pathname)){
+    const size=url.pathname.match(/\d+/)[0];
+    const icon=await env.RECEIPTS.get("app/icons/icon-"+size+".png");
+    if(!icon)return new Response("Icon unavailable",{status:404});
+    return new Response(icon.body,{headers:{"content-type":"image/png","cache-control":"public, max-age=604800","x-content-type-options":"nosniff"}});
+   }
    if(method==="GET"&&!url.pathname.startsWith("/api/")&&url.pathname!=="/receipt")return new Response(HTML,{headers:{"content-type":"text/html; charset=utf-8","cache-control":"no-store","x-frame-options":"DENY","x-content-type-options":"nosniff","referrer-policy":"no-referrer","content-security-policy":"default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'; frame-ancestors 'none'; form-action 'self'; base-uri 'self'"}});
    const origin=req.headers.get("Origin");
    if(method!=="GET"&&origin&&origin!==url.origin)return bad("Cross-origin request blocked",403);
