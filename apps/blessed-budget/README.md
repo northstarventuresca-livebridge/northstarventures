@@ -24,7 +24,7 @@ Cloudflare Worker: `blessed-budget` on the NSV account
 
 ## First administrator enrollment
 
-**Before the first owner account can be registered**, the Cloudflare Worker requires a secret binding named `OWNER_SETUP_CODE`. Set a unique one-time setup code in the Cloudflare dashboard and use it when registering `rwyers@gmail.com`. The first signup using that address gets the global owner role and a new household. Thereafter, owner signup is disabled. Do not commit the code to GitHub or include it in public client code.
+**Before the first owner account can be registered**, the Cloudflare Worker requires a secret binding named `OWNER_SETUP_CODE`. Set a unique one-time setup code in the Cloudflare dashboard and use it when registering `rwyers@gmail.com`. The first login or signup using that address with the correct setup code and a new strong password creates the global owner account and its household. Once the owner is enrolled, later logins require only email and password; the setup code is no longer needed. Do not commit the code to GitHub or include it in public client code.
 
 ## Security and operations
 
