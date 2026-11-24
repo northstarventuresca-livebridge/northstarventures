@@ -15,7 +15,7 @@ async function schedule(){
  let dayCol=parsed[head].findIndex(c=>/^sunday$/i.test(c.text));
  let free=parsed.flat().find(c=>/^free$/i.test(c.text))?.color,unavailable=parsed.flat().find(c=>/^unavailable$/i.test(c.text))?.color;
  if(!free||!unavailable||free===unavailable)throw Error("Schedule legend not recognized");
- let slots=[];for(const row of parsed.slice(head+1)){let time=row[dayCol-1]?.text;if(!time||!/^\d{1,2}(?::\d{2})?\s*[-–]\s*\d{1,2}/.test(time))continue;let states=DAYS.map((_,i)=>{let c=row[dayCol+i];if(!c)return"unknown";if(c.color===unavailable)return"unavailable";if(c.color===free&&!c.text)return"free";if(c.text)return"booked";return"unknown";});slots.push({time,states});}
+ let slots=[];for(const row of parsed.slice(head+1)){let time=row[dayCol-1]?.text;if(!time||!/^\d{1,2}(?::\d{2})?\s*(?:am|pm)?\s*[-–]\s*\d{1,2}/.test(time))continue;let states=DAYS.map((_,i)=>{let c=row[dayCol+i];if(!c)return"unknown";if(c.color===unavailable)return"unavailable";if(c.color===free&&!c.text)return"free";if(c.text)return"booked";return"unknown";});slots.push({time,states});}
  if(!slots.length)throw Error("No schedule rows");
  let closures=[];for(const r of parsed){const p=r.findIndex(c=>/^all day$/i.test(c.text));if(p>0&&r[p+1]?.text)closures.push({date:r[p-1].text,event:r[p+1].text});}
  return {slots,closures,waitlist:parsed.some(r=>r.some(c=>/waiting list/i.test(c.text))),updated:new Date().toISOString()};
