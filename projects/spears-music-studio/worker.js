@@ -7,10 +7,10 @@ const esc=s=>String(s).replace(/[&<>"']/g,x=>({"&":"&amp;","<":"&lt;",">":"&gt;"
 const json=(v,status=200)=>new Response(JSON.stringify(v),{status,headers:{"content-type":"application/json","cache-control":"no-store"}});
 const clean=s=>s.replace(/<[^>]*>/g,"").replace(/&nbsp;|&#160;/g," ").replace(/&amp;/g,"&").trim();
 async function schedule(){
- const res=await fetch(SHEET,{redirect:"follow",cf:{cacheTtl:60,cacheEverything:true}});if(!res.ok)throw Error("Source unavailable");
+ const res=await fetch(SHEET.replace("/pubhtml?headers=false&widget=true","/pubhtml/sheet?headers=false&gid=308389871"),{redirect:"follow",cf:{cacheTtl:60,cacheEverything:true}});if(!res.ok)throw Error("Source unavailable");
  const html=await res.text(), colors={};
  for(const m of html.matchAll(/\.s(\d+)\s*\{([^}]+)\}/g)){let color=m[2].match(/background-color\s*:\s*([^;!}]+)/i);if(color)colors["s"+m[1]]=color[1].trim().toLowerCase();}
- const parsed=[];for(const m of html.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)){const cells=[];for(const c of m[1].matchAll(/<td\b([^>]*)>([\s\S]*?)<\/td>/gi)){let cls=(c[1].match(/class=["']([^"']*)/i)||[])[1]||"";let color=(c[1].match(/background-color\s*:\s*([^;"']+)/i)||[])[1]||colors[cls.split(/\s+/).find(x=>/^s\d+$/.test(x))]||"";let span=Number((c[1].match(/colspan=["']?(\d+)/i)||[])[1]||1);cells.push({text:clean(c[2]),color:color.toLowerCase()});for(let j=1;j<span;j++)cells.push({text:"",color:color.toLowerCase()});}if(cells.length)parsed.push(cells);}
+ const parsed=[];for(const m of html.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)){const cells=[];for(const c of m[1].matchAll(/<td\b([^>]*)>([\s\S]*?)<\/td>/gi)){let cls=(c[1].match(/class=["']([^"']*)/i)||[])[1]||"";if(cls.includes("freezebar-cell"))continue;let color=(c[1].match(/background-color\s*:\s*([^;"']+)/i)||[])[1]||colors[cls.split(/\s+/).find(x=>/^s\d+$/.test(x))]||"";let span=Number((c[1].match(/colspan=["']?(\d+)/i)||[])[1]||1);cells.push({text:clean(c[2]),color:color.toLowerCase()});for(let j=1;j<span;j++)cells.push({text:"",color:color.toLowerCase()});}if(cells.length)parsed.push(cells);}
  let head=parsed.findIndex(r=>r.some(c=>/^sunday$/i.test(c.text))&&r.some(c=>/^saturday$/i.test(c.text)));if(head<0)throw Error("Schedule layout not recognized");
  let dayCol=parsed[head].findIndex(c=>/^sunday$/i.test(c.text));
  let free=parsed.flat().find(c=>/^free$/i.test(c.text))?.color,unavailable=parsed.flat().find(c=>/^unavailable$/i.test(c.text))?.color;
